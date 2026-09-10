@@ -1,2 +1,0 @@
-export const site = { name:'ASLAN MODELLING', tagline:'تنجيد • خياطة • تفصيل', whatsapp:'213558265070', instagram:'https://instagram.com/aslan_modelling', facebook:'https://facebook.com/aslan_modelling', tiktok:'https://tiktok.com/@aslan_modelling', telegram:'https://t.me/+213558265070' } as const;
-export function whatsappLink(message:string){ return `https://wa.me/${site.whatsapp}?text=${encodeURIComponent(message)}`; }
