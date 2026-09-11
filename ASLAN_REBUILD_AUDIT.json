@@ -1,0 +1,28 @@
+{
+  "project": "ASLAN MODELLING",
+  "source": "aslan_rebuild_v2/aslan-final",
+  "scope": "TODAY_SOURCE_ONLY",
+  "older_archives_merged": false,
+  "required_core_files_present": true,
+  "placeholder_occurrences": {
+    "real_ui_placeholders": true,
+    "note": "Input placeholder attributes are legitimate form UI text, not fake project files or placeholder components."
+  },
+  "dependency_install_test": "NOT_COMPLETED: npm install timed out in the sandbox",
+  "production_build_test": "NOT_RUN: dependencies were unavailable after install timeout",
+  "zip_integrity_test": "PASS",
+  "processing_changes": [
+    "Preserved today's source tree only.",
+    "Improved product filtering to derive categories from live product data.",
+    "Improved contact form validation/submission state.",
+    "Added accessibility utility classes and responsive filters.",
+    "Did not import older archives into this version."
+  ],
+  "static_checks": {
+    "required_count": 10,
+    "required_ok": true,
+    "typescript_files": 25,
+    "forbidden_client_service_role_hits": [],
+    "source_sha256": "87f885a64595daa209a9070aa9fe5e2cbb26e8a28b6021cf1498f23275a3c1c1"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "version": "2072-today-corrected-v1",
+  "scope": "Only ASLAN_MODELLING_2072_TODAY_PROCESSED_v3.zip",
+  "changes": [
+    "Next.js pinned to 15.1.0",
+    "Moved Supabase auth middleware to src/middleware.ts",
+    "Removed root proxy.ts",
+    "Added server-only /api/ai route using OPENAI_API_KEY",
+    "Connected ContactForm to AI classification and stores classification inside existing leads.metadata"
+  ],
+  "tests": {
+    "zip_integrity": "pending",
+    "typecheck": "pending",
+    "lint": "pending",
+    "build": "pending",
+    "npm_install": "pending"
+  }
+}
