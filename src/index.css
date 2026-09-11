@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --gold: #c5a059;
+  --gold-hover: #d6b36e;
+  --bg: #111417;
+  --panel: #171b1e;
+  --panel-elevated: #1e2328;
+  --text: #f5f2ea;
+  --muted: #a8abad;
+  --line: rgba(197, 160, 89, 0.2);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+    line-height: 1.8;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cairo', system-ui, sans-serif;
+  }
+  .font-latin-display {
+    font-family: 'Cinzel', Georgia, serif;
+  }
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.15;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.25;
+  }
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 3s ease-in-out infinite;
+}
