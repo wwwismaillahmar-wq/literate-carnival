@@ -1,7 +1,7 @@
 From 5679e342f19d0c40de671702d66344967ac867e8 Mon Sep 17 00:00:00 2001
 From: ASLAN Bot <bot@aslan-modelling.local>
 Date: Fri, 11 Sep 2026 09:36:51 +0000
-Subject: [PATCH 1/2] fix: restore Next.js production configuration
+Subject: [PATCH 1/4] fix: restore Next.js production configuration
 
 ---
  .env.example                                  |    6 +-

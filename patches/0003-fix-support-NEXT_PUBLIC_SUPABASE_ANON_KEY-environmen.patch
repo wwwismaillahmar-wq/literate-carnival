@@ -1,0 +1,26 @@
+From c2da2f6fdf3cb4d66fa3944b1639b5b67309f9e5 Mon Sep 17 00:00:00 2001
+From: ASLAN Bot <bot@aslan-modelling.local>
+Date: Fri, 11 Sep 2026 09:44:10 +0000
+Subject: [PATCH 3/4] fix: support NEXT_PUBLIC_SUPABASE_ANON_KEY environment
+ variable
+
+---
+ middleware.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/middleware.ts b/middleware.ts
+index 7c9f3d6..13a1c29 100644
+--- a/middleware.ts
++++ b/middleware.ts
+@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
+   let response = NextResponse.next({ request });
+ 
+   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
++  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+ 
+   // Keep the site usable even before Supabase environment variables are configured.
+   if (!supabaseUrl || !supabaseKey) {
+-- 
+2.34.1
+
