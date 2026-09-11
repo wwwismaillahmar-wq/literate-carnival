@@ -3,6 +3,6 @@ node_modules
 out
 dist
 bun.lock
-.env*
-!.env.example
+.*env
+.env.example
 .vercel
