@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { CinematicIntro } from '@/components/CinematicIntro';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -25,6 +26,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <WhatsAppButton />
+        <SpeedInsights />
       </body>
     </html>
   );
