@@ -1,0 +1,81 @@
+From 56ee2bdc8b579b0a8c1c8833d9eb72ca5e4cac52 Mon Sep 17 00:00:00 2001
+From: ASLAN Bot <bot@aslan-modelling.local>
+Date: Fri, 11 Sep 2026 09:43:17 +0000
+Subject: [PATCH 2/2] fix(env): support NEXT_PUBLIC_SUPABASE_ANON_KEY and
+ PUBLISHABLE_KEY fallback
+
+---
+ .env.example               | 1 +
+ client.ts                  | 4 +++-
+ server.ts                  | 4 +++-
+ src/lib/supabase/client.ts | 4 +++-
+ src/lib/supabase/server.ts | 4 +++-
+ 5 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/.env.example b/.env.example
+index dd70821..f66b646 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,4 +1,5 @@
+ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
++NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
+ OPENAI_API_KEY=sk-YOUR_SERVER_ONLY_KEY
+ OPENAI_MODEL=gpt-4o-mini
+diff --git a/client.ts b/client.ts
+index 5e2588e..054c409 100644
+--- a/client.ts
++++ b/client.ts
+@@ -1,4 +1,6 @@
+ import { createBrowserClient } from '@supabase/ssr';
+ export function createClient() {
+-  return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!);
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
++  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
++  return createBrowserClient(url, key);
+ }
+diff --git a/server.ts b/server.ts
+index bc53328..e6349a5 100644
+--- a/server.ts
++++ b/server.ts
+@@ -2,7 +2,9 @@ import { createServerClient } from '@supabase/ssr';
+ import { cookies } from 'next/headers';
+ export async function createClient() {
+   const cookieStore = await cookies();
+-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
++  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
++  return createServerClient(url, key, {
+     cookies: { getAll(){ return cookieStore.getAll(); }, setAll(cookiesToSet){ try { cookiesToSet.forEach(({name,value,options})=>cookieStore.set(name,value,options)); } catch {} } }
+   });
+ }
+diff --git a/src/lib/supabase/client.ts b/src/lib/supabase/client.ts
+index 5e2588e..054c409 100644
+--- a/src/lib/supabase/client.ts
++++ b/src/lib/supabase/client.ts
+@@ -1,4 +1,6 @@
+ import { createBrowserClient } from '@supabase/ssr';
+ export function createClient() {
+-  return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!);
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
++  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
++  return createBrowserClient(url, key);
+ }
+diff --git a/src/lib/supabase/server.ts b/src/lib/supabase/server.ts
+index bc53328..e6349a5 100644
+--- a/src/lib/supabase/server.ts
++++ b/src/lib/supabase/server.ts
+@@ -2,7 +2,9 @@ import { createServerClient } from '@supabase/ssr';
+ import { cookies } from 'next/headers';
+ export async function createClient() {
+   const cookieStore = await cookies();
+-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
++  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
++  return createServerClient(url, key, {
+     cookies: { getAll(){ return cookieStore.getAll(); }, setAll(cookiesToSet){ try { cookiesToSet.forEach(({name,value,options})=>cookieStore.set(name,value,options)); } catch {} } }
+   });
+ }
+-- 
+2.34.1
+
