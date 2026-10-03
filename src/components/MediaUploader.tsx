@@ -3,24 +3,24 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-type Props = { postId?: string; contributionId?: string; };
+type Props = { postId?: string; contributionId?: string };
 
 export default function MediaUploader({ postId, contributionId }: Props) {
   const [message,setMessage]=useState('');
   const [loading,setLoading]=useState(false);
 
-  async function upload(event:React.ChangeEvent<HTMLInputElement>){
+  async function upload(event:React.ChangeEvent<HTMLInputElement>) {
     const file=event.target.files?.[0];
     if(!file)return;
-    setLoading(true);setMessage('');
     const mediaType=file.type.startsWith('video/')?'video':file.type.startsWith('image/')?'image':'';
-    if(!mediaType){setMessage('اختر صورة أو فيديو.');setLoading(false);return;}
+    if(!mediaType){setMessage('اختر صورة أو فيديو.');return;}
+    setLoading(true);setMessage('');
     const init=await fetch('/api/account/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postId,contributionId,mediaType,mimeType:file.type,fileSize:file.size})});
     const data=await init.json().catch(()=>({}));
     if(!init.ok){setMessage(data.error||'تعذر تهيئة الرفع.');setLoading(false);return;}
     const supabase=createClient();
     const {error}=await supabase.storage.from('aslan-media').uploadToSignedUrl(data.upload.path,data.upload.token,file,{contentType:file.type});
-    if(error){setMessage('تعذر رفع الملف. احذف السجل الوسيط إن لزم ثم أعد المحاولة.');setLoading(false);return;}
+    if(error){setMessage('تعذر رفع الملف.');setLoading(false);return;}
     setMessage('تم رفع الوسائط بنجاح.');setLoading(false);event.target.value='';
   }
 
