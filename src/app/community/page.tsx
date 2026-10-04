@@ -20,7 +20,7 @@ export default async function CommunityPage(){
     const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq('post_id',post.id).order('created_at',{ascending:true}).limit(8);
     const rendered=[];
     for(const item of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);rendered.push({...item,signed_url:s.data?.signedUrl??null});}
-    result.push({...post,author,avatar_url,media:rendered,viewerIsOwner:user?.id===post.author_id});
+    result.push({...post,author,avatar_url,media:rendered,viewerIsOwner:user?.id===post.author_id,viewerAuthenticated:!!user});
   }
   return <main className="section"><div className="wrap"><span className="kicker">ASLAN COMMUNITY</span><h1>المجتمع</h1><p className="lead">مساحة اجتماعية موحدة للمحتوى المنشور الذي يسمح لك نظام الخصوصية برؤيته.</p><CommunityNav/>{result.length?<div className="grid" style={{maxWidth:760,margin:'0 auto'}}>{result.map(post=><SocialPost key={post.id} post={post as SocialPostData}/>)}</div>:<div className="card"><h2>لا توجد منشورات متاحة بعد.</h2><p className="muted">ابدأ بمنشور عام، أو أضف أصدقاء لرؤية محتوى الأصدقاء.</p>{user?<Link className="btn primary" href="/account/posts">إنشاء منشور</Link>:<Link className="btn primary" href="/login?next=/community">تسجيل الدخول</Link>}</div>}</div></main>;
 }
