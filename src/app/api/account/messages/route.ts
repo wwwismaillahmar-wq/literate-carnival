@@ -19,7 +19,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'المحادثة غير موجودة أو غير متاحة.' }, { status: 404 });
   }
 
-  const otherId = conversation.participant_a === user.id ? conversation.participant_b : conversation.participant_a;
   const { data, error } = await supabase
     .from('messages')
     .select('id, conversation_id, sender_id, body, created_at, read_at')
