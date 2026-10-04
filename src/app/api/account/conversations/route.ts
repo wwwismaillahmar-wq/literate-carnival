@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول أولًا.' }, { status: 401 });
 
   const { data, error } = await supabase
@@ -15,13 +14,24 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: 'تعذر تحميل المحادثات.' }, { status: 500 });
 
-  const otherIds=[...new Set((data??[]).map(item=>item.participant_a===user.id?item.participant_b:item.participant_a))];
-  const accepted=new Set<string>();
-  if(otherIds.length){
-    const {data:friends}=await supabase.from('friendships').select('requester_id,addressee_id').eq('status','accepted').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-    for(const f of friends??[]){accepted.add(f.requester_id===user.id?f.addressee_id:f.requester_id);}
+  const acceptedPairs=new Set<string>();
+  const {data:friends}=await supabase.from('friendships').select('requester_id,addressee_id').eq('status','accepted').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+  for(const f of friends??[]) acceptedPairs.add(f.requester_id===user.id?f.addressee_id:f.requester_id);
+
+  const visible=(data??[]).filter(item=>acceptedPairs.has(item.participant_a===user.id?item.participant_b:item.participant_a));
+  const otherIds=visible.map(item=>item.participant_a===user.id?item.participant_b:item.participant_a);
+  const {data:profiles}=otherIds.length?await supabase.from('profiles').select('id,full_name,username,avatar_path,role').in('id',otherIds):{data:[]};
+  const profileMap=new Map((profiles??[]).map(p=>[p.id,p]));
+  const conversations=[];
+  for(const item of visible){
+    const otherId=item.participant_a===user.id?item.participant_b:item.participant_a;
+    const other=profileMap.get(otherId);
+    let avatar_url=null;
+    if(other?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(other.avatar_path,3600);avatar_url=s.data?.signedUrl??null;}
+    const {data:last}=await supabase.from('messages').select('id,body,created_at,read_at,sender_id').eq('conversation_id',item.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    conversations.push({...item,other,avatar_url,last_message:last??null,unread:!!last&&last.sender_id!==user.id&&!last.read_at});
   }
-  return NextResponse.json({ conversations:(data??[]).filter(item=>accepted.has(item.participant_a===user.id?item.participant_b:item.participant_a)) });
+  return NextResponse.json({ conversations });
 }
 
 export async function POST(request: Request) {
