@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import MessagePrivacySettings from '@/components/MessagePrivacySettings';
 
 type Profile={full_name:string|null;username:string|null;avatar_path:string|null;avatar_url:string|null};
 
@@ -59,6 +60,7 @@ export default function ProfilePage(){
       <label>صورة الحساب<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={upload} disabled={uploading}/></label>
       <small className="muted">JPG/PNG/WEBP/GIF — حتى 5MB.</small>
     </div>
+    <MessagePrivacySettings />
     <form className="card" onSubmit={save} style={{display:'grid',gap:14,marginTop:18}}>
       <label>الاسم الكامل<input value={fullName} onChange={e=>setFullName(e.target.value)} /></label>
       <label>اسم المستخدم<input value={username} onChange={e=>setUsername(e.target.value)} placeholder="مثال: aslan_user" /></label>
