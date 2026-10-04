@@ -52,7 +52,8 @@ export async function POST(request: Request) {
         title,
         content,
         visibility,
-        status: 'pending',
+        status: 'published',
+        published_at: new Date().toISOString(),
       })
       .select('id, author_id, title, content, visibility, status, created_at, updated_at, published_at')
       .single();
