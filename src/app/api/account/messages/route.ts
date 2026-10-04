@@ -20,15 +20,6 @@ export async function GET(request: Request) {
   }
 
   const otherId = conversation.participant_a === user.id ? conversation.participant_b : conversation.participant_a;
-  const { data: friendship } = await supabase
-    .from('friendships')
-    .select('id')
-    .eq('status','accepted')
-    .or(`and(requester_id.eq.${user.id},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${user.id})`)
-    .limit(1)
-    .maybeSingle();
-  if (!friendship) return NextResponse.json({ error: 'المراسلة متاحة فقط بين الأصدقاء المقبولين.' }, { status: 403 });
-
   const { data, error } = await supabase
     .from('messages')
     .select('id, conversation_id, sender_id, body, created_at, read_at')
