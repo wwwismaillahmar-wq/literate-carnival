@@ -2,57 +2,13 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import PostForm from '@/components/PostForm';
+import SocialPost from '@/components/SocialPost';
+import CommunityNav from '@/components/CommunityNav';
 
-const visibilityLabels: Record<string, string> = { public: 'عام', friends: 'الأصدقاء', private: 'خاص' };
-const statusLabels: Record<string, string> = {
-  draft: 'مسودة',
-  pending: 'قيد المراجعة',
-  needs_revision: 'تحتاج تعديل',
-  accepted: 'مقبولة',
-  published: 'منشورة',
-  rejected: 'مرفوضة',
-  archived: 'مؤرشفة',
-};
-
-export default async function PostsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login?next=/account/posts');
-
-  const { data: posts } = await supabase
-    .from('posts')
-    .select('id, title, content, visibility, status, created_at')
-    .eq('author_id', user.id)
-    .order('created_at', { ascending: false });
-
-  return (
-    <main className="section" style={{ minHeight: '70vh' }}>
-      <div className="wrap">
-        <span className="kicker">ASLAN POSTS</span>
-        <h1>منشوراتي</h1>
-        <p className="muted">مساحتك للمشاركة الاجتماعية داخل ASLAN. اختر مستوى الظهور، وانشر مباشرة، ثم أرفق صورة أو فيديو عند الحاجة.</p>
-
-        <div style={{ marginTop: 28 }}><PostForm /></div>
-
-        <div className="card" style={{ marginTop: 28 }}>
-          <span className="kicker">السجل</span>
-          <h2>منشوراتي السابقة</h2>
-          {posts?.length ? (
-            <div className="grid" style={{ gap: 14 }}>
-              {posts.map((post) => (
-                <article className="card" key={post.id}>
-                  <span className="kicker">{visibilityLabels[post.visibility] || post.visibility} · {statusLabels[post.status] || post.status}</span>
-                  <h3>{post.title}</h3>
-                  <p>{post.content}</p>
-                  <p className="muted">{new Date(post.created_at).toLocaleDateString('ar-DZ')}</p>
-                </article>
-              ))}
-            </div>
-          ) : <p className="muted">لا توجد منشورات بعد.</p>}
-        </div>
-
-        <div style={{ marginTop: 24 }}><Link className="btn secondary" href="/account">← العودة إلى حسابي</Link></div>
-      </div>
-    </main>
-  );
+export default async function PostsPage(){
+  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login?next=/account/posts');
+  const {data:posts}=await supabase.from('posts').select('id,author_id,title,content,visibility,status,created_at,published_at,featured,featured_order').eq('author_id',user.id).order('created_at',{ascending:false});
+  const rendered=[];
+  for(const post of posts??[]){const {data:profile}=await supabase.from('profiles').select('id,full_name,username,role,avatar_path').eq('id',user.id).maybeSingle();let avatar_url=null;if(profile?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(profile.avatar_path,3600);avatar_url=s.data?.signedUrl??null;}const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq('post_id',post.id).order('created_at',{ascending:true});const items=[];for(const m of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(m.object_path,3600);items.push({...m,signed_url:s.data?.signedUrl??null});}rendered.push({...post,author:profile,avatar_url,media:items,viewerIsOwner:true});}
+  return <main className="section"><div className="wrap"><span className="kicker">ASLAN POSTS</span><h1>منشوراتي</h1><p className="lead">أنشئ، عدّل، أرفق الوسائط، أو احذف منشوراتك فعليًا.</p><CommunityNav/><PostForm/><div style={{marginTop:30}}>{rendered.length?<div className="grid" style={{maxWidth:760,margin:'0 auto'}}>{rendered.map(post=><SocialPost key={post.id} post={post as any}/>)}</div>:<div className="card"><h2>لا توجد منشورات بعد.</h2><p className="muted">أنشئ أول منشور من النموذج أعلاه.</p></div>}</div><div style={{marginTop:24}}><Link className="btn secondary" href="/account">← العودة إلى حسابي</Link></div></div></main>;
 }
