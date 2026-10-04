@@ -108,3 +108,51 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'تعذر معالجة تعديل المنشور.' }, { status: 400 });
   }
 }
+
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول أولًا.' }, { status: 401 });
+
+    const postId = new URL(request.url).searchParams.get('postId')?.trim();
+    if (!postId) return NextResponse.json({ error: 'معرّف المنشور مطلوب.' }, { status: 400 });
+
+    const { data: post, error: readError } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('id', postId)
+      .eq('author_id', user.id)
+      .maybeSingle();
+
+    if (readError || !post) {
+      return NextResponse.json({ error: 'المنشور غير موجود أو لا تملك صلاحية حذفه.' }, { status: 404 });
+    }
+
+    const { data: media } = await supabase
+      .from('media_assets')
+      .select('object_path')
+      .eq('post_id', postId)
+      .eq('owner_id', user.id);
+
+    const paths = (media ?? []).map(item => item.object_path).filter(Boolean);
+    if (paths.length) {
+      const { error: storageError } = await supabase.storage.from('aslan-media').remove(paths);
+      if (storageError) {
+        return NextResponse.json({ error: 'تعذر تنظيف وسائط المنشور من التخزين.' }, { status: 500 });
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', postId)
+      .eq('author_id', user.id);
+
+    if (deleteError) return NextResponse.json({ error: 'تعذر حذف المنشور.' }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: 'تعذر معالجة حذف المنشور.' }, { status: 400 });
+  }
+}
