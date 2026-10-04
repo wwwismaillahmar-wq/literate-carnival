@@ -14,11 +14,7 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: 'تعذر تحميل المحادثات.' }, { status: 500 });
 
-  const acceptedPairs=new Set<string>();
-  const {data:friends}=await supabase.from('friendships').select('requester_id,addressee_id').eq('status','accepted').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-  for(const f of friends??[]) acceptedPairs.add(f.requester_id===user.id?f.addressee_id:f.requester_id);
-
-  const visible=(data??[]).filter(item=>acceptedPairs.has(item.participant_a===user.id?item.participant_b:item.participant_a));
+  const visible=data??[];
   const otherIds=visible.map(item=>item.participant_a===user.id?item.participant_b:item.participant_a);
   const {data:profiles}=otherIds.length?await supabase.from('profiles').select('id,full_name,username,avatar_path,role').in('id',otherIds):{data:[]};
   const profileMap=new Map((profiles??[]).map(p=>[p.id,p]));
@@ -48,22 +44,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'المستخدم المستهدف غير صالح.' }, { status: 400 });
     }
 
-    const { data: friendship, error: friendshipError } = await supabase
-      .from('friendships')
-      .select('id')
-      .eq('status', 'accepted')
-      .or(
-        `and(requester_id.eq.${user.id},addressee_id.eq.${participantId}),and(requester_id.eq.${participantId},addressee_id.eq.${user.id})`,
-      )
-      .limit(1)
-      .maybeSingle();
-
-    if (friendshipError) {
-      return NextResponse.json({ error: 'تعذر التحقق من الصداقة.' }, { status: 500 });
+    const { data: target } = await supabase.from('profiles').select('id,message_privacy').eq('id',participantId).maybeSingle();
+    if (!target) return NextResponse.json({ error: 'الحساب المستهدف غير موجود.' }, { status: 404 });
+    let allowed=target.message_privacy!=='friends' && target.message_privacy!=='none';
+    if(target.message_privacy==='friends'){
+      const {data:friendship}=await supabase.from('friendships').select('id').eq('status','accepted').or(`and(requester_id.eq.${user.id},addressee_id.eq.${participantId}),and(requester_id.eq.${participantId},addressee_id.eq.${user.id})`).limit(1).maybeSingle();
+      allowed=!!friendship;
     }
-    if (!friendship) {
-      return NextResponse.json({ error: 'لا يمكن بدء محادثة إلا مع صديق مقبول.' }, { status: 403 });
-    }
+    if(!allowed) return NextResponse.json({error:'هذا العضو يسمح بالرسائل للأصدقاء فقط.'},{status:403});
 
     const [a, b] = [user.id, participantId].sort();
 
