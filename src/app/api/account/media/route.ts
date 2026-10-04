@@ -14,6 +14,7 @@ export async function GET(request: Request) {
 
   const postId = new URL(request.url).searchParams.get('postId');
   const contributionId = new URL(request.url).searchParams.get('contributionId');
+  const messageId = new URL(request.url).searchParams.get('messageId');
 
   let query = supabase
     .from('media_assets')
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
 
   if (postId) query = query.eq('post_id', postId);
   if (contributionId) query = query.eq('contribution_id', contributionId);
+  if (messageId) query = query.eq('message_id', messageId);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'تعذر تحميل الوسائط.' }, { status: 500 });
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
     const fileSize = typeof body.fileSize === 'number' ? body.fileSize : 0;
     const postId = typeof body.postId === 'string' ? body.postId.trim() : null;
     const contributionId = typeof body.contributionId === 'string' ? body.contributionId.trim() : null;
+    const messageId = typeof body.messageId === 'string' ? body.messageId.trim() : null;
 
     if (!allowedMediaTypes.has(mediaType) || !allowedMime.test(mimeType)) {
       return NextResponse.json({ error: 'نوع الوسائط غير مسموح.' }, { status: 400 });
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
     if (!Number.isInteger(fileSize) || fileSize <= 0 || fileSize > maxFileSize) {
       return NextResponse.json({ error: 'حجم الملف غير صالح أو يتجاوز 50MB.' }, { status: 400 });
     }
-    if ((postId && contributionId) || (!postId && !contributionId)) {
+    if ((postId && contributionId) || (postId && messageId) || (contributionId && messageId) || (!postId && !contributionId && !messageId)) {
       return NextResponse.json({ error: 'يجب ربط الوسائط بمنشور أو مساهمة واحدة.' }, { status: 400 });
     }
 
@@ -67,6 +70,12 @@ export async function POST(request: Request) {
     if (contributionId) {
       const { data: contribution } = await supabase.from('contributions').select('id').eq('id', contributionId).eq('user_id', user.id).maybeSingle();
       if (!contribution) return NextResponse.json({ error: 'المساهمة غير موجودة أو غير مملوكة للحساب.' }, { status: 404 });
+    }
+    if (messageId) {
+      const { data: message } = await supabase.from('messages').select('id,conversation_id').eq('id', messageId).maybeSingle();
+      if (!message) return NextResponse.json({ error: 'الرسالة غير موجودة.' }, { status: 404 });
+      const { data: conversation } = await supabase.from('conversations').select('participant_a,participant_b').eq('id', message.conversation_id).maybeSingle();
+      if (!conversation || ![conversation.participant_a,conversation.participant_b].includes(user.id)) return NextResponse.json({ error: 'لا تملك صلاحية إرفاق ملف بهذه الرسالة.' }, { status: 403 });
     }
 
     const extension = mimeType.split('/')[1].replace(/[^a-z0-9]+/gi, '').toLowerCase() || 'bin';
@@ -86,6 +95,7 @@ export async function POST(request: Request) {
         owner_id: user.id,
         post_id: postId,
         contribution_id: contributionId,
+        message_id: messageId,
         bucket_id: bucket,
         object_path: objectPath,
         media_type: mediaType,
