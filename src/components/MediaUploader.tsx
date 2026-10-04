@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 type Props = { postId?: string; contributionId?: string };
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 export default function MediaUploader({ postId, contributionId }: Props) {
+  const router = useRouter();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +52,7 @@ export default function MediaUploader({ postId, contributionId }: Props) {
 
       setMessage('تم رفع الملف بنجاح.');
       input.value = '';
+      router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? 'تعذر رفع الملف: ' + error.message : 'تعذر رفع الملف.');
     } finally {
