@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import CommunityNav from '@/components/CommunityNav';
 
-type Conversation={id:string;participant_a:string;participant_b:string;updated_at:string};
+type Conversation={id:string;other:{id:string;full_name:string|null;username:string|null;role:string|null}|null;avatar_url:string|null;last_message:{body:string;created_at:string;read_at:string|null;sender_id:string}|null;unread:boolean};
 type Message={id:string;conversation_id:string;sender_id:string;body:string;created_at:string;read_at:string|null};
 
 export default function MessagesPage(){
@@ -12,18 +13,43 @@ export default function MessagesPage(){
   const [messages,setMessages]=useState<Message[]>([]);
   const [body,setBody]=useState('');
   const [message,setMessage]=useState('');
+  const [mobileChat,setMobileChat]=useState(false);
+  const endRef=useRef<HTMLDivElement|null>(null);
 
-  async function loadConversations(){const r=await fetch('/api/account/conversations');const d=await r.json().catch(()=>({}));if(r.ok)setConversations(d.conversations||[]);else setMessage(d.error||'تعذر تحميل المحادثات.');}
-  async function loadMessages(id:string){setSelected(id);const r=await fetch('/api/account/messages?conversationId='+encodeURIComponent(id));const d=await r.json().catch(()=>({}));if(r.ok)setMessages(d.messages||[]);else setMessage(d.error||'تعذر تحميل الرسائل.');}
-  async function send(e:React.FormEvent){e.preventDefault();if(!selected||!body.trim())return;const r=await fetch('/api/account/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:selected,body})});const d=await r.json().catch(()=>({}));if(r.ok){setBody('');loadMessages(selected);loadConversations();}else setMessage(d.error||'تعذر إرسال الرسالة.');}
-  useEffect(()=>{loadConversations();},[]);
+  async function loadConversations(preferred?:string){
+    const r=await fetch('/api/account/conversations',{cache:'no-store'});const d=await r.json().catch(()=>({}));
+    if(r.ok){setConversations(d.conversations||[]);if(preferred||!selected){const id=preferred||d.conversations?.[0]?.id;if(id)loadMessages(id);}}
+    else setMessage(d.error||'تعذر تحميل المحادثات.');
+  }
+  async function loadMessages(id:string){
+    setSelected(id);setMobileChat(true);
+    const r=await fetch('/api/account/messages?conversationId='+encodeURIComponent(id),{cache:'no-store'});const d=await r.json().catch(()=>({}));
+    if(r.ok){setMessages(d.messages||[]);setConversations(items=>items.map(c=>c.id===id?{...c,unread:false}:c));}else setMessage(d.error||'تعذر تحميل الرسائل.');
+  }
+  async function startWithUsername(username:string){
+    const mr=await fetch('/api/account/members?q='+encodeURIComponent(username));const md=await mr.json().catch(()=>({}));
+    const member=(md.members||[]).find((m:any)=>m.username?.toLowerCase()===username.toLowerCase());
+    if(!member){setMessage('تعذر العثور على العضو.');return;}
+    const r=await fetch('/api/account/conversations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({participantId:member.id})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){setMessage(d.error||'تعذر بدء المحادثة.');return;}
+    await loadConversations(d.conversation?.id);
+  }
+  async function send(e:React.FormEvent){
+    e.preventDefault();if(!selected||!body.trim())return;
+    const text=body.trim();setBody('');
+    const r=await fetch('/api/account/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:selected,body:text})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok){setMessages(items=>[...items,d.message]);loadConversations(selected);}else{setBody(text);setMessage(d.error||'تعذر إرسال الرسالة.');}
+  }
+  useEffect(()=>{const withUser=new URLSearchParams(window.location.search).get('with');if(withUser)startWithUsername(withUser);else loadConversations();},[]);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[messages]);
 
-  return <main className="section" style={{minHeight:'70vh'}}><div className="wrap">
-    <span className="kicker">ASLAN MESSAGES</span><h1>رسائلي</h1><p className="muted">محادثات مباشرة بين الأصدقاء المقبولين.</p>
-    <div className="grid two" style={{marginTop:28,gap:18}}>
-      <section className="card"><h2>المحادثات</h2>{conversations.length?<div className="grid" style={{gap:8}}>{conversations.map(c=><button className="btn secondary" key={c.id} onClick={()=>loadMessages(c.id)}>{c.participant_a} ↔ {c.participant_b}</button>)}</div>:<p className="muted">لا توجد محادثات بعد.</p>}</section>
-      <section className="card"><h2>الرسائل</h2>{selected?<><div style={{display:'grid',gap:10,maxHeight:420,overflow:'auto'}}>{messages.map(m=><article className="card" key={m.id}><p>{m.body}</p><small className="muted">{new Date(m.created_at).toLocaleString('ar-DZ')}</small></article>)}</div><form onSubmit={send} style={{display:'grid',gap:10,marginTop:14}}><textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} maxLength={5000} placeholder="اكتب رسالتك..." required/><button className="btn primary">إرسال</button></form></>:<p className="muted">اختر محادثة.</p>}</section>
-    </div>
-    {message&&<p className="muted" role="status">{message}</p>}<div style={{marginTop:24}}><Link className="btn secondary" href="/account">← العودة إلى حسابي</Link></div>
+  const active=conversations.find(c=>c.id===selected);
+  return <main className="section"><div className="wrap"><span className="kicker">ASLAN MESSENGER</span><h1>الرسائل</h1><p className="lead">محادثات خاصة بين الأصدقاء المقبولين فقط.</p><CommunityNav/>
+    <div className={`messenger ${mobileChat?'messenger--chat-open':''}`}>
+      <aside className="messenger__list"><div className="messenger__list-head"><strong>المحادثات</strong><span className="muted">{conversations.length}</span></div>{conversations.length?conversations.map(c=><button key={c.id} className={`conversation-row ${c.id===selected?'is-active':''}`} onClick={()=>loadMessages(c.id)}>{c.avatar_url?<img src={c.avatar_url} alt="" />:<span className="conversation-avatar">AS</span>}<span className="conversation-copy"><strong>{c.other?.full_name||c.other?.username||'عضو ASLAN'}</strong><small>@{c.other?.username||'member'}</small><small>{c.last_message?.body||'لا توجد رسائل بعد'}</small></span>{c.unread&&<span className="unread-dot" aria-label="رسالة غير مقروءة"/>}</button>):<div className="messenger-empty"><p>لا توجد محادثات.</p><Link href="/members" className="btn secondary">ابحث عن صديق</Link></div>}</aside>
+      <section className="messenger__chat">{active?<><header className="chat-head"><button className="chat-back" onClick={()=>setMobileChat(false)}>←</button>{active.avatar_url?<img src={active.avatar_url} alt="" />:<span className="conversation-avatar">AS</span>}<div><strong>{active.other?.full_name||active.other?.username}</strong><small>@{active.other?.username}</small></div></header><div className="chat-body">{messages.map(m=><div key={m.id} className={`message-row ${m.sender_id===active.other?.id?'message-row--in':'message-row--out'}`}><div className="message-bubble"><div>{m.body}</div><small>{new Date(m.created_at).toLocaleTimeString('ar-DZ',{hour:'2-digit',minute:'2-digit'})}{m.sender_id!==active.other?.id&&<span>{m.read_at?' · مقروءة':' · مرسلة'}</span>}</small></div></div>)}<div ref={endRef}/></div><form className="chat-composer" onSubmit={send}><textarea value={body} onChange={e=>setBody(e.target.value)} rows={2} maxLength={5000} placeholder="اكتب رسالة..." onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}/><button className="btn primary" disabled={!body.trim()}>إرسال</button></form></>:<div className="messenger-placeholder"><div className="conversation-avatar">AS</div><h2>اختر محادثة</h2><p className="muted">ستظهر الرسائل هنا بعد اختيار صديق.</p></div>}</section>
+    </div>{message&&<p className="muted" role="status">{message}</p>}
   </div></main>;
 }
