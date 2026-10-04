@@ -14,7 +14,14 @@ export async function GET() {
     .order('updated_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: 'تعذر تحميل المحادثات.' }, { status: 500 });
-  return NextResponse.json({ conversations: data ?? [] });
+
+  const otherIds=[...new Set((data??[]).map(item=>item.participant_a===user.id?item.participant_b:item.participant_a))];
+  const accepted=new Set<string>();
+  if(otherIds.length){
+    const {data:friends}=await supabase.from('friendships').select('requester_id,addressee_id').eq('status','accepted').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+    for(const f of friends??[]){accepted.add(f.requester_id===user.id?f.addressee_id:f.requester_id);}
+  }
+  return NextResponse.json({ conversations:(data??[]).filter(item=>accepted.has(item.participant_a===user.id?item.participant_b:item.participant_a)) });
 }
 
 export async function POST(request: Request) {
