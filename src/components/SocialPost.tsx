@@ -3,18 +3,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Media={id:string;media_type:'image'|'video'|'file';signed_url:string|null;mime_type?:string|null};
-type Post={
+export type SocialMedia={id:string;media_type:'image'|'video'|'file';signed_url:string|null;mime_type?:string|null};
+export type SocialPostData={
   id:string; author_id:string; title:string; content:string; visibility:string; status:string;
   created_at:string; published_at?:string|null; featured?:boolean; featured_order?:number;
   author?:{id:string;full_name:string|null;username:string|null;role?:string|null}|null;
-  avatar_url?:string|null; media?:Media[];
+  avatar_url?:string|null; media?:SocialMedia[];
   viewerIsOwner?:boolean;
 };
 
 const visibilityLabels:Record<string,string>={public:'عام',friends:'الأصدقاء',private:'خاص'};
 
-export default function SocialPost({post,onDeleted}:{post:Post;onDeleted?:()=>void}){
+export default function SocialPost({post,onDeleted}:{post:SocialPostData;onDeleted?:()=>void}){
   const router=useRouter();
   const [menu,setMenu]=useState(false);
   const [editing,setEditing]=useState(false);
