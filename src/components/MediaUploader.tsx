@@ -1,68 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-type Props = { postId?: string; contributionId?: string };
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+type Asset={id:string;media_type:'image'|'video'|'file';mime_type:string;object_path:string;signed_url:string|null};
+type Props={postId?:string;contributionId?:string;messageId?:string;compact?:boolean;onUploaded?:()=>void};
+const MAX_FILE_SIZE=50*1024*1024;
+function mediaTypeFor(file:File):'image'|'video'|'file'{if(file.type.startsWith('image/'))return 'image';if(file.type.startsWith('video/'))return 'video';return 'file';}
 
-export default function MediaUploader({ postId, contributionId }: Props) {
-  const router = useRouter();
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function upload(event: React.ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    const mediaType = file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : '';
-    if (!mediaType) { setMessage('اختر صورة أو فيديو.'); input.value=''; return; }
-    if (file.size > MAX_FILE_SIZE) { setMessage('حجم الملف يتجاوز 50MB.'); input.value=''; return; }
-
-    setLoading(true);
-    setMessage('جارٍ رفع الملف...');
-
-    try {
-      const init = await fetch('/api/account/media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId, contributionId, mediaType, mimeType: file.type, fileSize: file.size }),
-      });
-      const data = await init.json().catch(() => ({}));
-
-      if (!init.ok || !data.asset?.object_path) {
-        setMessage(data.error || 'تعذر تهيئة رفع الملف.');
-        return;
-      }
-
-      const supabase = createClient();
-      const { error } = await supabase.storage.from('aslan-media').upload(
-        data.asset.object_path,
-        file,
-        { contentType: file.type, cacheControl: '3600', upsert: false },
-      );
-
-      if (error) {
-        await fetch('/api/account/media?assetId=' + encodeURIComponent(data.asset.id), { method: 'DELETE' }).catch(() => undefined);
-        setMessage('تعذر رفع الملف: ' + error.message);
-        return;
-      }
-
-      setMessage('تم رفع الملف بنجاح.');
-      input.value = '';
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? 'تعذر رفع الملف: ' + error.message : 'تعذر رفع الملف.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return <div className="card" style={{ display:'grid', gap:10 }}>
-    <span className="kicker">الصور والفيديو</span>
-    <input type="file" accept="image/*,video/*" onChange={upload} disabled={loading} />
-    <p className="muted">{loading ? 'جارٍ رفع الملف...' : message || 'الحد الحالي 50MB لكل ملف.'}</p>
-  </div>;
+export default function MediaUploader({postId,contributionId,messageId,compact=false,onUploaded}:Props){
+ const router=useRouter();const [assets,setAssets]=useState<Asset[]>([]);const [message,setMessage]=useState('');const [loading,setLoading]=useState(false);
+ async function load(){const key=messageId?'messageId='+encodeURIComponent(messageId):postId?'postId='+encodeURIComponent(postId):contributionId?'contributionId='+encodeURIComponent(contributionId):'';if(!key)return;const r=await fetch('/api/account/media?'+key,{cache:'no-store'});const d=await r.json().catch(()=>({}));if(r.ok)setAssets(d.media||[]);}
+ useEffect(()=>{load()},[postId,contributionId,messageId]);
+ async function upload(event:React.ChangeEvent<HTMLInputElement>){const input=event.currentTarget;const file=input.files?.[0];if(!file)return;if(file.size>MAX_FILE_SIZE){setMessage('حجم الملف يتجاوز 50MB.');input.value='';return;}setLoading(true);setMessage('جارٍ رفع الملف...');try{const mediaType=mediaTypeFor(file);const init=await fetch('/api/account/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postId,contributionId,messageId,mediaType,mimeType:file.type||'application/octet-stream',fileSize:file.size})});const d=await init.json().catch(()=>({}));if(!init.ok||!d.asset?.object_path){setMessage(d.error||'تعذر تهيئة رفع الملف.');return;}const supabase=createClient();const {error}=await supabase.storage.from('aslan-media').upload(d.asset.object_path,file,{contentType:file.type||'application/octet-stream',cacheControl:'3600',upsert:false});if(error){await fetch('/api/account/media?assetId='+encodeURIComponent(d.asset.id),{method:'DELETE'}).catch(()=>undefined);setMessage('تعذر رفع الملف: '+error.message);return;}setMessage('تم إرفاق الملف.');input.value='';await load();onUploaded?.();router.refresh();}catch(error){setMessage(error instanceof Error?'تعذر رفع الملف: '+error.message:'تعذر رفع الملف.');}finally{setLoading(false);}}
+ async function remove(id:string){if(!confirm('حذف هذا المرفق؟'))return;const r=await fetch('/api/account/media?assetId='+encodeURIComponent(id),{method:'DELETE'});const d=await r.json().catch(()=>({}));if(!r.ok){setMessage(d.error||'تعذر حذف المرفق.');return;}setAssets(items=>items.filter(item=>item.id!==id));setMessage('تم حذف المرفق.');router.refresh();}
+ return <div className={compact?'media-uploader media-uploader--compact':'card media-uploader'}><span className='kicker'>المرفقات</span><label className='media-picker'><span>{loading?'جارٍ الرفع...':'إضافة صورة أو فيديو أو مستند'}</span><input type='file' accept='image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip' onChange={upload} disabled={loading}/></label>{!compact&&<p className='muted'>حتى 50MB لكل ملف. الصور والفيديو تُعرض داخل المحتوى، والمستندات تظهر كملف قابل للفتح أو التنزيل.</p>}{!!assets.length&&<div className='media-uploader__existing'>{assets.map(asset=><div className='media-uploader__item' key={asset.id}>{asset.signed_url&&(asset.media_type==='image'?<img src={asset.signed_url} alt=''/>:asset.media_type==='video'?<video src={asset.signed_url} controls/>:<a href={asset.signed_url} target='_blank' rel='noreferrer'>📎 {asset.object_path.split('/').pop()}</a>)}<button type='button' onClick={()=>remove(asset.id)}>حذف</button></div>)}</div>}{message&&<p className='muted' role='status'>{message}</p>}</div>;
 }
