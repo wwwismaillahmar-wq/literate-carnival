@@ -113,3 +113,22 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'تعذر معالجة تعديل المساهمة.' }, { status: 400 });
   }
 }
+
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول أولًا.' }, { status: 401 });
+    const contributionId = new URL(request.url).searchParams.get('contributionId')?.trim();
+    if (!contributionId) return NextResponse.json({ error: 'معرّف المساهمة مطلوب.' }, { status: 400 });
+    const { data: contribution } = await supabase.from('contributions').select('id').eq('id', contributionId).eq('user_id', user.id).maybeSingle();
+    if (!contribution) return NextResponse.json({ error: 'المساهمة غير موجودة أو لا تملك صلاحية حذفها.' }, { status: 404 });
+    const { data: media } = await supabase.from('media_assets').select('object_path').eq('contribution_id', contributionId).eq('owner_id', user.id);
+    const paths=(media??[]).map(item=>item.object_path).filter(Boolean);
+    if(paths.length){const {error}=await supabase.storage.from('aslan-media').remove(paths);if(error)return NextResponse.json({error:'تعذر تنظيف وسائط المساهمة.'},{status:500});}
+    const {error}=await supabase.from('contributions').delete().eq('id',contributionId).eq('user_id',user.id);
+    if(error)return NextResponse.json({error:'تعذر حذف المساهمة.'},{status:500});
+    return NextResponse.json({ok:true});
+  } catch { return NextResponse.json({ error: 'تعذر معالجة حذف المساهمة.' }, { status: 400 }); }
+}
