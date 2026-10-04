@@ -17,7 +17,7 @@ export default async function HomePage(){
     if(author?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(author.avatar_path,3600);avatar_url=s.data?.signedUrl??null;}
     const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq('post_id',post.id).order('created_at',{ascending:true}).limit(8);
     const rendered=[];for(const item of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);rendered.push({...item,signed_url:s.data?.signedUrl??null});}
-    posts.push({...post,author,avatar_url,media:rendered,viewerIsOwner:false});
+    posts.push({...post,author,avatar_url,media:rendered,viewerIsOwner:false,viewerAuthenticated:!!(await supabase.auth.getUser()).data.user});
   }
   return <main>
     <section className="section"><div className="wrap"><span className="kicker">{site.name}</span><h1 className="display">نبني الجودة. <span className="gold">نصنع الثقة.</span></h1><p className="lead">تنجيد • خياطة • تفصيل — منتجات مخصصة، خدمات تنفيذية، وتكوين مهني ضمن منظومة ASLAN.</p><div className="actions"><Link className="button primary" href="/products">استكشف المنتجات</Link><Link className="button secondary" href="/services">اطلب خدمة</Link></div></div></section>
