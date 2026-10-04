@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import CommunityNav from '@/components/CommunityNav';
 
 type Conversation={id:string;other:{id:string;full_name:string|null;username:string|null;role:string|null}|null;avatar_url:string|null;last_message:{body:string;created_at:string;read_at:string|null;sender_id:string}|null;unread:boolean};
+type Member={id:string;full_name:string|null;username:string|null;role:string|null;avatar_url:string|null};
 type Message={id:string;conversation_id:string;sender_id:string;body:string;created_at:string;read_at:string|null};
 
 export default function MessagesPage(){
@@ -28,7 +29,7 @@ export default function MessagesPage(){
   }
   async function startWithUsername(username:string){
     const mr=await fetch('/api/account/members?q='+encodeURIComponent(username));const md=await mr.json().catch(()=>({}));
-    const member=(md.members||[]).find((m:any)=>m.username?.toLowerCase()===username.toLowerCase());
+    const member=(md.members as Member[]|undefined)?.find(m=>m.username?.toLowerCase()===username.toLowerCase());
     if(!member){setMessage('تعذر العثور على العضو.');return;}
     const r=await fetch('/api/account/conversations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({participantId:member.id})});
     const d=await r.json().catch(()=>({}));
