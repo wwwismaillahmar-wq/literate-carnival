@@ -22,9 +22,7 @@ export default async function ContributionsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/login?next=/account/contributions');
-  }
+  if (!user) redirect('/login?next=/account/contributions');
 
   const { data: contributions } = await supabase
     .from('contributions')
@@ -37,7 +35,7 @@ export default async function ContributionsPage() {
       <div className="wrap">
         <span className="kicker">ASLAN CONTRIBUTIONS</span>
         <h1>مساهماتي</h1>
-        <p className="muted">مساحة مخصصة لكل ما تضيفه إلى منظومة ASLAN.</p>
+        <p className="muted">مساحة مخصصة لكل ما تضيفه إلى منظومة ASLAN. اختر مستوى الظهور وانشر مباشرة، ثم أرفق صورة أو فيديو عند الحاجة.</p>
 
         <div style={{ marginTop: 28 }}>
           <ContributionForm />
@@ -51,13 +49,10 @@ export default async function ContributionsPage() {
             <div className="grid" style={{ gap: 14 }}>
               {contributions.map((item) => (
                 <article className="card" key={item.id}>
-                  <span className="kicker">{labels[item.type] || item.type}</span>
+                  <span className="kicker">{labels[item.type] || item.type} · {statuses[item.status] || item.status}</span>
                   <h3>{item.title}</h3>
                   <p>{item.content}</p>
-                  <p className="muted">
-                    الحالة: {statuses[item.status] || item.status} ·{' '}
-                    {new Date(item.created_at).toLocaleDateString('ar-DZ')}
-                  </p>
+                  <p className="muted">{new Date(item.created_at).toLocaleDateString('ar-DZ')}</p>
                 </article>
               ))}
             </div>
@@ -67,9 +62,7 @@ export default async function ContributionsPage() {
         </div>
 
         <div style={{ marginTop: 24 }}>
-          <Link className="btn secondary" href="/account">
-            ← العودة إلى حسابي
-          </Link>
+          <Link className="btn secondary" href="/account">← العودة إلى حسابي</Link>
         </div>
       </div>
     </main>
