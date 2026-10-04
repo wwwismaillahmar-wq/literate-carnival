@@ -25,7 +25,7 @@ export default function MessagesPage(){
     else setMessage(d.error||'تعذر تحميل المحادثات.');
   }
   async function loadMessages(id:string){
-    setSelected(id);setMobileChat(true);
+    setSelected(id);setLastSentId('');setMobileChat(true);
     const r=await fetch('/api/account/messages?conversationId='+encodeURIComponent(id),{cache:'no-store'});const d=await r.json().catch(()=>({}));
     if(r.ok){setMessages(d.messages||[]);setConversations(items=>items.map(c=>c.id===id?{...c,unread:false}:c));}else setMessage(d.error||'تعذر تحميل الرسائل.');
   }
