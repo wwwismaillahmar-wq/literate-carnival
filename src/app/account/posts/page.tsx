@@ -4,7 +4,15 @@ import { createClient } from '@/lib/supabase/server';
 import PostForm from '@/components/PostForm';
 
 const visibilityLabels: Record<string, string> = { public: 'عام', friends: 'الأصدقاء', private: 'خاص' };
-const statusLabels: Record<string, string> = { draft: 'مسودة', pending: 'قيد المراجعة', needs_revision: 'تحتاج تعديل', accepted: 'مقبولة', published: 'منشورة', rejected: 'مرفوضة', archived: 'مؤرشفة' };
+const statusLabels: Record<string, string> = {
+  draft: 'مسودة',
+  pending: 'قيد المراجعة',
+  needs_revision: 'تحتاج تعديل',
+  accepted: 'مقبولة',
+  published: 'منشورة',
+  rejected: 'مرفوضة',
+  archived: 'مؤرشفة',
+};
 
 export default async function PostsPage() {
   const supabase = await createClient();
@@ -22,8 +30,10 @@ export default async function PostsPage() {
       <div className="wrap">
         <span className="kicker">ASLAN POSTS</span>
         <h1>منشوراتي</h1>
-        <p className="muted">مساحتك للمشاركة الاجتماعية داخل ASLAN. المنشور العام أو الخاص بالأصدقاء يمر بالمراجعة قبل النشر.</p>
+        <p className="muted">مساحتك للمشاركة الاجتماعية داخل ASLAN. اختر مستوى الظهور، وانشر مباشرة، ثم أرفق صورة أو فيديو عند الحاجة.</p>
+
         <div style={{ marginTop: 28 }}><PostForm /></div>
+
         <div className="card" style={{ marginTop: 28 }}>
           <span className="kicker">السجل</span>
           <h2>منشوراتي السابقة</h2>
@@ -40,6 +50,7 @@ export default async function PostsPage() {
             </div>
           ) : <p className="muted">لا توجد منشورات بعد.</p>}
         </div>
+
         <div style={{ marginTop: 24 }}><Link className="btn secondary" href="/account">← العودة إلى حسابي</Link></div>
       </div>
     </main>
