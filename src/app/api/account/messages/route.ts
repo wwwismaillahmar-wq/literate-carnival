@@ -37,11 +37,16 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: 'تعذر تحميل الرسائل.' }, { status: 500 });
 
+  const messageIds=(data??[]).map(item=>item.id);
+  const {data:media}=messageIds.length?await supabase.from('media_assets').select('id,message_id,media_type,mime_type,object_path').in('message_id',messageIds):{data:[]};
+  const mediaMap=new Map<string,Array<Record<string,unknown>>>();
+  for(const item of media??[]){const signed=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);const list=mediaMap.get(item.message_id)||[];list.push({...item,signed_url:signed.data?.signedUrl??null});mediaMap.set(item.message_id,list);}
+
   const unreadIds=(data??[]).filter(item=>item.sender_id!==user.id && !item.read_at).map(item=>item.id);
   if(unreadIds.length){
     await supabase.from('messages').update({read_at:new Date().toISOString()}).in('id',unreadIds);
   }
-  return NextResponse.json({ messages: (data??[]).map(item=>unreadIds.includes(item.id)?{...item,read_at:new Date().toISOString()}:item) });
+  return NextResponse.json({ messages: (data??[]).map(item=>({...item,media:mediaMap.get(item.id)||[],...(unreadIds.includes(item.id)?{read_at:new Date().toISOString()}: {})})) });
 }
 
 export async function POST(request: Request) {
