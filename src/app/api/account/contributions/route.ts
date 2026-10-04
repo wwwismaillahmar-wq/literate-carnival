@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('contributions')
-    .select('id, user_id, type, title, content, visibility, status, created_at, updated_at, published_at')
+    .select('id, user_id, type, title, content, visibility, status, created_at, updated_at, published_at, featured, featured_at, featured_by, featured_order')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         status: 'published',
         published_at: new Date().toISOString(),
       })
-      .select('id, user_id, type, title, content, visibility, status, created_at, updated_at, published_at')
+      .select('id, user_id, type, title, content, visibility, status, created_at, updated_at, published_at, featured, featured_at, featured_by, featured_order')
       .single();
 
     if (error) {
