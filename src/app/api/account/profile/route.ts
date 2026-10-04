@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, full_name, username, avatar_path, role, created_at')
+    .select('id, full_name, username, avatar_path, role, message_privacy, created_at')
     .eq('id', user.id)
     .single();
 
@@ -40,6 +40,9 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const fullName = typeof body.fullName === 'string' ? body.fullName.trim().slice(0, 120) : undefined;
     const username = body.username !== undefined ? safeUsername(body.username) : undefined;
+    const messagePrivacy = body.messagePrivacy !== undefined ? String(body.messagePrivacy) : undefined;
+    const allowedPrivacy = new Set(['members_only','all_members','community','friends']);
+    if (messagePrivacy !== undefined && !allowedPrivacy.has(messagePrivacy)) return NextResponse.json({ error: 'إعداد المراسلة غير صالح.' }, { status: 400 });
 
     if (username !== undefined && username && !/^[a-z0-9_]{3,30}$/.test(username)) {
       return NextResponse.json({ error: 'اسم المستخدم يجب أن يكون 3–30 حرفًا: a-z أو 0-9 أو _.' }, { status: 400 });
@@ -48,6 +51,7 @@ export async function PATCH(request: Request) {
     const patch: Record<string, string | null> = {};
     if (fullName !== undefined) patch.full_name = fullName || null;
     if (username !== undefined) patch.username = username || null;
+    if (messagePrivacy !== undefined) patch.message_privacy = messagePrivacy;
 
     if (!Object.keys(patch).length) {
       return NextResponse.json({ error: 'لا توجد بيانات لتعديلها.' }, { status: 400 });
