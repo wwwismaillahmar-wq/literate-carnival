@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 const bucket = 'aslan-media';
-const allowedMediaTypes = new Set(['image', 'video']);
-const allowedMime = /^(image|video)\/[a-z0-9.+-]+$/i;
+const allowedMediaTypes = new Set(['image', 'video', 'file']);
+const allowedMime = /^(image|video|application|text|audio)\/[a-z0-9.+-]+$/i;
 const maxFileSize = 50 * 1024 * 1024;
 
 export async function GET(request: Request) {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'حجم الملف غير صالح أو يتجاوز 50MB.' }, { status: 400 });
     }
     if ((postId && contributionId) || (postId && messageId) || (contributionId && messageId) || (!postId && !contributionId && !messageId)) {
-      return NextResponse.json({ error: 'يجب ربط الوسائط بمنشور أو مساهمة واحدة.' }, { status: 400 });
+      return NextResponse.json({ error: 'يجب ربط الوسائط بمنشور أو مساهمة أو رسالة واحدة.' }, { status: 400 });
     }
 
     if (postId) {
