@@ -193,9 +193,13 @@ as $$ select jsonb_build_object(
   'organizations',coalesce((select jsonb_agg(jsonb_build_object('organizationId',om.organization_id,'role',r.key,'status',om.status) order by om.created_at) from public.organization_members om join public.roles r on r.id=om.role_id where om.user_id=auth.uid()),'[]'::jsonb)
 ); $$;
 
-revoke all on function private.is_super_admin(uuid) from public,anon,authenticated;
-revoke all on function private.has_role(uuid,text,uuid) from public,anon,authenticated;
-revoke all on function private.has_permission(uuid,text,uuid) from public,anon,authenticated;
+revoke all on function private.is_super_admin(uuid) from public,anon;
+revoke all on function private.has_role(uuid,text,uuid) from public,anon;
+revoke all on function private.has_permission(uuid,text,uuid) from public,anon;
+grant usage on schema private to authenticated;
+grant execute on function private.is_super_admin(uuid) to authenticated;
+grant execute on function private.has_role(uuid,text,uuid) to authenticated;
+grant execute on function private.has_permission(uuid,text,uuid) to authenticated;
 revoke all on function public.authorize(text,uuid) from public,anon;
 revoke all on function public.has_role(text,uuid) from public,anon;
 revoke all on function public.authorization_context() from public,anon;
