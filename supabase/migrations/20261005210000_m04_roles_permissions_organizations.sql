@@ -156,6 +156,10 @@ as $$ select
     )
   ); $$;
 
+create or replace function private.is_super_admin_role(target_role uuid)
+returns boolean language sql stable security definer set search_path=''
+as $ select exists (select 1 from public.roles where id=target_role and key='super_admin'); $;
+
 create or replace function private.has_permission(target_user uuid, permission_key text, organization_id uuid default null)
 returns boolean language sql stable security definer set search_path=''
 as $$ select
@@ -196,6 +200,7 @@ as $$ select jsonb_build_object(
 revoke all on function private.is_super_admin(uuid) from public,anon;
 revoke all on function private.has_role(uuid,text,uuid) from public,anon;
 revoke all on function private.has_permission(uuid,text,uuid) from public,anon;
+revoke all on function private.is_super_admin_role(uuid) from public,anon;
 grant usage on schema private to authenticated;
 grant execute on function private.is_super_admin(uuid) to authenticated;
 grant execute on function private.has_role(uuid,text,uuid) to authenticated;
@@ -275,7 +280,7 @@ create policy "m04 memberships insert" on public.organization_members for insert
   or (
     user_id <> auth.uid()
     and (select private.has_permission(auth.uid(),'organizations.manage',organization_members.organization_id))
-    and role_id <> (select id from public.roles where key='super_admin')
+    and not (select private.is_super_admin_role(organization_members.role_id))
   )
 );
 drop policy if exists "m04 memberships update" on public.organization_members;
