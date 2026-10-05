@@ -5,9 +5,6 @@ import ContributionForm from '@/components/ContributionForm';
 import CommunityNav from '@/components/CommunityNav';
 import ContributionCard from '@/components/ContributionCard';
 
-const labels:Record<string,string>={suggestion:'اقتراح',design:'تصميم',model:'نموذج',post:'مشاركة'};
-const statuses:Record<string,string>={pending:'قيد المراجعة',needs_revision:'تحتاج تعديل',accepted:'مقبولة',published:'منشورة',rejected:'مرفوضة'};
-
 export default async function ContributionsPage(){
   const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login?next=/account/contributions');
   const {data:profile}=await supabase.from('profiles').select('id,full_name,username,role,avatar_path').eq('id',user.id).maybeSingle();let avatar_url=null;if(profile?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(profile.avatar_path,3600);avatar_url=s.data?.signedUrl??null;}
