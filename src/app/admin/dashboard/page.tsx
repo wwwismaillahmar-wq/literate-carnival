@@ -5,7 +5,6 @@ import { ADMIN_APPLICATIONS } from '../applications';
 
 export const dynamic = 'force-dynamic';
 
-type CountResult = { count: number | null };
 type Row = Record<string, unknown>;
 
 export default async function Dashboard() {
