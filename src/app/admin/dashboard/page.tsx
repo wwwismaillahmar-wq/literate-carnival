@@ -38,7 +38,7 @@ export default async function Dashboard() {
     { count: conversations },
     { count: messages },
     { count: gallery },
-  ] = await Promise.all<CountResult[]>([
+  ] = await Promise.all([
     db.from('profiles').select('*', { count: 'exact', head: true }),
     db.from('roles').select('*', { count: 'exact', head: true }),
     db.from('permissions').select('*', { count: 'exact', head: true }),
