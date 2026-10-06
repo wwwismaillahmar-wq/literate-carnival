@@ -15,11 +15,17 @@ export default async function Dashboard() {
 
   const { data: profile } = await db
     .from('profiles')
-    .select('role, full_name')
+    .select('full_name')
     .eq('id', user.id)
     .maybeSingle();
 
-  if (profile?.role !== 'admin') redirect('/');
+  // M04 RBAC: the admin portal is reserved for the global super_admin role.
+  const { data: isSuperAdmin, error: authorizationError } = await db.rpc(
+    'has_role',
+    { role_key: 'super_admin' },
+  );
+
+  if (authorizationError || !isSuperAdmin) redirect('/');
 
   const [{ count: products }, { count: leads }, { count: gallery }] =
     await Promise.all([
@@ -36,7 +42,7 @@ export default async function Dashboard() {
         <LogoutButton />
 
         <p className="muted">
-          مرحباً {profile.full_name || user.email}
+          مرحباً {profile?.full_name || user.email}
         </p>
 
         <div className="grid three" style={{ marginTop: 30 }}>
