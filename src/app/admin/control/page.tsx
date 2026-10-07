@@ -13,6 +13,9 @@ import {
   savePermission,
   saveProduct,
   saveRole,
+  updateAdminProfile,
+  assignRolePermission,
+  removeRolePermission,
   updateContribution,
   updateLeadStatus,
   updatePost,
@@ -30,6 +33,7 @@ type Permission = { id:string; key:string; name:string; description:string };
 type Profile = { id:string; username:string|null; full_name:string|null };
 type UserRole = { user_id:string; role_id:string };
 type Organization = { id:string; name:string; slug:string; type:string; status:string };
+type RolePermission = { role_id:string; permission_id:string };
 
 export default async function AdminControl() {
   const db = await createClient();
@@ -40,7 +44,7 @@ export default async function AdminControl() {
 
   const [
     {data:products},{data:categories},{data:leads},{data:posts},
-    {data:contributions},{data:roles},{data:permissions},{data:profiles},{data:userRoles},{data:organizations}
+    {data:contributions},{data:roles},{data:permissions},{data:profiles},{data:userRoles},{data:organizations},{data:rolePermissions}
   ] = await Promise.all([
     db.from('products').select('id,name,slug,description,price_dzd,stock,active,category_id').order('id'),
     db.from('categories').select('id,name,slug').order('id'),
@@ -52,6 +56,7 @@ export default async function AdminControl() {
     db.from('profiles').select('id,username,full_name').order('created_at'),
     db.from('user_roles').select('user_id,role_id'),
     db.from('organizations').select('id,name,slug,type,status').order('name'),
+    db.from('role_permissions').select('role_id,permission_id'),
   ]);
 
   return (
@@ -213,6 +218,51 @@ export default async function AdminControl() {
                 })}
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="card" style={{marginTop:25}}>
+          <span className="kicker">USER ADMINISTRATION</span><h2>المستخدمون</h2>
+          <div style={{display:'grid',gap:10,marginTop:18}}>
+            {(profiles??[] as Profile[]).map((p:Profile)=>(
+              <form action={updateAdminProfile} className="card" key={p.id} style={stackStyle}>
+                <input type="hidden" name="id" value={p.id}/>
+                <strong>{p.full_name || p.username || p.id}</strong>
+                <input name="full_name" defaultValue={p.full_name ?? ''} placeholder="الاسم الكامل"/>
+                <input name="username" defaultValue={p.username ?? ''} placeholder="اسم المستخدم"/>
+                <select name="message_privacy" defaultValue="all_members">
+                  <option value="all_members">كل الأعضاء</option><option value="members_only">الأعضاء فقط</option><option value="community">المجتمع</option><option value="friends">الأصدقاء</option>
+                </select>
+                <button type="submit">حفظ بيانات المستخدم</button>
+              </form>
+            ))}
+          </div>
+        </section>
+
+        <section className="card" style={{marginTop:25}}>
+          <span className="kicker">ROLE PERMISSIONS</span><h2>ربط الصلاحيات بالأدوار</h2>
+          <div className="grid two" style={{marginTop:18}}>
+            {(roles??[] as Role[]).map((role:Role)=>(
+              <div className="card" key={role.id}>
+                <h3>{role.name}</h3><div className="muted">{role.key}</div>
+                <form action={assignRolePermission} style={formGrid}>
+                  <input type="hidden" name="role_id" value={role.id}/>
+                  <select name="permission_id" required>
+                    {(permissions??[] as Permission[]).map((p:Permission)=><option key={p.id} value={p.id}>{p.key}</option>)}
+                  </select>
+                  <button type="submit">إضافة الصلاحية للدور</button>
+                </form>
+                <div style={{display:'grid',gap:6,marginTop:10}}>
+                  {(rolePermissions??[] as RolePermission[]).filter((rp:RolePermission)=>rp.role_id===role.id).map((rp:RolePermission)=>{
+                    const p=(permissions??[] as Permission[]).find((item:Permission)=>item.id===rp.permission_id);
+                    return <form action={removeRolePermission} key={rp.permission_id} style={rowStyle}>
+                      <input type="hidden" name="role_id" value={role.id}/><input type="hidden" name="permission_id" value={rp.permission_id}/>
+                      <span>{p?.key || rp.permission_id}</span><button type="submit">إزالة</button>
+                    </form>;
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
