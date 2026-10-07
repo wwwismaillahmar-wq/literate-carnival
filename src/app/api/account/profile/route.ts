@@ -22,13 +22,16 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: 'تعذر تحميل الملف الشخصي.' }, { status: 500 });
 
+  const { data: isSuperAdmin, error: roleError } = await supabase.rpc('has_role', { role_key: 'super_admin' });
+  if (roleError) console.error('profile admin-role check failed:', roleError.message);
+
   let avatar_url: string | null = null;
   if (profile.avatar_path) {
     const signed = await supabase.storage.from(bucket).createSignedUrl(profile.avatar_path, 3600);
     avatar_url = signed.data?.signedUrl ?? null;
   }
 
-  return NextResponse.json({ profile: { ...profile, avatar_url } });
+  return NextResponse.json({ profile: { ...profile, avatar_url }, isAdmin: Boolean(isSuperAdmin) });
 }
 
 export async function PATCH(request: Request) {
