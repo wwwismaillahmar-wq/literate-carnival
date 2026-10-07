@@ -40,7 +40,7 @@ type OrganizationMember = { organization_id:string; user_id:string; role_id:stri
 type RolePermission = { role_id:string; permission_id:string };
 type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; bucket_id:string; url:string|null };
 
-export default async function AdminControl({ searchParams }: { searchParams?: Promise<{ success?: string }> }) {
+export default async function AdminControl({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
   const params = searchParams ? await searchParams : {};
 
   const db = await createClient();
@@ -79,6 +79,7 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
         <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
           <div>
             {params.success && <div className="card" style={{marginBottom:14,border:"1px solid rgba(212,175,55,.45)"}}><strong>✓ {params.success}</strong></div>}
+            {params.error && <div className="card" style={{marginBottom:14,border:"1px solid rgba(220,80,80,.55)"}}><strong>✕ {params.error}</strong></div>}
             <span className="kicker">ADMIN CONTROL CENTER / OPERATIONS</span>
             <h1>مركز التشغيل الإداري</h1>
             <p className="muted">هنا لا نعرض البيانات فقط؛ كل نموذج أدناه ينفذ تعديلًا حقيقيًا في النظام.</p>
