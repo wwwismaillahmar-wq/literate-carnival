@@ -134,7 +134,7 @@ export async function getHomepageProducts() {
         description: product.description ?? '',
         price: product.price_dzd,
         stock: product.stock,
-        image_url: firstImage(product.images),
+        image_url: mediaByProduct.get(product.id)?.[0] ?? firstImage(product.images),
         media_urls: mediaByProduct.get(product.id) ?? [],
         category: categoryName,
         badges,
