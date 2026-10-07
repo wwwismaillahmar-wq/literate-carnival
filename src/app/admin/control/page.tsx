@@ -363,6 +363,10 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
     <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> عرض قوي على الصفحة الرئيسية</label>
     <input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0} placeholder="قوة الدعم الإعلاني 0–100" />
     <small className="muted">الأولوية الإعلانية تساعد المنتج على الظهور، بينما الطلب والأحدث يُحتسبان تلقائيًا.</small>
+    <label>صور وفيديو المنتج
+      <input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple />
+    </label>
+    <small className="muted">يمكنك إضافة الصور والفيديو مباشرة مع حفظ المنتج. الحد الأقصى 50MB لكل ملف.</small>
     <button type="submit">{product ? 'حفظ المنتج' : 'إنشاء المنتج'}</button>
     {product && <Link href={`/products/${product.slug}`} target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none',textAlign:'center'}}>👁️ معاينة المنتج في المتجر</Link>}
   </form>;
