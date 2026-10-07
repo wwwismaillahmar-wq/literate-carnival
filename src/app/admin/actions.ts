@@ -23,6 +23,29 @@ function nullableText(formData: FormData, key: string) {
   return value || null;
 }
 
+function slugify(value: string) {
+  const transliteration: Record<string,string> = {
+    'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh',
+    'ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q',
+    'ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ة':'h','ء':'a','ئ':'y','ؤ':'w'
+  };
+  return Array.from(value.toLowerCase()).map(ch => transliteration[ch] ?? ch).join('')
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80);
+}
+
+async function uniqueProductSlug(db: Awaited<ReturnType<typeof createClient>>, name: string, currentId?: number) {
+  const base = slugify(name) || 'product';
+  let candidate = base;
+  let suffix = 2;
+  while (true) {
+    const { data, error } = await db.from('products').select('id').eq('slug', candidate).maybeSingle();
+    if (error) dbError('تعذر التحقق من slug المنتج', error);
+    if (!data || (currentId && data.id === currentId)) return candidate;
+    candidate = `${base}-${suffix++}`;
+  }
+}
+
 function dbError(action: string, error: { message?: string } | null | undefined): never {
   redirect('/admin/control?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
 }
@@ -33,8 +56,9 @@ function finish(message: string): never {
 
 export async function saveProduct(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
-  const id=textValue(formData,'id'), name=textValue(formData,'name'), slug=textValue(formData,'slug');
-  if(!name||!slug) throw new Error('اسم المنتج وslug مطلوبان.');
+  const id=textValue(formData,'id'), name=textValue(formData,'name'), submittedSlug=textValue(formData,'slug');
+  if(!name) throw new Error('اسم المنتج مطلوب.');
+  const slug=submittedSlug || await uniqueProductSlug(db,name,id ? Number(id) : undefined);
   const payload={name,slug,description:textValue(formData,'description'),price_dzd:Number(formData.get('price_dzd')||0)||null,stock:Math.max(0,Number(formData.get('stock')||0)),active:formData.get('active')==='on',category_id:nullableText(formData,'category_id')?Number(formData.get('category_id')):null,ad_priority:Math.min(100,Math.max(0,Number(formData.get('ad_priority')||0)||0)),home_featured:formData.get('home_featured')==='on'};
   let productId:number;
   if(id){const {data,error}=await db.from('products').update(payload).eq('id',Number(id)).select('id').single();if(error||!data)dbError('تعذر تعديل المنتج',error);productId=data.id;}
