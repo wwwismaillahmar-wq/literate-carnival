@@ -189,12 +189,13 @@ export async function updatePost(formData: FormData) {
   const status = textValue(formData, 'status');
   if (!id || !['draft','pending','needs_revision','accepted','published','rejected','archived'].includes(status)) return;
   const featured = formData.get('featured') === 'on';
-  await db.from('posts').update({
+  const { error } = await db.from('posts').update({
     status,
     featured,
     featured_by: featured ? user.id : null,
     featured_at: featured ? new Date().toISOString() : null,
   }).eq('id', id);
+  if (error) throw new Error(`تعذر تحديث المنشور: ${error.message}`);
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
 }
@@ -205,13 +206,14 @@ export async function updateContribution(formData: FormData) {
   const status = textValue(formData, 'status');
   if (!id || !['pending','needs_revision','accepted','published','rejected'].includes(status)) return;
   const featured = formData.get('featured') === 'on';
-  await db.from('contributions').update({
+  const { error } = await db.from('contributions').update({
     status,
     featured,
     featured_by: featured ? user.id : null,
     featured_at: featured ? new Date().toISOString() : null,
     published_at: status === 'published' ? new Date().toISOString() : null,
   }).eq('id', id);
+  if (error) throw new Error(`تعذر تحديث المساهمة: ${error.message}`);
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
 }
