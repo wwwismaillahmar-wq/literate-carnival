@@ -28,6 +28,21 @@ export async function getProducts(): Promise<Product[]> {
     return [];
   }
 
+  const ids = (data ?? []).map((product) => product.id);
+  const { data: media } = ids.length
+    ? await db.from('media_assets').select('product_id,media_type,object_path,bucket_id,created_at').in('product_id', ids).order('created_at', { ascending: true })
+    : { data: [] };
+  const mediaByProduct = new Map<number, string[]>();
+  for (const item of media ?? []) {
+    if (item.media_type !== 'image' || !item.product_id) continue;
+    const signed = await db.storage.from(item.bucket_id ?? 'aslan-media').createSignedUrl(item.object_path, 3600);
+    if (signed.data?.signedUrl) {
+      const list = mediaByProduct.get(item.product_id) ?? [];
+      list.push(signed.data.signedUrl);
+      mediaByProduct.set(item.product_id, list);
+    }
+  }
+
   return (data ?? []).map((product) => {
     const categoryData = product.category as { name: string } | { name: string }[] | null;
     const categoryName = Array.isArray(categoryData) ? categoryData[0]?.name ?? null : categoryData?.name ?? null;
@@ -39,7 +54,7 @@ export async function getProducts(): Promise<Product[]> {
       category: categoryName,
       price: product.price_dzd,
       stock: product.stock,
-      image_url: firstImage(product.images),
+      image_url: mediaByProduct.get(product.id)?.[0] ?? firstImage(product.images),
       description: product.description,
       active: product.active,
       features: {},
