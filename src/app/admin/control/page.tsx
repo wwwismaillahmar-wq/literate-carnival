@@ -36,7 +36,7 @@ type Profile = { id:string; username:string|null; full_name:string|null };
 type UserRole = { user_id:string; role_id:string };
 type Organization = { id:string; name:string; slug:string; type:string; status:string };
 type RolePermission = { role_id:string; permission_id:string };
-type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; url:string|null };
+type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; bucket_id:string; url:string|null };
 
 export default async function AdminControl() {
   const db = await createClient();
@@ -62,8 +62,8 @@ export default async function AdminControl() {
     db.from('role_permissions').select('role_id,permission_id'),
   ]);
 
-  const { data: rawProductMedia } = await db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path').not('product_id','is',null).order('created_at',{ascending:false});
-  const productMedia = await Promise.all((rawProductMedia ?? []).map(async (media:any) => {
+  const { data: rawProductMedia } = await db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id','is',null).order('created_at',{ascending:false});
+  const productMedia = await Promise.all((rawProductMedia ?? []).map(async (media:Omit<ProductMedia,'url'>) => {
     const { data } = await db.storage.from(media.bucket_id ?? 'aslan-media').createSignedUrl(media.object_path, 3600);
     return { ...media, url: data?.signedUrl ?? null } as ProductMedia;
   }));
