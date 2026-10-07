@@ -24,7 +24,7 @@ function nullableText(formData: FormData, key: string) {
 }
 
 function dbError(action: string, error: { message?: string } | null | undefined): never {
-  throw new Error(error?.message ? action + ': ' + error.message : action);
+  redirect('/admin/control?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
 }
 
 function finish(message: string): never {
