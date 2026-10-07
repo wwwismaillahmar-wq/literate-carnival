@@ -352,7 +352,7 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
   return <form action={action} style={formGrid}>
     {product && <input type="hidden" name="id" value={product.id}/>}
     <input name="name" defaultValue={product?.name} placeholder="اسم المنتج" required/>
-    <input name="slug" defaultValue={product?.slug} placeholder="slug" required/>
+    <input name="slug" defaultValue={product?.slug} placeholder="slug (اختياري — يُنشأ تلقائيًا)" />
     <textarea name="description" defaultValue={product?.description} placeholder="الوصف"/>
     <input name="price_dzd" type="number" min="0" defaultValue={product?.price_dzd ?? ''} placeholder="السعر بالدينار"/>
     <input name="stock" type="number" min="0" defaultValue={product?.stock ?? 0} placeholder="المخزون"/>
