@@ -179,7 +179,7 @@ export default async function AdminControl() {
                 <button type="submit">إنشاء</button>
               </form>
               <div style={{display:'grid',gap:8,marginTop:14}}>
-                {(roles??[] as Role[]).map((r:any)=><form action={saveRole} key={r.id} style={formGrid}>
+                {(roles??[] as Role[]).map((r:Role)=><form action={saveRole} key={r.id} style={formGrid}>
                   <input type="hidden" name="id" value={r.id}/>
                   <input name="key" defaultValue={r.key} required/>
                   <input name="name" defaultValue={r.name} required/>
@@ -197,13 +197,13 @@ export default async function AdminControl() {
                 <button type="submit">حفظ الصلاحية</button>
               </form>
               <div style={{display:'grid',gap:6,marginTop:14}}>
-                {(permissions??[] as Permission[]).map((p:any)=><div key={p.id}><strong>{p.key}</strong><div className="muted">{p.name}</div></div>)}
+                {(permissions??[] as Permission[]).map((p:Permission)=><div key={p.id}><strong>{p.key}</strong><div className="muted">{p.name}</div></div>)}
               </div>
             </div>
             <div className="card">
               <h3>تعيين دور لمستخدم</h3>
               <form action={assignUserRole} style={formGrid}>
-                <select name="user_id" required>{(profiles??[] as Profile[]).map((p:any)=><option key={p.id} value={p.id}>{p.full_name || p.username || p.id}</option>)}</select>
+                <select name="user_id" required>{(profiles??[] as Profile[]).map((p:Profile)=><option key={p.id} value={p.id}>{p.full_name || p.username || p.id}</option>)}</select>
                 <select name="role_id" required>{(roles??[] as Role[]).map((r:any)=><option key={r.id} value={r.id}>{r.name} ({r.key})</option>)}</select>
                 <button type="submit">تعيين الدور</button>
               </form>
