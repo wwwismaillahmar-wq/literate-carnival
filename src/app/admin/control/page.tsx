@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import {
@@ -252,6 +253,6 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
   </form>;
 }
 
-const formGrid: React.CSSProperties = {display:'grid',gap:10};
-const rowStyle: React.CSSProperties = {display:'grid',gridTemplateColumns:'minmax(0,1fr) auto auto',gap:10,alignItems:'center'};
-const stackStyle: React.CSSProperties = {display:'grid',gap:10,marginBottom:10};
+const formGrid: CSSProperties = {display:'grid',gap:10};
+const rowStyle: CSSProperties = {display:'grid',gridTemplateColumns:'minmax(0,1fr) auto auto',gap:10,alignItems:'center'};
+const stackStyle: CSSProperties = {display:'grid',gap:10,marginBottom:10};
