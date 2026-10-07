@@ -10,18 +10,27 @@ export default async function HomePage(){
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser();
   const {data:featuredPosts}=await supabase.from('posts').select('id,author_id,title,content,visibility,status,created_at,published_at,featured,featured_order').eq('status','published').eq('visibility','public').eq('featured',true).order('featured_order',{ascending:true}).order('featured_at',{ascending:false}).limit(6);
-  const authorIds=[...new Set((featuredPosts??[]).map(p=>p.author_id))];
+  const {data:featuredContributions}=await supabase.from('contributions').select('id,user_id,title,content,visibility,status,created_at,published_at,featured,featured_order').eq('status','published').eq('visibility','public').eq('featured',true).order('featured_order',{ascending:true}).order('featured_at',{ascending:false}).limit(6);
+
+  const authorIds=[...new Set([
+    ...(featuredPosts??[]).map(p=>p.author_id),
+    ...(featuredContributions??[]).map(c=>c.user_id),
+  ])];
   const {data:authors}=authorIds.length?await supabase.from('profiles').select('id,full_name,username,role,avatar_path').in('id',authorIds):{data:[]};
   const authorMap=new Map((authors??[]).map(a=>[a.id,a]));
-  const posts=[];
-  for(const post of featuredPosts??[]){
-    const author=authorMap.get(post.author_id);let avatar_url=null;
-    if(author?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(author.avatar_path,3600);avatar_url=s.data?.signedUrl??null;}
-    const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq('post_id',post.id).order('created_at',{ascending:true}).limit(8);
-    const rendered=[];for(const item of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);rendered.push({...item,signed_url:s.data?.signedUrl??null});}
-    posts.push({...post,author,avatar_url,media:rendered,viewerIsOwner:false,viewerAuthenticated:!!user});
+
+  async function enrichContent(item:{id:string;author_id:string;title:string;content:string;visibility:string;status:string;created_at:string;published_at:string|null;featured:boolean;featured_order:number}, mediaColumn:'post_id'|'contribution_id'){
+    const author=authorMap.get(item.author_id); let avatar_url=null;
+    if(author?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(author.avatar_path,3600); avatar_url=s.data?.signedUrl??null;}
+    const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq(mediaColumn,item.id).order('created_at',{ascending:true}).limit(8);
+    const rendered=[]; for(const mediaItem of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(mediaItem.object_path,3600); rendered.push({...mediaItem,signed_url:s.data?.signedUrl??null});}
+    return {...item,author,avatar_url,media:rendered,viewerIsOwner:false,viewerAuthenticated:!!user};
   }
-  return <main>
+
+  const posts=[
+    ...await Promise.all((featuredPosts??[]).map(post=>enrichContent({...post,author_id:post.author_id},'post_id'))),
+    ...await Promise.all((featuredContributions??[]).map(item=>enrichContent({...item,author_id:item.user_id},'contribution_id'))),
+  ];  return <main>
     <section className="section"><div className="wrap"><span className="kicker">{site.name}</span><h1 className="display">نبني الجودة. <span className="gold">نصنع الثقة.</span></h1><p className="lead">تنجيد • خياطة • تفصيل — منتجات مخصصة، خدمات تنفيذية، وتكوين مهني ضمن منظومة ASLAN.</p><div className="actions"><Link className="button primary" href="/products">استكشف المنتجات</Link><Link className="button secondary" href="/services">اطلب خدمة</Link></div></div></section>
 
     <section className="section">
