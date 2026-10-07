@@ -21,6 +21,8 @@ import {
   updateContribution,
   updateLeadStatus,
   updatePost,
+  saveOrganizationMember,
+  removeOrganizationMember,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +37,7 @@ type Permission = { id:string; key:string; name:string; description:string };
 type Profile = { id:string; username:string|null; full_name:string|null };
 type UserRole = { user_id:string; role_id:string };
 type Organization = { id:string; name:string; slug:string; type:string; status:string };
+type OrganizationMember = { organization_id:string; user_id:string; role_id:string; status:string };
 type RolePermission = { role_id:string; permission_id:string };
 type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; bucket_id:string; url:string|null };
 
@@ -47,7 +50,7 @@ export default async function AdminControl() {
 
   const [
     {data:products},{data:categories},{data:leads},{data:posts},
-    {data:contributions},{data:roles},{data:permissions},{data:profiles},{data:userRoles},{data:organizations},{data:rolePermissions}
+    {data:contributions},{data:roles},{data:permissions},{data:profiles},{data:userRoles},{data:organizations},{data:rolePermissions},{data:organizationMembers}
   ] = await Promise.all([
     db.from('products').select('id,name,slug,description,price_dzd,stock,active,category_id,ad_priority,home_featured').order('id'),
     db.from('categories').select('id,name,slug').order('id'),
@@ -60,6 +63,7 @@ export default async function AdminControl() {
     db.from('user_roles').select('user_id,role_id'),
     db.from('organizations').select('id,name,slug,type,status').order('name'),
     db.from('role_permissions').select('role_id,permission_id'),
+    db.from('organization_members').select('organization_id,user_id,role_id,status'),
   ]);
 
   const { data: rawProductMedia } = await db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id','is',null).order('created_at',{ascending:false});
@@ -310,6 +314,36 @@ export default async function AdminControl() {
               <button type="submit">حفظ</button>
             </form>)}
           </div>
+        <section className="card" style={{marginTop:25}}>
+          <span className="kicker">ORGANIZATION MEMBERSHIP</span><h2>أعضاء المؤسسات</h2>
+          <div className="grid two" style={{marginTop:18}}>
+            <div className="card">
+              <h3>إضافة/تعديل عضوية</h3>
+              <form action={saveOrganizationMember} style={formGrid}>
+                <select name="organization_id" required>{(organizations??[] as Organization[]).map((o:Organization)=><option key={o.id} value={o.id}>{o.name}</option>)}</select>
+                <select name="user_id" required>{(profiles??[] as Profile[]).map((p:Profile)=><option key={p.id} value={p.id}>{p.full_name || p.username || p.id}</option>)}</select>
+                <select name="role_id" required>{(roles??[] as Role[]).map((r:Role)=><option key={r.id} value={r.id}>{r.name} ({r.key})</option>)}</select>
+                <select name="status" defaultValue="active"><option value="active">نشط</option><option value="invited">مدعو</option><option value="suspended">موقوف</option><option value="removed">مزال</option></select>
+                <button type="submit">حفظ العضوية</button>
+              </form>
+            </div>
+            <div className="card">
+              <h3>العضويات الحالية</h3>
+              <div style={{display:'grid',gap:8}}>
+                {(organizationMembers??[] as OrganizationMember[]).map((m:OrganizationMember)=>{
+                  const org=(organizations??[] as Organization[]).find((o:Organization)=>o.id===m.organization_id);
+                  const profile=(profiles??[] as Profile[]).find((p:Profile)=>p.id===m.user_id);
+                  const role=(roles??[] as Role[]).find((r:Role)=>r.id===m.role_id);
+                  return <form action={removeOrganizationMember} key={m.organization_id+'-'+m.user_id} className="card" style={rowStyle}>
+                    <input type="hidden" name="organization_id" value={m.organization_id}/><input type="hidden" name="user_id" value={m.user_id}/>
+                    <span>{org?.name || m.organization_id} → {profile?.full_name || profile?.username || m.user_id} → {role?.name || m.role_id} · {m.status}</span>
+                    <button type="submit">إزالة</button>
+                  </form>;
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
         </section>
       </div>
     </main>
