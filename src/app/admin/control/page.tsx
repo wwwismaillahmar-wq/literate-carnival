@@ -204,7 +204,7 @@ export default async function AdminControl() {
               <h3>تعيين دور لمستخدم</h3>
               <form action={assignUserRole} style={formGrid}>
                 <select name="user_id" required>{(profiles??[] as Profile[]).map((p:Profile)=><option key={p.id} value={p.id}>{p.full_name || p.username || p.id}</option>)}</select>
-                <select name="role_id" required>{(roles??[] as Role[]).map((r:any)=><option key={r.id} value={r.id}>{r.name} ({r.key})</option>)}</select>
+                <select name="role_id" required>{(roles??[] as Role[]).map((r:Role)=><option key={r.id} value={r.id}>{r.name} ({r.key})</option>)}</select>
                 <button type="submit">تعيين الدور</button>
               </form>
               <div style={{display:'grid',gap:8,marginTop:14}}>
