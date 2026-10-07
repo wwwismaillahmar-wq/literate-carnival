@@ -184,3 +184,86 @@ export async function saveRole(formData: FormData) {
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
 }
+
+export async function savePermission(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const key = textValue(formData, 'key');
+  const name = textValue(formData, 'name');
+  if (!key || !name) return;
+  await db.from('permissions').upsert({
+    key,
+    name,
+    description: textValue(formData, 'description'),
+  }, { onConflict: 'key' });
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+}
+
+export async function assignUserRole(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const userId = textValue(formData, 'user_id');
+  const roleId = textValue(formData, 'role_id');
+  if (!userId || !roleId) return;
+  await db.from('user_roles').upsert({ user_id: userId, role_id: roleId }, { onConflict: 'user_id,role_id' });
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+}
+
+export async function removeUserRole(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const userId = textValue(formData, 'user_id');
+  const roleId = textValue(formData, 'role_id');
+  if (userId && roleId) await db.from('user_roles').delete().eq('user_id', userId).eq('role_id', roleId);
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+}
+
+export async function saveOrganization(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const id = textValue(formData, 'id');
+  const name = textValue(formData, 'name');
+  const slug = textValue(formData, 'slug');
+  const type = textValue(formData, 'type');
+  const status = textValue(formData, 'status') || 'active';
+  if (!name || !slug || !['company','academy','partner','internal','community'].includes(type)) return;
+  const payload = { name, slug, type, status };
+  if (id) await db.from('organizations').update(payload).eq('id', id);
+  else await db.from('organizations').insert(payload);
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+}
+
+export async function updateAdminProfile(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const id = textValue(formData, 'id');
+  if (!id) return;
+  await db.from('profiles').update({
+    full_name: nullableText(formData, 'full_name'),
+    username: nullableText(formData, 'username'),
+    message_privacy: textValue(formData, 'message_privacy') || 'all_members',
+  }).eq('id', id);
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+}
+
+export async function assignRolePermission(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const roleId = textValue(formData, 'role_id');
+  const permissionId = textValue(formData, 'permission_id');
+  if (!roleId || !permissionId) return;
+  await db.from('role_permissions').upsert(
+    { role_id: roleId, permission_id: permissionId },
+    { onConflict: 'role_id,permission_id' },
+  );
+  revalidatePath('/admin/control');
+}
+
+export async function removeRolePermission(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const roleId = textValue(formData, 'role_id');
+  const permissionId = textValue(formData, 'permission_id');
+  if (roleId && permissionId) {
+    await db.from('role_permissions').delete().eq('role_id', roleId).eq('permission_id', permissionId);
+  }
+  revalidatePath('/admin/control');
+}
