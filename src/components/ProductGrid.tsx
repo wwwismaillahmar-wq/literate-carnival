@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import type { Product } from '@/lib/types';
-import { whatsappLink } from '@/lib/config';
 
 export function ProductGrid({ products }: { products: Product[] }) {
   const [query, setQuery] = useState('');
@@ -67,16 +66,8 @@ export function ProductGrid({ products }: { products: Product[] }) {
             <div className="product-price">
               {product.price === null ? 'حسب الطلب' : `${product.price} دج`}
             </div>
-            <a
-              className="btn primary"
-              style={{ marginTop: 14 }}
-              href={whatsappLink(
-                `مرحباً ASLAN MODELLING، أريد طلب المنتج: ${product.name}. أرجو إرسال التفاصيل.`,
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              اطلب القطعة
+            <a className="btn primary" style={{ marginTop: 14 }} href={`/products/${product.slug}`}>
+              عرض المنتج
             </a>
           </article>
         ))}
