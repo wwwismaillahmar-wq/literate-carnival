@@ -12,6 +12,8 @@ import {
   saveOrganization,
   savePermission,
   saveProduct,
+  uploadProductMedia,
+  deleteProductMedia,
   saveRole,
   updateAdminProfile,
   assignRolePermission,
@@ -34,6 +36,7 @@ type Profile = { id:string; username:string|null; full_name:string|null };
 type UserRole = { user_id:string; role_id:string };
 type Organization = { id:string; name:string; slug:string; type:string; status:string };
 type RolePermission = { role_id:string; permission_id:string };
+type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; url:string|null };
 
 export default async function AdminControl() {
   const db = await createClient();
@@ -58,6 +61,12 @@ export default async function AdminControl() {
     db.from('organizations').select('id,name,slug,type,status').order('name'),
     db.from('role_permissions').select('role_id,permission_id'),
   ]);
+
+  const { data: rawProductMedia } = await db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path').not('product_id','is',null).order('created_at',{ascending:false});
+  const productMedia = await Promise.all((rawProductMedia ?? []).map(async (media:any) => {
+    const { data } = await db.storage.from(media.bucket_id ?? 'aslan-media').createSignedUrl(media.object_path, 3600);
+    return { ...media, url: data?.signedUrl ?? null } as ProductMedia;
+  }));
 
   return (
     <main className="section">
@@ -94,6 +103,22 @@ export default async function AdminControl() {
             {(products??[] as Product[]).map((p:Product)=>(
               <div className="card" key={p.id}>
                 <ProductForm product={p} categories={(categories??[]) as Category[]} action={saveProduct}/>
+                <div style={{marginTop:16,paddingTop:16,borderTop:'1px solid rgba(255,255,255,.08)'}}>
+                  <strong>الصور والفيديوهات</strong>
+                  <form action={uploadProductMedia} encType="multipart/form-data" style={{display:'grid',gap:8,marginTop:10}}>
+                    <input type="hidden" name="product_id" value={p.id}/>
+                    <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" required />
+                    <small className="muted">صورة أو فيديو — الحد الأقصى 50MB للملف.</small>
+                    <button type="submit">رفع الوسائط</button>
+                  </form>
+                  <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:12}}>
+                    {productMedia.filter((m:ProductMedia)=>m.product_id===p.id).map((m:ProductMedia)=><div className="card" key={m.id} style={{width:180}}>
+                      {m.url && m.media_type==='image' ? <img src={m.url} alt="" style={{width:'100%',height:120,objectFit:'cover',borderRadius:8}} /> : m.url ? <video src={m.url} controls style={{width:'100%',height:120,objectFit:'cover',borderRadius:8}} /> : null}
+                      <small className="muted">{m.media_type} · {Math.round(m.file_size/1024)} KB</small>
+                      <form action={deleteProductMedia} style={{marginTop:6}}><input type="hidden" name="id" value={m.id}/><button type="submit">حذف الوسيط</button></form>
+                    </div>)}
+                  </div>
+                </div>
                 <form action={deleteProduct} style={{marginTop:8}}>
                   <input type="hidden" name="id" value={p.id}/>
                   <button type="submit">حذف المنتج</button>
