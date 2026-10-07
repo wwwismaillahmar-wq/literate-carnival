@@ -56,9 +56,9 @@ export default async function Dashboard() {
   return (
     <main className="section"><div className="wrap">
       <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
-        <div><span className="kicker">ADMIN CONTROL CENTER</span><h1>مركز تحكم ASLAN</h1><p className="muted">{profile?.full_name || profile?.username || user.email}</p></div>
+        <div><span className="kicker">ADMIN CONTROL CENTER</span><h1>مركز تحكم ASLAN</h1><p className="muted">{profile?.full_name || profile?.username || user.email}</p><p className="muted">جلسة الإدارة تبقى فعالة أثناء تصفح الموقع والمعاينة.</p></div>
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <Link href="/admin/control" className="card" style={{textDecoration:'none'}}>⚙️ مركز التشغيل</Link><LogoutButton />
+          <Link href="/admin/control" className="card" style={{textDecoration:'none'}}>⚙️ مركز التشغيل</Link><Link href="/" className="card" style={{textDecoration:'none'}}>👁️ معاينة الموقع</Link><LogoutButton />
         </div>
       </div>
 
