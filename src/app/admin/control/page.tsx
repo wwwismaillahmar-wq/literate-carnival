@@ -29,6 +29,7 @@ type Role = { id:string; key:string; name:string; description:string };
 type Permission = { id:string; key:string; name:string; description:string };
 type Profile = { id:string; username:string|null; full_name:string|null };
 type UserRole = { user_id:string; role_id:string };
+type Organization = { id:string; name:string; slug:string; type:string; status:string };
 
 export default async function AdminControl() {
   const db = await createClient();
@@ -85,7 +86,7 @@ export default async function AdminControl() {
             </div>
           </div>
           <div style={{display:'grid',gap:12,marginTop:20}}>
-            {(products??[] as Product[]).map((p:any)=>(
+            {(products??[] as Product[]).map((p:Product)=>(
               <div className="card" key={p.id}>
                 <ProductForm product={p} categories={(categories??[]) as Category[]} action={saveProduct}/>
                 <form action={deleteProduct} style={{marginTop:8}}>
@@ -94,7 +95,7 @@ export default async function AdminControl() {
                 </form>
               </div>
             ))}
-            {(categories??[] as Category[]).map((c:any)=>(
+            {(categories??[] as Category[]).map((c:Category)=>(
               <div className="card" key={'cat-'+c.id}>
                 <form action={saveCategory} style={formGrid}>
                   <input type="hidden" name="id" value={c.id}/>
@@ -114,7 +115,7 @@ export default async function AdminControl() {
         <section className="card" style={{marginTop:25}}>
           <span className="kicker">MARKET</span><h2>العملاء المحتملون</h2>
           <div style={{display:'grid',gap:12,marginTop:18}}>
-            {(leads??[] as Lead[]).map((lead:any)=>(
+            {(leads??[] as Lead[]).map((lead:Lead)=>(
               <form action={updateLeadStatus} className="card" key={lead.id} style={rowStyle}>
                 <input type="hidden" name="id" value={lead.id}/>
                 <div><strong>{lead.name || 'بدون اسم'}</strong><div className="muted">{lead.phone} · {lead.type}</div></div>
@@ -132,7 +133,7 @@ export default async function AdminControl() {
           <div className="grid two" style={{marginTop:18}}>
             <div>
               <h3>المنشورات</h3>
-              {(posts??[] as Post[]).map((post:any)=>(
+              {(posts??[] as Post[]).map((post:Post)=>(
                 <form action={updatePost} className="card" key={post.id} style={stackStyle}>
                   <input type="hidden" name="id" value={post.id}/>
                   <strong>{post.title}</strong>
@@ -146,7 +147,7 @@ export default async function AdminControl() {
             </div>
             <div>
               <h3>المساهمات</h3>
-              {(contributions??[] as Contribution[]).map((item:any)=>(
+              {(contributions??[] as Contribution[]).map((item:Contribution)=>(
                 <form action={updateContribution} className="card" key={item.id} style={stackStyle}>
                   <input type="hidden" name="id" value={item.id}/>
                   <strong>{item.title}</strong><div className="muted">{item.type}</div>
@@ -202,9 +203,9 @@ export default async function AdminControl() {
                 <button type="submit">تعيين الدور</button>
               </form>
               <div style={{display:'grid',gap:8,marginTop:14}}>
-                {(userRoles??[] as UserRole[]).map((ur:any)=>{
-                  const profile=(profiles??[] as Profile[]).find((p:any)=>p.id===ur.user_id);
-                  const role=(roles??[] as Role[]).find((r:any)=>r.id===ur.role_id);
+                {(userRoles??[] as UserRole[]).map((ur:UserRole)=>{
+                  const profile=(profiles??[] as Profile[]).find((p:Profile)=>p.id===ur.user_id);
+                  const role=(roles??[] as Role[]).find((r:Role)=>r.id===ur.role_id);
                   return <form action={removeUserRole} key={ur.user_id+'-'+ur.role_id} style={rowStyle}>
                     <input type="hidden" name="user_id" value={ur.user_id}/><input type="hidden" name="role_id" value={ur.role_id}/>
                     <span>{profile?.full_name || profile?.username || ur.user_id} → {role?.name || ur.role_id}</span><button type="submit">إزالة</button>
@@ -225,7 +226,7 @@ export default async function AdminControl() {
             <button type="submit">إنشاء مؤسسة</button>
           </form>
           <div style={{display:'grid',gap:10,marginTop:18}}>
-            {(organizations??[] as any[]).map((o:any)=><form action={saveOrganization} className="card" key={o.id} style={rowStyle}>
+            {(organizations??[] as Organization[]).map((o:Organization)=><form action={saveOrganization} className="card" key={o.id} style={rowStyle}>
               <input type="hidden" name="id" value={o.id}/>
               <input name="name" defaultValue={o.name} required/><input name="slug" defaultValue={o.slug} required/>
               <select name="type" defaultValue={o.type}><option value="company">شركة</option><option value="academy">أكاديمية</option><option value="partner">شريك</option><option value="internal">داخلية</option><option value="community">مجتمع</option></select>
