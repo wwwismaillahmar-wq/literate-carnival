@@ -12,7 +12,6 @@ import {
   saveOrganization,
   savePermission,
   saveProduct,
-  uploadProductMedia,
   deleteProductMedia,
   saveRole,
   updateAdminProfile,
@@ -41,7 +40,9 @@ type OrganizationMember = { organization_id:string; user_id:string; role_id:stri
 type RolePermission = { role_id:string; permission_id:string };
 type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; bucket_id:string; url:string|null };
 
-export default async function AdminControl() {
+export default async function AdminControl({ searchParams }: { searchParams?: Promise<{ success?: string }> }) {
+  const params = searchParams ? await searchParams : {};
+
   const db = await createClient();
   const { data:{ user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
@@ -77,6 +78,7 @@ export default async function AdminControl() {
       <div className="wrap">
         <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
           <div>
+            {params.success && <div className="card" style={{marginBottom:14,border:"1px solid rgba(212,175,55,.45)"}}><strong>✓ {params.success}</strong></div>}
             <span className="kicker">ADMIN CONTROL CENTER / OPERATIONS</span>
             <h1>مركز التشغيل الإداري</h1>
             <p className="muted">هنا لا نعرض البيانات فقط؛ كل نموذج أدناه ينفذ تعديلًا حقيقيًا في النظام.</p>
@@ -110,12 +112,7 @@ export default async function AdminControl() {
                 <ProductForm product={p} categories={(categories??[]) as Category[]} action={saveProduct}/>
                 <div style={{marginTop:16,paddingTop:16,borderTop:'1px solid rgba(255,255,255,.08)'}}>
                   <strong>الصور والفيديوهات</strong>
-                  <form action={uploadProductMedia} encType="multipart/form-data" style={{display:'grid',gap:8,marginTop:10}}>
-                    <input type="hidden" name="product_id" value={p.id}/>
-                    <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" required />
-                    <small className="muted">صورة أو فيديو — الحد الأقصى 50MB للملف.</small>
-                    <button type="submit">رفع الوسائط</button>
-                  </form>
+                  <small className="muted" style={{display:'block',marginTop:8}}>تُضاف الوسائط الآن من نموذج المنتج نفسه عند الضغط على «حفظ المنتج». الملفات الموجودة هنا مرتبطة بهذا المنتج مباشرة.</small>
                   <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:12}}>
                     {productMedia.filter((m:ProductMedia)=>m.product_id===p.id).map((m:ProductMedia)=><div className="card" key={m.id} style={{width:180}}>
                       {m.url && m.media_type==='image' ? <img src={m.url} alt="" style={{width:'100%',height:120,objectFit:'cover',borderRadius:8}} /> : m.url ? <video src={m.url} controls style={{width:'100%',height:120,objectFit:'cover',borderRadius:8}} /> : null}
