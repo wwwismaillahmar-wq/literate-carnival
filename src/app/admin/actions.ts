@@ -56,27 +56,129 @@ function finish(message: string): never {
 
 export async function saveProduct(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
-  const id=textValue(formData,'id'), name=textValue(formData,'name'), submittedSlug=textValue(formData,'slug');
-  if(!name) throw new Error('اسم المنتج مطلوب.');
-  const slug=submittedSlug || await uniqueProductSlug(db,name,id ? Number(id) : undefined);
-  const payload={name,slug,description:textValue(formData,'description'),price_dzd:Number(formData.get('price_dzd')||0)||null,stock:Math.max(0,Number(formData.get('stock')||0)),active:formData.get('active')==='on',category_id:nullableText(formData,'category_id')?Number(formData.get('category_id')):null,ad_priority:Math.min(100,Math.max(0,Number(formData.get('ad_priority')||0)||0)),home_featured:formData.get('home_featured')==='on'};
-  let productId:number;
-  if(id){const {data,error}=await db.from('products').update(payload).eq('id',Number(id)).select('id').single();if(error||!data)dbError('تعذر تعديل المنتج',error);productId=data.id;}
-  else{const {data,error}=await db.from('products').insert(payload).select('id').single();if(error||!data)dbError('تعذر إنشاء المنتج',error);productId=data.id;}
-  const files=formData.getAll('media').filter((item):item is File=>item instanceof File&&item.size>0);
-  const allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
-  for(const file of files){
-    if(!allowed.includes(file.type)||file.size>50*1024*1024)throw new Error('الملف غير صالح أو يتجاوز 50MB: '+file.name);
-    const ext=file.name.split('.').pop()?.toLowerCase()||'bin';
-    const objectPath=user.id+'/products/'+productId+'/'+crypto.randomUUID()+'.'+ext;
-    const bytes=Buffer.from(await file.arrayBuffer());
-    const {error:uploadError}=await db.storage.from('aslan-media').upload(objectPath,bytes,{contentType:file.type,upsert:false});
-    if(uploadError)dbError('تعذر رفع '+file.name,uploadError);
-    const {error:mediaError}=await db.from('media_assets').insert({owner_id:user.id,product_id:productId,bucket_id:'aslan-media',object_path:objectPath,media_type:file.type.startsWith('video/')?'video':'image',mime_type:file.type,file_size:file.size});
-    if(mediaError){await db.storage.from('aslan-media').remove([objectPath]);dbError('تعذر ربط الوسيط بالمنتج',mediaError);}
+  const id = textValue(formData, 'id');
+  const name = textValue(formData, 'name');
+  const submittedSlug = textValue(formData, 'slug');
+
+  if (!name) {
+    return redirect('/admin/control?error=' + encodeURIComponent('اسم المنتج مطلوب.'));
   }
-  revalidatePath('/');revalidatePath('/products');revalidatePath('/products/'+slug);revalidatePath('/admin/dashboard');revalidatePath('/admin/control');
-  finish(id?'تم حفظ المنتج وتحديثه.':'تم إنشاء المنتج بنجاح.');
+
+  const productIdInput = id ? Number(id) : null;
+  const slug = submittedSlug || await uniqueProductSlug(db, name, productIdInput ?? undefined);
+
+  const payload = {
+    name,
+    slug,
+    description: textValue(formData, 'description'),
+    price_dzd: Number(formData.get('price_dzd') || 0) || null,
+    stock: Math.max(0, Number(formData.get('stock') || 0)),
+    active: formData.get('active') === 'on',
+    category_id: nullableText(formData, 'category_id') ? Number(formData.get('category_id')) : null,
+    ad_priority: Math.min(100, Math.max(0, Number(formData.get('ad_priority') || 0) || 0)),
+    home_featured: formData.get('home_featured') === 'on',
+  };
+
+  console.log('[M04 saveProduct] start', { id: productIdInput, userId: user.id, slug });
+
+  let productId: number;
+
+  if (productIdInput) {
+    const { error } = await db.from('products').update(payload).eq('id', productIdInput);
+    if (error) dbError('تعذر تعديل المنتج', error);
+
+    const { data: saved, error: verifyError } = await db
+      .from('products')
+      .select('id,name,slug,price_dzd,stock,active,category_id,ad_priority,home_featured')
+      .eq('id', productIdInput)
+      .maybeSingle();
+
+    if (verifyError) dbError('تمت محاولة تعديل المنتج لكن تعذر التحقق من النتيجة', verifyError);
+    if (!saved) dbError('تمت محاولة تعديل المنتج لكن المنتج غير قابل للقراءة بعد الحفظ', null);
+
+    productId = saved.id;
+
+    console.log('[M04 saveProduct] update verified', { productId, saved });
+  } else {
+    const { error } = await db.from('products').insert(payload);
+    if (error) dbError('تعذر إنشاء المنتج', error);
+
+    const { data: saved, error: verifyError } = await db
+      .from('products')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (verifyError) dbError('تم إنشاء المنتج لكن تعذر التحقق من النتيجة', verifyError);
+    if (!saved) dbError('تم إنشاء المنتج لكن لم يظهر بعد في قاعدة البيانات', null);
+
+    productId = saved.id;
+
+    console.log('[M04 saveProduct] insert verified', { productId });
+  }
+
+  const files = formData.getAll('media').filter(
+    (item): item is File => item instanceof File && item.size > 0
+  );
+
+  const allowed = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+  ];
+
+  for (const file of files) {
+    if (!allowed.includes(file.type) || file.size > 50 * 1024 * 1024) {
+      return redirect('/admin/control?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 50MB: ' + file.name));
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    const objectPath = user.id + '/products/' + productId + '/' + crypto.randomUUID() + '.' + ext;
+    const bytes = Buffer.from(await file.arrayBuffer());
+
+    console.log('[M04 saveProduct] uploading media', {
+      productId,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    const { error: uploadError } = await db.storage.from('aslan-media').upload(objectPath, bytes, {
+      contentType: file.type,
+      upsert: false,
+    });
+
+    if (uploadError) dbError('تعذر رفع ' + file.name, uploadError);
+
+    const { error: mediaError } = await db.from('media_assets').insert({
+      owner_id: user.id,
+      product_id: productId,
+      bucket_id: 'aslan-media',
+      object_path: objectPath,
+      media_type: file.type.startsWith('video/') ? 'video' : 'image',
+      mime_type: file.type,
+      file_size: file.size,
+    });
+
+    if (mediaError) {
+      await db.storage.from('aslan-media').remove([objectPath]);
+      dbError('تعذر ربط الوسيط بالمنتج', mediaError);
+    }
+  }
+
+  revalidatePath('/');
+  revalidatePath('/products');
+  revalidatePath('/products/' + slug);
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+
+  console.log('[M04 saveProduct] success', { productId, userId: user.id, mediaCount: files.length });
+
+  finish(id ? 'تم حفظ المنتج وتحقق النظام من التعديل.' : 'تم إنشاء المنتج وتحقق النظام من الحفظ.');
 }
 export async function uploadProductMedia(formData: FormData) {
   const {db,user}=await requireSuperAdmin(); const productId=Number(formData.get('product_id')); const file=formData.get('file');
