@@ -25,7 +25,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-type Product = { id:number; name:string; slug:string; description:string; price_dzd:number|null; stock:number; active:boolean; category_id:number|null };
+type Product = { id:number; name:string; slug:string; description:string; price_dzd:number|null; stock:number; active:boolean; category_id:number|null; ad_priority:number; home_featured:boolean };
 type Category = { id:number; name:string; slug:string };
 type Lead = { id:number; name:string; phone:string; type:string; status:string };
 type Post = { id:string; title:string; status:string; featured:boolean };
@@ -49,7 +49,7 @@ export default async function AdminControl() {
     {data:products},{data:categories},{data:leads},{data:posts},
     {data:contributions},{data:roles},{data:permissions},{data:profiles},{data:userRoles},{data:organizations},{data:rolePermissions}
   ] = await Promise.all([
-    db.from('products').select('id,name,slug,description,price_dzd,stock,active,category_id').order('id'),
+    db.from('products').select('id,name,slug,description,price_dzd,stock,active,category_id,ad_priority,home_featured').order('id'),
     db.from('categories').select('id,name,slug').order('id'),
     db.from('leads').select('id,name,phone,type,status').order('created_at',{ascending:false}).limit(30),
     db.from('posts').select('id,title,status,featured').order('created_at',{ascending:false}).limit(30),
@@ -326,6 +326,9 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
     <input name="stock" type="number" min="0" defaultValue={product?.stock ?? 0} placeholder="المخزون"/>
     <select name="category_id" defaultValue={product?.category_id?.toString() ?? ''}><option value="">بدون فئة</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
     <label><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/> نشط</label>
+    <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> عرض قوي على الصفحة الرئيسية</label>
+    <input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0} placeholder="قوة الدعم الإعلاني 0–100" />
+    <small className="muted">الأولوية الإعلانية تساعد المنتج على الظهور، بينما الطلب والأحدث يُحتسبان تلقائيًا.</small>
     <button type="submit">{product ? 'حفظ المنتج' : 'إنشاء المنتج'}</button>
     {product && <Link href="/products" target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none',textAlign:'center'}}>👁️ معاينة المنتج في المتجر</Link>}
   </form>;
