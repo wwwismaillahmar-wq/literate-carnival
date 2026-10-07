@@ -24,11 +24,12 @@ function nullableText(formData: FormData, key: string) {
 }
 
 export async function saveProduct(formData: FormData) {
-  const { db } = await requireSuperAdmin();
+  const { db, user } = await requireSuperAdmin();
   const id = textValue(formData, 'id');
   const name = textValue(formData, 'name');
   const slug = textValue(formData, 'slug');
-  if (!name || !slug) return;
+  if (!name || !slug) throw new Error('اسم المنتج وslug مطلوبان.');
+
   const adPriority = Math.min(100, Math.max(0, Number(formData.get('ad_priority') || 0) || 0));
   const payload = {
     name,
@@ -41,14 +42,57 @@ export async function saveProduct(formData: FormData) {
     ad_priority: adPriority,
     home_featured: formData.get('home_featured') === 'on',
   };
-  if (id) await db.from('products').update(payload).eq('id', Number(id));
-  else await db.from('products').insert(payload);
+
+  let productId: number;
+  if (id) {
+    const { data, error } = await db.from('products').update(payload).eq('id', Number(id)).select('id').single();
+    if (error || !data) throw new Error(error?.message || 'تعذر تعديل المنتج.');
+    productId = data.id;
+  } else {
+    const { data, error } = await db.from('products').insert(payload).select('id').single();
+    if (error || !data) throw new Error(error?.message || 'تعذر إنشاء المنتج.');
+    productId = data.id;
+  }
+
+  const files = formData.getAll('media').filter((item): item is File => item instanceof File && item.size > 0);
+  const allowed = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
+
+  for (const file of files) {
+    if (!allowed.includes(file.type) || file.size > 50 * 1024 * 1024) {
+      throw new Error(`الملف غير صالح أو يتجاوز 50MB: ${file.name}`);
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    const objectPath = `${user.id}/products/${productId}/${crypto.randomUUID()}.${ext}`;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const { error: uploadError } = await db.storage.from('aslan-media').upload(objectPath, bytes, {
+      contentType: file.type,
+      upsert: false,
+    });
+    if (uploadError) throw new Error(`تعذر رفع ${file.name}: ${uploadError.message}`);
+
+    const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+    const { error: mediaError } = await db.from('media_assets').insert({
+      owner_id: user.id,
+      product_id: productId,
+      bucket_id: 'aslan-media',
+      object_path: objectPath,
+      media_type: mediaType,
+      mime_type: file.type,
+      file_size: file.size,
+    });
+    if (mediaError) {
+      await db.storage.from('aslan-media').remove([objectPath]);
+      throw new Error(`تعذر ربط الوسيط بالمنتج: ${mediaError.message}`);
+    }
+  }
+
   revalidatePath('/');
   revalidatePath('/products');
+  revalidatePath(`/products/${slug}`);
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
 }
-
 export async function uploadProductMedia(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
   const productId = Number(formData.get('product_id'));
