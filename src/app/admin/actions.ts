@@ -267,3 +267,23 @@ export async function removeRolePermission(formData: FormData) {
   }
   revalidatePath('/admin/control');
 }
+
+export async function saveOrganizationMember(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const organizationId = textValue(formData, 'organization_id');
+  const userId = textValue(formData, 'user_id');
+  const roleId = textValue(formData, 'role_id');
+  const status = textValue(formData, 'status') || 'active';
+  if (!organizationId || !userId || !roleId || !['active','invited','suspended','removed'].includes(status)) return;
+  const payload = { organization_id: organizationId, user_id: userId, role_id: roleId, status };
+  await db.from('organization_members').upsert(payload, { onConflict: 'organization_id,user_id' });
+  revalidatePath('/admin/control');
+}
+
+export async function removeOrganizationMember(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const organizationId = textValue(formData, 'organization_id');
+  const userId = textValue(formData, 'user_id');
+  if (organizationId && userId) await db.from('organization_members').delete().eq('organization_id', organizationId).eq('user_id', userId);
+  revalidatePath('/admin/control');
+}
