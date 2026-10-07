@@ -44,6 +44,54 @@ export async function saveProduct(formData: FormData) {
   revalidatePath('/admin/control');
 }
 
+
+export async function uploadProductMedia(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const productId = Number(formData.get('product_id'));
+  const file = formData.get('file');
+  if (!productId || !(file instanceof File) || file.size === 0) return;
+  const allowed = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
+  if (!allowed.includes(file.type) || file.size > 50 * 1024 * 1024) return;
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+  const objectPath = `${user.id}/products/${productId}/${crypto.randomUUID()}.${ext}`;
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const { error: uploadError } = await db.storage.from('aslan-media').upload(objectPath, bytes, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (uploadError) return;
+
+  const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+  const { error: mediaError } = await db.from('media_assets').insert({
+    owner_id: user.id,
+    product_id: productId,
+    bucket_id: 'aslan-media',
+    object_path: objectPath,
+    media_type: mediaType,
+    mime_type: file.type,
+    file_size: file.size,
+  });
+  if (mediaError) {
+    await db.storage.from('aslan-media').remove([objectPath]);
+    return;
+  }
+
+  revalidatePath('/admin/control');
+  revalidatePath('/admin/dashboard');
+}
+
+export async function deleteProductMedia(formData: FormData) {
+  const { db } = await requireSuperAdmin();
+  const id = String(formData.get('id') || '');
+  if (!id) return;
+  const { data: media } = await db.from('media_assets').select('bucket_id,object_path,product_id').eq('id', id).maybeSingle();
+  if (!media) return;
+  await db.storage.from(media.bucket_id).remove([media.object_path]);
+  await db.from('media_assets').delete().eq('id', id);
+  revalidatePath('/admin/control');
+}
+
 export async function deleteProduct(formData: FormData) {
   const { db } = await requireSuperAdmin();
   const id = Number(formData.get('id'));
