@@ -142,8 +142,7 @@ export async function getHomepageProducts() {
       };
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 12)
-    .map(({ score: _score, ...product }) => product);
+    .slice(0, 12);
 }
 
 export async function getGallery(): Promise<GalleryItem[]> {
