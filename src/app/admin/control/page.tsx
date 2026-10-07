@@ -79,6 +79,7 @@ export default async function AdminControl() {
           </div>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
             <Link className="card" href="/admin/dashboard">← لوحة التحكم</Link>
+            <Link className="card" href="/">👁️ معاينة الموقع</Link>
             <LogoutButton />
           </div>
         </div>
@@ -326,6 +327,7 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
     <select name="category_id" defaultValue={product?.category_id?.toString() ?? ''}><option value="">بدون فئة</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
     <label><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/> نشط</label>
     <button type="submit">{product ? 'حفظ المنتج' : 'إنشاء المنتج'}</button>
+    {product && <Link href="/products" target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none',textAlign:'center'}}>👁️ معاينة المنتج في المتجر</Link>}
   </form>;
 }
 
