@@ -330,7 +330,7 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
     <input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0} placeholder="قوة الدعم الإعلاني 0–100" />
     <small className="muted">الأولوية الإعلانية تساعد المنتج على الظهور، بينما الطلب والأحدث يُحتسبان تلقائيًا.</small>
     <button type="submit">{product ? 'حفظ المنتج' : 'إنشاء المنتج'}</button>
-    {product && <Link href="/products" target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none',textAlign:'center'}}>👁️ معاينة المنتج في المتجر</Link>}
+    {product && <Link href={`/products/${product.slug}`} target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none',textAlign:'center'}}>👁️ معاينة المنتج في المتجر</Link>}
   </form>;
 }
 
