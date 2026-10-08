@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { SupabaseAuditWriter } from '@/platform/audit';
 
 async function requireSuperAdmin() {
   const db = await createClient();
@@ -48,6 +49,10 @@ async function uniqueProductSlug(db: Awaited<ReturnType<typeof createClient>>, n
 
 function dbError(action: string, error: { message?: string } | null | undefined): never {
   redirect('/admin/control?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
+}
+
+async function audit(db: Awaited<ReturnType<typeof createClient>>, userId: string, action: 'CREATE'|'UPDATE'|'DELETE'|'AUTHORIZE'|'REVOKE'|'OTHER', resourceType: string, resourceId?: string, metadata?: Record<string, unknown>) {
+  await new SupabaseAuditWriter().record({id: crypto.randomUUID() as never, occurredAt: new Date().toISOString() as never, actorId: userId as never, action, resourceType, resourceId: resourceId as never, success: true, metadata});
 }
 
 function finish(message: string): never {
@@ -176,6 +181,7 @@ export async function saveProduct(formData: FormData) {
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
 
+  await audit(db,user.id,id?'UPDATE':'CREATE','product',String(productId),{mediaCount:files.length});
   console.log('[M04 saveProduct] success', { productId, userId: user.id, mediaCount: files.length });
 
   finish(id ? 'تم حفظ المنتج وتحقق النظام من التعديل.' : 'تم إنشاء المنتج وتحقق النظام من الحفظ.');
@@ -201,7 +207,7 @@ export async function deleteProductMedia(formData: FormData) {
 
 export async function deleteProduct(formData: FormData) {
   const {db}=await requireSuperAdmin(); const id=Number(formData.get('id')); if(!id)throw new Error('معرّف المنتج غير صالح.');
-  const {error}=await db.from('products').delete().eq('id',id); if(error)dbError('تعذر حذف المنتج',error);
+  const {error}=await db.from('products').delete().eq('id',id); if(error)dbError('تعذر حذف المنتج',error); await audit(db,(await db.auth.getUser()).data.user!.id,'DELETE','product',String(id));
   revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم حذف المنتج.');
 }
 
@@ -223,13 +229,13 @@ export async function updateLeadStatus(formData: FormData) {
 
 export async function updatePost(formData: FormData) {
   const {db,user}=await requireSuperAdmin(); const id=textValue(formData,'id'),status=textValue(formData,'status'); if(!id||!['draft','pending','needs_revision','accepted','published','rejected','archived'].includes(status))throw new Error('بيانات المنشور غير صالحة.');
-  const featured=formData.get('featured')==='on'; const {error}=await db.from('posts').update({status,featured,featured_by:featured?user.id:null,featured_at:featured?new Date().toISOString():null}).eq('id',id); if(error)dbError('تعذر تحديث المنشور',error);
+  const featured=formData.get('featured')==='on'; const {error}=await db.from('posts').update({status,featured,featured_by:featured?user.id:null,featured_at:featured?new Date().toISOString():null}).eq('id',id); if(error)dbError('تعذر تحديث المنشور',error); await audit(db,user.id,'UPDATE','post',id,{status,featured});
   revalidatePath('/');revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تحديث المنشور.');
 }
 
 export async function updateContribution(formData: FormData) {
   const {db,user}=await requireSuperAdmin(); const id=textValue(formData,'id'),status=textValue(formData,'status'); if(!id||!['pending','needs_revision','accepted','published','rejected'].includes(status))throw new Error('بيانات المساهمة غير صالحة.');
-  const featured=formData.get('featured')==='on'; const {error}=await db.from('contributions').update({status,featured,featured_by:featured?user.id:null,featured_at:featured?new Date().toISOString():null,published_at:status==='published'?new Date().toISOString():null}).eq('id',id); if(error)dbError('تعذر تحديث المساهمة',error);
+  const featured=formData.get('featured')==='on'; const {error}=await db.from('contributions').update({status,featured,featured_by:featured?user.id:null,featured_at:featured?new Date().toISOString():null,published_at:status==='published'?new Date().toISOString():null}).eq('id',id); if(error)dbError('تعذر تحديث المساهمة',error); await audit(db,user.id,'UPDATE','contribution',id,{status,featured});
   revalidatePath('/');revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تحديث المساهمة.');
 }
 
@@ -247,7 +253,7 @@ export async function savePermission(formData: FormData) {
 
 export async function assignUserRole(formData: FormData) {
   const {db}=await requireSuperAdmin(); const userId=textValue(formData,'user_id'),roleId=textValue(formData,'role_id'); if(!userId||!roleId)throw new Error('المستخدم والدور مطلوبان.');
-  const {error}=await db.from('user_roles').upsert({user_id:userId,role_id:roleId},{onConflict:'user_id,role_id'}); if(error)dbError('تعذر تعيين الدور للمستخدم',error);
+  const {error}=await db.from('user_roles').upsert({user_id:userId,role_id:roleId},{onConflict:'user_id,role_id'}); if(error)dbError('تعذر تعيين الدور للمستخدم',error); await audit(db,(await db.auth.getUser()).data.user!.id,'AUTHORIZE','user_role',userId,{roleId});
   revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تعيين الدور للمستخدم.');
 }
 
