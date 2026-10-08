@@ -63,9 +63,29 @@ export default async function Dashboard() {
       </div>
 
       <section className="card" style={{marginTop:25}}>
-        <span className="kicker">OPERATIONS</span><h2>الأدمين يستطيع العمل من هنا</h2>
-        <p className="muted">إدارة المنتجات، الفئات، العملاء المحتملين، المحتوى، الأدوار، الصلاحيات، المستخدمين والمؤسسات من داخل الموقع.</p>
-        <Link href="/admin/control" className="card" style={{display:'inline-block',marginTop:12,textDecoration:'none'}}>فتح لوحة التشغيل الكاملة →</Link>
+        <span className="kicker">OPERATIONS / M00–M17</span>
+        <h2>خريطة التشغيل الفعلية</h2>
+        <p className="muted">هذه ليست مراحل نظرية: كل بطاقة أدناه تقود إلى واجهة التشغيل الموجودة فعليًا. الحدود التي ما زالت بنيوية فقط تبقى معلّمة بوضوح بدل إظهارها كأنها مكتملة.</p>
+        <div className="grid three" style={{marginTop:18}}>
+          {[
+            ['/admin/control','M04 / الإدارة المركزية','المنتجات، العملاء المحتملون، المحتوى، RBAC، المستخدمون والمؤسسات','active'],
+            ['/admin/content','M11 / المحتوى المميز','إدارة المحتوى المميز والظهور','active'],
+            ['/admin/market','M12 / السوق','الكتالوج والتصنيفات والعملاء المحتملون','active'],
+            ['/admin/inventory','M13 / المخزون','المخزون والحركات والحجز','active'],
+            ['/admin/fulfillment','M13 / التنفيذ والتسليم','مهام التنفيذ والتتبع','active'],
+            ['/cart','M14 / السلة','سلة العميل الحالية','active'],
+            ['/checkout','M14 / Checkout','تثبيت الطلب والحجز وإنشاء الفاتورة','active'],
+            ['/orders','M14 / الطلبات','طلبات العميل','active'],
+            ['/invoices','M15 / الفواتير','الفوترة وسجل الفواتير','active'],
+            ['/services','M16 / الخدمات','كتالوج الخدمات ومسار الطلب','active'],
+            ['/service-requests','M16 / طلبات الخدمة','طلبات الخدمة وحالاتها','active'],
+            ['/admin/services','M17 / تشغيل الخدمات','آلة حالات تشغيل الخدمات','active'],
+          ].map(([href,title,detail,status]) => (
+            <Link href={href} key={href} className="card" style={{textDecoration:'none'}}>
+              <span className="kicker">{status}</span><h3>{title}</h3><p className="muted">{detail}</p>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <div className="grid three" style={{marginTop:25}}>
