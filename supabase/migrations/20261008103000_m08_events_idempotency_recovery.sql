@@ -50,11 +50,16 @@ declare r public.idempotency_keys;
 begin
   insert into public.idempotency_keys(scope,key,request_hash,status)
   values(p_scope,p_key,p_request_hash,'processing')
-  on conflict (scope,key) do nothing;
+  on conflict (scope,key) do nothing
+  returning * into r;
+  if found then
+    return query select true, r.status, r.response;
+    return;
+  end if;
   select * into r from public.idempotency_keys where scope=p_scope and key=p_key;
-  return query select (r.created_at = (select max(created_at) from public.idempotency_keys where scope=p_scope and key=p_key) and r.status='processing' and (p_request_hash is null or r.request_hash is not distinct from p_request_hash)), r.status, r.response;
+  if p_request_hash is not null and r.request_hash is distinct from p_request_hash then
+    raise exception 'IDEMPOTENCY_REQUEST_MISMATCH';
+  end if;
+  return query select false, r.status, r.response;
 end;
 $$;
-
-revoke all on function public.claim_idempotency_key(text,text,text) from public;
-grant execute on function public.claim_idempotency_key(text,text,text) to authenticated;
