@@ -18,7 +18,7 @@ export async function createServiceRequest(formData: FormData) {
     service_id: serviceId,
     description,
     preferred_at: preferredAtRaw ? new Date(preferredAtRaw).toISOString() : null,
-    status: 'new',
+    status: 'submitted',
   });
   if (error) redirect('/service-requests?error=' + encodeURIComponent(error.message));
   redirect('/service-requests?success=' + encodeURIComponent('تم إنشاء طلب الخدمة'));
