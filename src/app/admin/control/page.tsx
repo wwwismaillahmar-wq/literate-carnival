@@ -379,7 +379,7 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
   );
 }
 
-function ProductForm({product,categories,action}:{product?:Product;categories:Category[];action:(formData:FormData)=>Promise<void>}) {
+function ProductForm({product,categories,action}:{product?:Product;categories:Category[];action:(formData:FormData)=>void}) {
   return <form action={action} encType="multipart/form-data" style={formGrid}>
     {product && <input type="hidden" name="id" value={product.id}/>}
     <input name="name" defaultValue={product?.name} placeholder="اسم المنتج" required/>
