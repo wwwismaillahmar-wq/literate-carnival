@@ -63,3 +63,51 @@ begin
   return query select false, r.status, r.response;
 end;
 $$;
+
+create or replace function public.enqueue_platform_event(
+  p_event_name text,
+  p_aggregate_type text,
+  p_aggregate_id text,
+  p_correlation_id uuid,
+  p_idempotency_key text,
+  p_payload jsonb
+) returns uuid
+language plpgsql security definer set search_path=public
+as $$
+declare event_id uuid;
+begin
+  if auth.uid() is null then raise exception 'UNAUTHENTICATED'; end if;
+  insert into public.platform_events(event_name,aggregate_type,aggregate_id,correlation_id,idempotency_key,payload)
+  values(p_event_name,p_aggregate_type,p_aggregate_id,p_correlation_id,p_idempotency_key,coalesce(p_payload,'{}'::jsonb))
+  on conflict (event_name,idempotency_key) do update set event_name=excluded.event_name
+  returning id into event_id;
+  return event_id;
+end;
+$$;
+revoke all on function public.enqueue_platform_event(text,text,text,uuid,text,jsonb) from public;
+grant execute on function public.enqueue_platform_event(text,text,text,uuid,text,jsonb) to authenticated;
+
+create or replace function public.claim_platform_event(p_max_attempts integer default 5)
+returns setof public.platform_events
+language plpgsql security definer set search_path=public
+as $$
+begin
+  return query
+  with candidate as (
+    select id from public.platform_events
+    where status in ('pending','failed')
+      and available_at <= now()
+      and attempts < greatest(p_max_attempts,1)
+    order by created_at
+    for update skip locked
+    limit 1
+  )
+  update public.platform_events e
+  set status='processing', attempts=e.attempts+1
+  from candidate
+  where e.id=candidate.id
+  returning e.*;
+end;
+$$;
+revoke all on function public.claim_platform_event(integer) from public;
+grant execute on function public.claim_platform_event(integer) to authenticated;
