@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { transitionServiceRequest } from '../actions';
 
