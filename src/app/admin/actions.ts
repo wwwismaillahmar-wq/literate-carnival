@@ -384,3 +384,20 @@ export async function transitionServiceRequest(formData: FormData) {
   revalidatePath('/service-requests');
   finish('تم تحديث حالة طلب الخدمة.');
 }
+
+export async function markPaymentPaid(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const paymentId = textValue(formData, 'payment_id');
+  if (!paymentId) throw new Error('معرّف الدفع غير صالح.');
+  const { data: payment, error: paymentError } = await db.from('payments').select('id,invoice_id').eq('id',paymentId).single();
+  if (paymentError || !payment) dbError('تعذر قراءة الدفع', paymentError || new Error('NOT_FOUND'));
+  const now = new Date().toISOString();
+  const { error } = await db.from('payments').update({status:'paid',paid_at:now}).eq('id',paymentId);
+  if (error) dbError('تعذر تأكيد الدفع', error);
+  const { error: invoiceError } = await db.from('invoices').update({status:'paid',paid_at:now}).eq('id',payment.invoice_id);
+  if (invoiceError) dbError('تعذر تحديث الفاتورة', invoiceError);
+  await audit(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:payment.invoice_id});
+  revalidatePath('/admin/payments');
+  revalidatePath('/invoices');
+  finish('تم تأكيد الدفع وتحديث الفاتورة.');
+}
