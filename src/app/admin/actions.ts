@@ -337,3 +337,34 @@ export async function deleteCompanyContent(formData: FormData) {
   revalidatePath('/admin/control');
   finish('تم حذف محتوى الشركة.');
 }
+
+
+export async function savePaymentProviderConfig(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const id = textValue(formData,'id');
+  const providerKey = textValue(formData,'provider_key');
+  const displayName = textValue(formData,'display_name');
+  const mode = textValue(formData,'mode') || 'sandbox';
+  const enabled = formData.get('enabled') === 'on';
+  const merchantId = nullableText(formData,'merchant_id');
+  const publicKey = nullableText(formData,'public_key');
+  const apiKey = nullableText(formData,'api_key');
+  const secretKey = nullableText(formData,'secret_key');
+  if (!id || !providerKey || !displayName || !['sandbox','live'].includes(mode)) throw new Error('بيانات بوابة الدفع غير صالحة.');
+
+  const { data: current, error: readError } = await db.from('payment_provider_configs').select('config_data').eq('id',id).single();
+  if (readError) dbError('تعذر قراءة إعدادات بوابة الدفع', readError);
+  const previous = (current?.config_data && typeof current.config_data === 'object' && !Array.isArray(current.config_data)) ? current.config_data as Record<string,unknown> : {};
+  const config_data = {
+    ...previous,
+    ...(merchantId ? { merchant_id: merchantId } : {}),
+    ...(publicKey ? { public_key: publicKey } : {}),
+    ...(apiKey ? { api_key: apiKey } : {}),
+    ...(secretKey ? { secret_key: secretKey } : {}),
+  };
+  const { error } = await db.from('payment_provider_configs').update({display_name:displayName,enabled,mode,config_data,updated_at:new Date().toISOString()}).eq('id',id);
+  if (error) dbError('تعذر حفظ إعدادات بوابة الدفع', error);
+  await audit(db,user.id,'UPDATE','payment_provider_configs',id,{providerKey,enabled,mode});
+  revalidatePath('/admin/control');
+  finish('تم حفظ إعدادات بوابة الدفع.');
+}
