@@ -3,37 +3,25 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!supabaseUrl || !supabaseKey) {
-    return response;
-  }
+  if (!supabaseUrl || !supabaseKey) return response;
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(cookiesToSet, headers) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-        Object.entries(headers).forEach(([key, value]) =>
-          response.headers.set(key, value)
-        );
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
       },
     },
   });
 
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
-
   const pathname = request.nextUrl.pathname;
   const isAdminLogin = pathname === '/admin/login';
   const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/');
@@ -44,10 +32,7 @@ export async function middleware(request: NextRequest) {
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
-
   return response;
 }
 
-export const config = {
-  matcher: ['/admin/:path*', '/auth/:path*'],
-};
+export const config = { matcher: ['/admin/:path*', '/auth/:path*'] };
