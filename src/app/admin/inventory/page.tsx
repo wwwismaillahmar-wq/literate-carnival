@@ -10,7 +10,7 @@ type InventoryRow = {
   reorder_level: number;
   status: 'active' | 'inactive';
   updated_at: string;
-  products: { name: string | null; slug: string | null } | null;
+  products: { name: string | null; slug: string | null }[];
 };
 
 export default async function InventoryPage() {
@@ -32,7 +32,7 @@ export default async function InventoryPage() {
         <div className="grid" style={{ marginTop: 24 }}>
           {rows.map((x) => (
             <article className="card" key={x.id}>
-              <h2>{x.products?.name ?? x.product_id}</h2>
+              <h2>{x.products[0]?.name ?? x.product_id}</h2>
               <p>المتاح: {x.quantity_on_hand} · محجوز: {x.quantity_reserved}</p>
               <p>حد إعادة الطلب: {x.reorder_level} · الحالة: {x.status}</p>
             </article>
