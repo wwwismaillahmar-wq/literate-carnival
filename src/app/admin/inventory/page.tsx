@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
 type InventoryRow = {
@@ -15,6 +16,11 @@ type InventoryRow = {
 
 export default async function InventoryPage() {
   const db = await createClient();
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) redirect('/admin/login');
+  const { data: isSuperAdmin } = await db.rpc('has_role', { role_key: 'super_admin' });
+  if (!isSuperAdmin) redirect('/');
+
   const { data } = await db
     .from('inventory_items')
     .select('id,product_id,sku,quantity_on_hand,quantity_reserved,reorder_level,status,updated_at,products(name,slug)')
