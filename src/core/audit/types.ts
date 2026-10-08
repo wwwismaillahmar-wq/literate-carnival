@@ -20,6 +20,8 @@ export interface AuditRecord {
   resourceId?: EntityId;
   success: boolean;
   correlationId?: CorrelationId;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
 
