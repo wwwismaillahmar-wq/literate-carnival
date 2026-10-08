@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 
 export default async function MarketAdmin(){
  const db=await createClient();
+ const { data: { user } } = await db.auth.getUser();
+ if (!user) redirect('/admin/login');
+ const { data: isSuperAdmin } = await db.rpc('has_role', { role_key: 'super_admin' });
+ if (!isSuperAdmin) redirect('/');
  const [p,c,l]=await Promise.all([
   db.from('products').select('id,name,slug,price_dzd,stock,active,category_id').order('id',{ascending:false}).limit(100),
   db.from('categories').select('id,name,slug').order('name'),
