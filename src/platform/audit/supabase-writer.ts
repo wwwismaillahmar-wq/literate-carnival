@@ -10,8 +10,8 @@ export class SupabaseAuditWriter implements AuditWriter {
       p_resource_id: entry.resourceId ? String(entry.resourceId) : null,
       p_success: entry.success,
       p_correlation_id: entry.correlationId ? String(entry.correlationId) : null,
-      p_before: null,
-      p_after: null,
+      p_before: entry.before ?? null,
+      p_after: entry.after ?? null,
       p_metadata: entry.metadata ?? {},
     });
     if (error) throw error;
