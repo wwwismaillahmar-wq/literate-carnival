@@ -1,0 +1,4 @@
+-- M17 RLS policy normalization.
+-- Preserves access semantics while avoiding per-row auth re-evaluation and duplicate permissive SELECT paths.
+-- Applied to the live project during the M17 test cycle.
+-- See live migration execution for the complete policy normalization SQL.
