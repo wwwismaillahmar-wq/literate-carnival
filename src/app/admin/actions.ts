@@ -368,3 +368,17 @@ export async function savePaymentProviderConfig(formData: FormData) {
   revalidatePath('/admin/control');
   finish('تم حفظ إعدادات بوابة الدفع.');
 }
+
+export async function transitionServiceRequest(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const requestId = textValue(formData, 'request_id');
+  const toStatus = textValue(formData, 'to_status');
+  const note = textValue(formData, 'note');
+  if (!requestId || !toStatus) throw new Error('بيانات انتقال طلب الخدمة غير صالحة.');
+  const { error } = await db.rpc('transition_service_request', { p_request_id: requestId, p_to_status: toStatus, p_note: note });
+  if (error) dbError('تعذر تغيير حالة طلب الخدمة', error);
+  await audit(db, user.id, 'UPDATE', 'service_requests', requestId, { toStatus, note });
+  revalidatePath('/admin/services');
+  revalidatePath('/service-requests');
+  finish('تم تحديث حالة طلب الخدمة.');
+}
