@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { whatsappLink } from '@/lib/config';
+import { addProductToCart } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,22 +75,24 @@ export default async function ProductDetail({ params }: { params: Promise<{ slug
               {product.stock > 0 ? `متوفر — ${product.stock} قطعة` : 'المنتج غير متوفر حاليًا'}
             </p>
 
-            <div className="actions" style={{ marginTop: 24 }}>
-              <a
-                className="button primary"
-                href={whatsappLink(`مرحباً ASLAN MODELLING، أريد طلب المنتج: ${product.name}. أرجو إرسال التفاصيل.`)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                اطلب المنتج
-              </a>
+            <div className="card" style={{ marginTop: 24 }}>
+              <form action={addProductToCart} style={{ display:'grid', gap:12 }}>
+                <input type="hidden" name="product_id" value={product.id} />
+                <label>الكمية
+                  <input name="quantity" type="number" min="1" max={Math.max(1, product.stock)} defaultValue="1" disabled={product.stock <= 0} />
+                </label>
+                <button className="button primary" type="submit" disabled={product.stock <= 0}>أضف إلى السلة</button>
+              </form>
+            </div>
+            <div className="actions" style={{ marginTop: 16 }}>
+              <a className="button secondary" href={whatsappLink(`مرحباً ASLAN MODELLING، أريد طلب المنتج: ${product.name}. أرجو إرسال التفاصيل.`)} target="_blank" rel="noopener noreferrer">طلب عبر WhatsApp</a>
+              <Link className="button secondary" href="/cart">السلة</Link>
               <Link className="button secondary" href="/products">كل المنتجات</Link>
             </div>
-
             <div className="card" style={{ marginTop: 20 }}>
-              <strong>الدفع</strong>
+              <strong>مسار الشراء</strong>
               <p className="muted" style={{ marginBottom: 0 }}>
-                صفحة الطلب والدفع الإلكتروني الموحدة قيد البناء؛ هذا الزر لا يدّعي وجود بوابة دفع جاهزة.
+                إضافة إلى السلة → Checkout → حجز المخزون وإنشاء الفاتورة → الدفع الإلكتروني عند تفعيل مزود M15.
               </p>
             </div>
           </article>
