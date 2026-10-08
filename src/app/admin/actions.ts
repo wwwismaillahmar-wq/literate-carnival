@@ -139,8 +139,8 @@ export async function saveProduct(formData: FormData) {
   ];
 
   for (const file of files) {
-    if (!allowed.includes(file.type) || file.size > 3 * 1024 * 1024) {
-      return redirect('/admin/control?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 3MB في نموذج الإدارة الحالي: ' + file.name));
+    if (!allowed.includes(file.type) || file.size > 1.5 * 1024 * 1024) {
+      return redirect('/admin/control?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 1.5MB في نموذج الإدارة الحالي: ' + file.name));
     }
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
