@@ -9,6 +9,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   trailingSlash: true,
+  experimental: {
+    serverActions: {
+      // Vercel serverless request bodies are limited to about 4.5 MB; keep a safe margin.
+      bodySizeLimit: '4mb',
+    },
+  },
   images: {
     remotePatterns: [
       {
