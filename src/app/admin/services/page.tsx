@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
 type RequestRow = {
@@ -13,6 +14,11 @@ type RequestRow = {
 
 export default async function AdminServices() {
   const db = await createClient();
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) redirect('/admin/login');
+  const { data: isSuperAdmin } = await db.rpc('has_role', { role_key: 'super_admin' });
+  if (!isSuperAdmin) redirect('/');
+
   const [r, a, q] = await Promise.all([
     db.from('service_requests').select('id,request_number,status,customer_id,service_id,preferred_at,created_at,services(name)').order('created_at', { ascending: false }).limit(100),
     db.from('service_appointments').select('id,request_id,status,starts_at,ends_at,assigned_to').order('starts_at', { ascending: false }).limit(100),
