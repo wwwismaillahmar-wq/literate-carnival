@@ -1,0 +1,2 @@
+import { listMyServiceRequests } from '@/domains/services/service';
+export default async function RequestsPage(){const rows=await listMyServiceRequests();return <main className="section"><div className="wrap"><span className="kicker">M16 / REQUESTS</span><h1>طلبات الخدمة</h1><div className="grid">{rows.map((x:any)=><article className="card" key={x.id}><h2>{x.request_number}</h2><p>{x.services?.name} · {x.status}</p><p>{x.description}</p></article>)}{!rows.length&&<article className="card"><p>لا توجد طلبات خدمة بعد.</p></article>}</div></div></main>}
