@@ -380,7 +380,7 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
 }
 
 function ProductForm({product,categories,action}:{product?:Product;categories:Category[];action:(formData:FormData)=>Promise<void>}) {
-  return <form action={action} method="post" encType="multipart/form-data" style={formGrid}>
+  return <form action={action} encType="multipart/form-data" style={formGrid}>
     {product && <input type="hidden" name="id" value={product.id}/>}
     <input name="name" defaultValue={product?.name} placeholder="اسم المنتج" required/>
     <input name="slug" defaultValue={product?.slug} placeholder="slug (اختياري — يُنشأ تلقائيًا)" />
@@ -389,18 +389,15 @@ function ProductForm({product,categories,action}:{product?:Product;categories:Ca
     <input name="stock" type="number" min="0" defaultValue={product?.stock ?? 0} placeholder="المخزون"/>
     <select name="category_id" defaultValue={product?.category_id?.toString() ?? ''}><option value="">بدون فئة</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
     <label><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/> نشط</label>
-    <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> عرض قوي على الصفحة الرئيسية</label>
-    <input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0} placeholder="قوة الدعم الإعلاني 0–100" />
-    <small className="muted">الأولوية الإعلانية تساعد المنتج على الظهور، بينما الطلب والأحدث يُحتسبان تلقائيًا.</small>
+    <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> عرض على الصفحة الرئيسية</label>
+    <input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0} placeholder="الأولوية الإعلانية 0–100" />
     <label>صور وفيديو المنتج
       <input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple />
     </label>
-    <small className="muted">يمكنك إضافة الصور والفيديو مباشرة مع حفظ المنتج. الحد الأقصى 50MB لكل ملف.</small>
     <button type="submit">{product ? 'حفظ المنتج' : 'إنشاء المنتج'}</button>
     {product && <Link href={`/products/${product.slug}`} target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none',textAlign:'center'}}>👁️ معاينة المنتج في المتجر</Link>}
   </form>;
 }
-
 const formGrid: CSSProperties = {display:'grid',gap:10};
 const rowStyle: CSSProperties = {display:'grid',gridTemplateColumns:'minmax(0,1fr) auto auto',gap:10,alignItems:'center'};
 const stackStyle: CSSProperties = {display:'grid',gap:10,marginBottom:10};
