@@ -1,3 +1,7 @@
 export * from './storage/media-policy';
 export * from './http/errors';
 export * from './notifications/types';
+export * from './events/supabase-publisher';
+export * from './events/recovery';
+export * from './idempotency/supabase-store';
+export * from './audit';
