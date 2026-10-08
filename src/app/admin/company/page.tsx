@@ -6,6 +6,7 @@ import { saveCompanyContent, deleteCompanyContent } from '../actions';
 export const dynamic = 'force-dynamic';
 
 const types = ['about','vision','mission','activity','project','portfolio','news','faq'] as const;
+type CompanyContent = { id:string; content_type:string; slug:string; title:string; excerpt:string|null; body:string|null; sort_order:number; published:boolean; };
 
 export default async function AdminCompanyPage() {
   const db = await createClient();
@@ -14,6 +15,7 @@ export default async function AdminCompanyPage() {
   const { data: isSuperAdmin } = await db.rpc('has_role', { role_key: 'super_admin' });
   if (!isSuperAdmin) redirect('/');
   const { data } = await db.from('company_content').select('id,content_type,slug,title,excerpt,body,sort_order,published').order('sort_order').order('updated_at',{ascending:false});
+  const items = (data ?? []) as CompanyContent[];
   return <main className="section"><div className="wrap">
     <Link href="/admin/control">← مركز التشغيل</Link>
     <span className="kicker" style={{display:'block',marginTop:24}}>M09 / COMPANY CONTENT</span>
@@ -24,7 +26,7 @@ export default async function AdminCompanyPage() {
       <ContentForm />
     </section>
     <div className="grid" style={{marginTop:24}}>
-      {(data??[]).map((item:any)=><article className="card" key={item.id}>
+      {items.map((item:CompanyContent)=><article className="card" key={item.id}>
         <span className="kicker">{item.content_type}</span><h2>{item.title}</h2>
         <p className="muted">{item.slug} · {item.published?'منشور':'مسودة'} · ترتيب {item.sort_order}</p>
         <details><summary>تعديل</summary><ContentForm item={item}/></details>
@@ -34,7 +36,7 @@ export default async function AdminCompanyPage() {
   </div></main>;
 }
 
-function ContentForm({item}:{item?:any}) {
+function ContentForm({item}:{item?:CompanyContent}) {
  return <form action={saveCompanyContent} style={{display:'grid',gap:10,marginTop:12}}>
    {item && <input type="hidden" name="id" value={item.id}/>}
    <select name="content_type" defaultValue={item?.content_type??'about'}>{types.map(t=><option key={t} value={t}>{t}</option>)}</select>
