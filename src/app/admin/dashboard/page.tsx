@@ -69,6 +69,8 @@ export default async function Dashboard() {
         <div className="grid three" style={{marginTop:18}}>
           {[
             ['/admin/control','M04 / الإدارة المركزية','المنتجات، العملاء المحتملون، المحتوى، RBAC، المستخدمون والمؤسسات','active'],
+            ['/admin/audit','M09 / التدقيق','سجل العمليات الإدارية والتغييرات','active'],
+            ['/admin/company','M09 / محتوى الشركة','إدارة عن ASLAN والرؤية والرسالة والمشاريع والأخبار','active'],
             ['/admin/content','M11 / المحتوى المميز','إدارة المحتوى المميز والظهور','active'],
             ['/admin/market','M12 / السوق','الكتالوج والتصنيفات والعملاء المحتملون','active'],
             ['/admin/inventory','M13 / المخزون','المخزون والحركات والحجز','active'],
