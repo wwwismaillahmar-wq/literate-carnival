@@ -318,7 +318,7 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
                 <input name="public_key" placeholder="Public key (اختياري)" />
                 <input name="api_key" type="password" placeholder="API key — اكتبها فقط عند التغيير" autoComplete="new-password" />
                 <input name="secret_key" type="password" placeholder="Secret key — اكتبها فقط عند التغيير" autoComplete="new-password" />
-                <button type="submit">حفظ إعدادات {provider.display_name{'}'}</button>
+                <button type="submit">حفظ إعدادات {provider.display_name}</button>
               </form>
             )}
           </div>
