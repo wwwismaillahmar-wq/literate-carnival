@@ -8,7 +8,7 @@ type RequestRow = {
   service_id: string;
   preferred_at: string | null;
   created_at: string;
-  services: { name: string } | null;
+  services: { name: string }[] | null;
 };
 
 export default async function AdminServices() {
@@ -36,7 +36,7 @@ export default async function AdminServices() {
             {requests.map((x) => (
               <article className="card" key={x.id}>
                 <h3>{x.request_number}</h3>
-                <p>{x.services?.name ?? 'خدمة'} · {x.status}</p>
+                <p>{x.services?.[0]?.name ?? 'خدمة'} · {x.status}</p>
                 <small>{x.customer_id}</small>
               </article>
             ))}
