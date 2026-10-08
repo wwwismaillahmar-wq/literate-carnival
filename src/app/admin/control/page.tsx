@@ -110,6 +110,10 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
           <div style={{display:'grid',gap:12,marginTop:20}}>
             {(products??[] as Product[]).map((p:Product)=>(
               <div className="card" key={p.id}>
+                <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:12}}>
+                  <div><span className="kicker">PRODUCT #{p.id}</span><h3 style={{margin:'4px 0 0'}}>تعديل المنتج: {p.name}</h3></div>
+                  <Link href={`/products/${p.slug}`} target="_blank" rel="noreferrer" className="card" style={{textDecoration:'none'}}>👁️ فتح صفحة المنتج</Link>
+                </div>
                 <ProductForm product={p} categories={(categories??[]) as Category[]} action={saveProduct}/>
                 <div style={{marginTop:16,paddingTop:16,borderTop:'1px solid rgba(255,255,255,.08)'}}>
                   <strong>الصور والفيديوهات</strong>
