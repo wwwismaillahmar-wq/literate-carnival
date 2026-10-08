@@ -22,6 +22,7 @@ import {
   updatePost,
   saveOrganizationMember,
   removeOrganizationMember,
+  savePaymentProviderConfig,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +40,7 @@ type Organization = { id:string; name:string; slug:string; type:string; status:s
 type OrganizationMember = { organization_id:string; user_id:string; role_id:string; status:string };
 type RolePermission = { role_id:string; permission_id:string };
 type ProductMedia = { id:string; product_id:number; media_type:string; mime_type:string; file_size:number; object_path:string; bucket_id:string; url:string|null };
+type PaymentProvider = { id:string; provider_key:string; display_name:string; enabled:boolean; mode:string; config_data:Record<string,unknown>|null };
 
 export default async function AdminControl({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
   const params = searchParams ? await searchParams : {};
@@ -66,6 +68,8 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
     db.from('role_permissions').select('role_id,permission_id'),
     db.from('organization_members').select('organization_id,user_id,role_id,status'),
   ]);
+
+  const { data: paymentProviders } = await db.from('payment_provider_configs').select('id,provider_key,display_name,enabled,mode,config_data').order('sort_order').order('display_name');
 
   const { data: rawProductMedia } = await db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id','is',null).order('created_at',{ascending:false});
   const productMedia = await Promise.all((rawProductMedia ?? []).map(async (media:Omit<ProductMedia,'url'>) => {
@@ -295,6 +299,28 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="card" style={{marginTop:25}}>
+          <span className="kicker">PAYMENTS / M15</span>
+          <h2>بوابات الدفع وإعدادات التاجر</h2>
+          <p className="muted">بيانات التاجر والمفاتيح ليست ثابتة في الكود. تُدار من هنا بواسطة Super Admin وتبقى خارج واجهة العميل. اترك حقول المفاتيح فارغة للحفاظ على القيمة الحالية.</p>
+          <div style={{display:'grid',gap:14,marginTop:18}}>
+            {(paymentProviders??[] as PaymentProvider[]).map((provider:PaymentProvider)=>
+              <form action={savePaymentProviderConfig} className="card" key={provider.id} style={{display:'grid',gap:10}}>
+                <input type="hidden" name="id" value={provider.id}/>
+                <input type="hidden" name="provider_key" value={provider.provider_key}/>
+                <input name="display_name" defaultValue={provider.display_name} required/>
+                <select name="mode" defaultValue={provider.mode}><option value="sandbox">Sandbox / تجريبي</option><option value="live">Live / فعلي</option></select>
+                <label><input type="checkbox" name="enabled" defaultChecked={provider.enabled}/> مفعّل</label>
+                <input name="merchant_id" placeholder="Merchant ID / رقم التاجر (اختياري)" />
+                <input name="public_key" placeholder="Public key (اختياري)" />
+                <input name="api_key" type="password" placeholder="API key — اكتبها فقط عند التغيير" autoComplete="new-password" />
+                <input name="secret_key" type="password" placeholder="Secret key — اكتبها فقط عند التغيير" autoComplete="new-password" />
+                <button type="submit">حفظ إعدادات {provider.display_name{'}'}</button>
+              </form>
+            )}
           </div>
         </section>
 
