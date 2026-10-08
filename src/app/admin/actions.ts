@@ -350,6 +350,7 @@ export async function savePaymentProviderConfig(formData: FormData) {
   const publicKey = nullableText(formData,'public_key');
   const apiKey = nullableText(formData,'api_key');
   const secretKey = nullableText(formData,'secret_key');
+  const instructions = nullableText(formData,'instructions');
   if (!id || !providerKey || !displayName || !['sandbox','live'].includes(mode)) throw new Error('بيانات بوابة الدفع غير صالحة.');
 
   const { data: current, error: readError } = await db.from('payment_provider_configs').select('config_data').eq('id',id).single();
@@ -361,6 +362,7 @@ export async function savePaymentProviderConfig(formData: FormData) {
     ...(publicKey ? { public_key: publicKey } : {}),
     ...(apiKey ? { api_key: apiKey } : {}),
     ...(secretKey ? { secret_key: secretKey } : {}),
+    ...(instructions ? { instructions } : {}),
   };
   const { error } = await db.from('payment_provider_configs').update({display_name:displayName,enabled,mode,config_data,updated_at:new Date().toISOString()}).eq('id',id);
   if (error) dbError('تعذر حفظ إعدادات بوابة الدفع', error);
