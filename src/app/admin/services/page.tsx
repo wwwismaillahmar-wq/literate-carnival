@@ -1,5 +1,9 @@
 import { redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { transitionServiceRequest } from '../actions';
+
+function nextStatuses(status:string){ const map:Record<string,string[]>={submitted:['reviewing','cancelled'],reviewing:['quoted','rejected','cancelled'],quoted:['accepted','rejected','cancelled'],accepted:['scheduled','cancelled'],scheduled:['in_progress','cancelled'],in_progress:['completed','cancelled']}; return map[status]??[]; }
 
 type RequestRow = {
   id: string;
@@ -44,6 +48,14 @@ export default async function AdminServices() {
                 <h3>{x.request_number}</h3>
                 <p>{x.services?.[0]?.name ?? 'خدمة'} · {x.status}</p>
                 <small>{x.customer_id}</small>
+                <form action={transitionServiceRequest} style={{display:'grid',gap:8,marginTop:12}}>
+                  <input type="hidden" name="request_id" value={x.id}/>
+                  <select name="to_status" required>
+                    {(nextStatuses(x.status)).map(status=><option key={status} value={status}>{status}</option>)}
+                  </select>
+                  <input name="note" placeholder="ملاحظة التشغيل (اختياري)"/>
+                  <button type="submit">تحديث الحالة</button>
+                </form>
               </article>
             ))}
           </div>
