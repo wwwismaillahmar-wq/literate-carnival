@@ -112,6 +112,8 @@ export async function saveProduct(formData: FormData) {
       .from('products')
       .select('id')
       .eq('slug', slug)
+      .order('id', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (verifyError) dbError('تم إنشاء المنتج لكن تعذر التحقق من النتيجة', verifyError);
