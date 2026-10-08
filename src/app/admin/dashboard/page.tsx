@@ -79,6 +79,7 @@ export default async function Dashboard() {
             ['/checkout','M14 / Checkout','تثبيت الطلب والحجز وإنشاء الفاتورة','active'],
             ['/orders','M14 / الطلبات','طلبات العميل','active'],
             ['/invoices','M15 / الفواتير','الفوترة وسجل الفواتير','active'],
+            ['/admin/payments','M15 / تشغيل المدفوعات','طلبات الدفع والتأكيد اليدوي وتحديث الفواتير','active'],
             ['/services','M16 / الخدمات','كتالوج الخدمات ومسار الطلب','active'],
             ['/service-requests','M16 / طلبات الخدمة','طلبات الخدمة وحالاتها','active'],
             ['/admin/services','M17 / تشغيل الخدمات','آلة حالات تشغيل الخدمات','active'],
