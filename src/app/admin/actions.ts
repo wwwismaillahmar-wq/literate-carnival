@@ -139,8 +139,8 @@ export async function saveProduct(formData: FormData) {
   ];
 
   for (const file of files) {
-    if (!allowed.includes(file.type) || file.size > 50 * 1024 * 1024) {
-      return redirect('/admin/control?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 50MB: ' + file.name));
+    if (!allowed.includes(file.type) || file.size > 3 * 1024 * 1024) {
+      return redirect('/admin/control?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 3MB في نموذج الإدارة الحالي: ' + file.name));
     }
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
@@ -191,7 +191,7 @@ export async function saveProduct(formData: FormData) {
 export async function uploadProductMedia(formData: FormData) {
   const {db,user}=await requireSuperAdmin(); const productId=Number(formData.get('product_id')); const file=formData.get('file');
   if(!productId||!(file instanceof File)||file.size===0)throw new Error('اختر ملف وسائط صالحًا.');
-  const allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime']; if(!allowed.includes(file.type)||file.size>50*1024*1024)throw new Error('الملف غير صالح أو يتجاوز 50MB.');
+  const allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime']; if(!allowed.includes(file.type)||file.size>3*1024*1024)throw new Error('الملف غير صالح أو يتجاوز 3MB في نموذج الإدارة الحالي.');
   const ext=file.name.split('.').pop()?.toLowerCase()||'bin'; const objectPath=user.id+'/products/'+productId+'/'+crypto.randomUUID()+'.'+ext; const bytes=Buffer.from(await file.arrayBuffer());
   const {error:uploadError}=await db.storage.from('aslan-media').upload(objectPath,bytes,{contentType:file.type,upsert:false}); if(uploadError)dbError('تعذر رفع الوسيط',uploadError);
   const {error:mediaError}=await db.from('media_assets').insert({owner_id:user.id,product_id:productId,bucket_id:'aslan-media',object_path:objectPath,media_type:file.type.startsWith('video/')?'video':'image',mime_type:file.type,file_size:file.size});
