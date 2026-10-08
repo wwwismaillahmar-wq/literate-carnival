@@ -6,6 +6,11 @@ type ProviderRow = { provider_key:string; display_name:string; enabled:boolean; 
 
 type PaymentRow = { id:string; invoice_id:string; provider:string; amount:number; currency:string; status:string; };
 
+function paymentInstructions(providers: ProviderRow[], providerKey: string) {
+  const value = providers.find(p => p.provider_key === providerKey)?.config_data?.instructions;
+  return typeof value === 'string' ? value : '';
+}
+
 type InvoiceRow = {
   id: string;
   invoice_number: string;
@@ -45,7 +50,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: Pr
               )}
               {myPayments.filter(payment=>payment.invoice_id===x.id).map(payment=><div className="card" key={payment.id} style={{marginTop:10}}>
                 <strong>الدفع: {payment.provider}</strong><p>{payment.status} · {payment.amount} {payment.currency}</p>
-                {activeProviders.find(p=>p.provider_key===payment.provider)?.config_data?.instructions && <p className="muted">{String(activeProviders.find(p=>p.provider_key===payment.provider)?.config_data?.instructions)}</p>}
+                {paymentInstructions(activeProviders,payment.provider) && <p className="muted">{paymentInstructions(activeProviders,payment.provider)}</p>}
               </div>)}
             </article>
           ))}
