@@ -7,7 +7,7 @@ create table if not exists public.payment_provider_configs (
   display_name text not null,
   enabled boolean not null default false,
   mode text not null default 'sandbox' check (mode in ('sandbox','live')),
-  credentials jsonb not null default '{}'::jsonb,
+  config_data jsonb not null default '{}'::jsonb,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
