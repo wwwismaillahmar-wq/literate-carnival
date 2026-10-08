@@ -1,0 +1,2 @@
+import { getActiveCart } from '@/domains/commerce/cart';
+export default async function CheckoutPage(){const cart=await getActiveCart();return <main className="section"><div className="wrap"><span className="kicker">M14 / CHECKOUT</span><h1>إتمام الطلب</h1>{!cart?<article className="card"><p>لا توجد سلة نشطة.</p></article>:<article className="card"><p>السلة جاهزة للانتقال إلى إنشاء الطلب. طبقة الدفع لا تُنفذ هنا؛ M15 تملك الفاتورة والدفع.</p><p>عدد العناصر: {(cart.cart_items??[]).length}</p></article>}</div></main>}
