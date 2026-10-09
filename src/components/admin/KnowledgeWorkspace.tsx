@@ -13,7 +13,8 @@ type Article = {
   published_at?: string | null;
 };
 
-const emptyArticle = { slug: '', title: '', excerpt: '', body: '', category: 'general', status: 'draft' as const };
+type ArticleDraft = { slug: string; title: string; excerpt: string; body: string; category: string; status: Article['status'] };
+const emptyArticle: ArticleDraft = { slug: '', title: '', excerpt: '', body: '', category: 'general', status: 'draft' };
 
 export function KnowledgeWorkspace() {
   const [articles, setArticles] = useState<Article[]>([]);
