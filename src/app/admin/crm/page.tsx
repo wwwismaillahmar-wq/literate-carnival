@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { LeadActivityPanel } from '@/components/admin/LeadActivityPanel';
+import { LeadStatusControl } from '@/components/admin/LeadStatusControl';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,7 @@ export default async function AdminCrmPage() {
         <p><a href={'tel:' + lead.phone}>{lead.phone}</a></p>
         <p className="muted">{lead.message}</p>
         <small className="muted">تاريخ الطلب: {new Date(lead.created_at).toLocaleString('ar-DZ')}</small>
+        <LeadStatusControl leadId={lead.id} />
         <LeadActivityPanel leadId={lead.id} />
       </article>)}
     </section>
