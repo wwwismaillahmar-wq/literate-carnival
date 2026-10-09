@@ -59,8 +59,8 @@ export default async function Academy() {
                   <p className="muted">{description}</p>
                   {duration && <p>المدة: {duration}</p>}
                   {price && <p>السعر: {price} دج</p>}
-                  <Link className="btn primary" href={'/contact?type=' + encodeURIComponent('دورة تكوينية: ' + title)}>
-                    الاستفسار والتسجيل
+                  <Link className="btn primary" href={'/academy/' + encodeURIComponent(id)}>
+                    عرض البرنامج والدروس
                   </Link>
                 </article>
               );

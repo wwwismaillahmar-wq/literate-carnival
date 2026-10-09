@@ -166,3 +166,17 @@ grant select, insert, update on public.talent_profiles, public.talent_evidence t
 grant select, insert, update on public.partner_applications to authenticated;
 grant select, insert on public.partner_applications to anon;
 grant select on public.talent_profiles, public.talent_evidence to anon;
+
+-- Published curriculum is public; drafts and archived content remain admin-only.
+drop policy if exists academy_modules_published_read on public.academy_modules;
+create policy academy_modules_published_read on public.academy_modules
+  for select to anon, authenticated using (status = 'published');
+drop policy if exists academy_lessons_published_read on public.academy_lessons;
+create policy academy_lessons_published_read on public.academy_lessons
+  for select to anon, authenticated using (
+    status = 'published' and exists (
+      select 1 from public.academy_modules m
+      where m.id = module_id and m.status = 'published'
+    )
+  );
+grant select on public.academy_modules, public.academy_lessons to anon, authenticated;
