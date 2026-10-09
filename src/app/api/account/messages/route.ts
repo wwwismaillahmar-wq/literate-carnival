@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: 'تعذر تحميل الرسائل.' }, { status: 500 });
 
   const messageIds=(data??[]).map(item=>item.id);
-  const {data:media}=messageIds.length?await supabase.from('media_assets').select('id,message_id,media_type,mime_type,object_path').in('message_id',messageIds):{data:[]};
+  const {data:media}=messageIds.length?await supabase.from('media_assets').select('id,message_id,media_type,mime_type,object_path').in('message_id',messageIds).eq('upload_status','uploaded'):{data:[]};
   const mediaMap=new Map<string,Array<Record<string,unknown>>>();
   for(const item of media??[]){const signed=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);const list=mediaMap.get(item.message_id)||[];list.push({...item,signed_url:signed.data?.signedUrl??null});mediaMap.set(item.message_id,list);}
 
