@@ -144,7 +144,8 @@ create policy talent_evidence_admin_update on public.talent_evidence
 drop policy if exists partner_applications_public_insert on public.partner_applications;
 create policy partner_applications_public_insert on public.partner_applications
   for insert to anon, authenticated with check (
-    length(contact_name) between 2 and 120
+    (owner_id is null or owner_id = (select auth.uid()))
+    and length(contact_name) between 2 and 120
     and length(phone) between 6 and 30
     and length(organization_name) between 2 and 180
     and length(message) between 5 and 4000
