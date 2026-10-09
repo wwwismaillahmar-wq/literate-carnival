@@ -12,6 +12,7 @@ const areas = [
   { href: '/admin/knowledge', title: 'إدارة المعرفة والموسوعات', eyebrow: 'KNOWLEDGE / M37', description: 'إنشاء المقالات والمدخلات العلمية والتقنية ونشرها أو أرشفتها.' },
   { href: '/admin/talent', title: 'مراجعة الأدلة المهنية', eyebrow: 'TALENT / M35', description: 'مراجعة أدلة التدريب والمشاريع والخبرات وتوثيقها إداريًا.' },
   { href: '/admin/partners', title: 'طلبات الشراكة', eyebrow: 'PARTNERS / M36', description: 'مراجعة طلبات الشراكة المحفوظة وتحديث حالتها وملاحظاتها الإدارية.' },
+  { href: '/admin/events', title: 'مراقبة المهام والأحداث', eyebrow: 'EVENTS / M42', description: 'مراقبة الأحداث المعلقة والفاشلة وآخر أخطاء المعالجة من قاعدة البيانات.' },
   { href: '/admin/platform', title: 'مركز تشغيل M26–M32', eyebrow: 'PLATFORM / M26–M32', description: 'البحث الموحد، صندوق الإشعارات، قاعدة المعرفة، التقارير، بوابة الذكاء الاصطناعي، التوصيات ومؤشرات التشغيل.' },
   { href: '/admin/products', title: 'المنتجات', eyebrow: 'MARKET / PRODUCTS', description: 'إنشاء المنتجات وتعديلها وحفظها ونشرها وإدارة صورها وفيديوهاتها.' },
   { href: '/admin/categories', title: 'فئات السوق', eyebrow: 'MARKET / CATEGORIES', description: 'إنشاء الفئات وتعديلها وحذفها ومراجعة ارتباطها بالمنتجات.' },
