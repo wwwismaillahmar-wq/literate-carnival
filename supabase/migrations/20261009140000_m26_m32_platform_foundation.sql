@@ -1,21 +1,8 @@
 -- M26-M32 platform foundation. Additive only; does not rewrite prior migration history.
 create extension if not exists pgcrypto;
 
-create table if not exists public.platform_notifications (
-  id uuid primary key default gen_random_uuid(),
-  recipient_id uuid not null references auth.users(id) on delete cascade,
-  kind text not null default 'general' check (length(kind) between 1 and 60),
-  title text not null check (length(title) between 1 and 200),
-  body text not null default '' check (length(body) <= 5000),
-  href text,
-  metadata jsonb not null default '{}'::jsonb check (jsonb_typeof(metadata) = 'object'),
-  read_at timestamptz,
-  created_at timestamptz not null default now()
-);
-create index if not exists platform_notifications_recipient_created_idx
-  on public.platform_notifications(recipient_id, created_at desc);
-create index if not exists platform_notifications_unread_idx
-  on public.platform_notifications(recipient_id, created_at desc) where read_at is null;
+create index if not exists notifications_recipient_unread_idx
+  on public.notifications(recipient_id, created_at desc) where read_at is null;
 
 create table if not exists public.knowledge_articles (
   id uuid primary key default gen_random_uuid(),
@@ -70,22 +57,10 @@ create table if not exists public.platform_search_events (
 create index if not exists platform_search_events_created_idx
   on public.platform_search_events(created_at desc);
 
-alter table public.platform_notifications enable row level security;
 alter table public.knowledge_articles enable row level security;
 alter table public.platform_ai_requests enable row level security;
 alter table public.recommendation_events enable row level security;
 alter table public.platform_search_events enable row level security;
-
-drop policy if exists platform_notifications_read_own on public.platform_notifications;
-create policy platform_notifications_read_own on public.platform_notifications
-  for select to authenticated using (recipient_id = (select auth.uid()));
-drop policy if exists platform_notifications_update_own on public.platform_notifications;
-create policy platform_notifications_update_own on public.platform_notifications
-  for update to authenticated using (recipient_id = (select auth.uid()))
-  with check (recipient_id = (select auth.uid()));
-drop policy if exists platform_notifications_admin_insert on public.platform_notifications;
-create policy platform_notifications_admin_insert on public.platform_notifications
-  for insert to authenticated with check ((select private.is_super_admin()));
 
 drop policy if exists knowledge_articles_public_read on public.knowledge_articles;
 create policy knowledge_articles_public_read on public.knowledge_articles
@@ -126,8 +101,6 @@ drop policy if exists platform_search_events_admin_read on public.platform_searc
 create policy platform_search_events_admin_read on public.platform_search_events
   for select to authenticated using ((select private.is_super_admin()));
 
-grant select, update on public.platform_notifications to authenticated;
-grant insert on public.platform_notifications to authenticated;
 grant select, insert, update, delete on public.knowledge_articles to authenticated;
 grant select, insert, update on public.platform_ai_requests to authenticated;
 grant select, insert on public.recommendation_events to authenticated;
