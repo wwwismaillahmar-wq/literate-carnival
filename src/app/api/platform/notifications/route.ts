@@ -35,3 +35,31 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
   }
 }
+
+
+export async function POST(request: Request) {
+  try {
+    const db = await createClient();
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
+    const { data: isAdmin, error: roleError } = await db.rpc('has_role', { role_key: 'super_admin' });
+    if (roleError || isAdmin !== true) return NextResponse.json({ error: 'إرسال إشعار إلى حساب آخر يتطلب صلاحية الإدارة العليا.' }, { status: 403 });
+    const body = await request.json();
+    const recipientId = typeof body.recipientId === 'string' ? body.recipientId.trim() : '';
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const message = typeof body.body === 'string' ? body.body.trim() : '';
+    const kind = typeof body.kind === 'string' ? body.kind.trim() : 'general';
+    const href = typeof body.href === 'string' ? body.href.trim() : null;
+    if (!recipientId || title.length < 1 || title.length > 200 || message.length > 5000 || kind.length < 1 || kind.length > 60 || (href && (!href.startsWith('/') || href.startsWith('//')))) {
+      return NextResponse.json({ error: 'بيانات الإشعار غير صالحة.' }, { status: 400 });
+    }
+    const { data, error } = await db.from('platform_notifications').insert({
+      recipient_id: recipientId, title, body: message, kind, href,
+      metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
+    }).select('id,recipient_id,title,body,kind,href,created_at').single();
+    if (error) return NextResponse.json({ error: 'تعذر حفظ الإشعار.' }, { status: 500 });
+    return NextResponse.json({ notification: data }, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
+  }
+}
