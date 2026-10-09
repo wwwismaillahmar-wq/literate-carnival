@@ -217,7 +217,8 @@ export async function saveProduct(formData: FormData) {
             returnTo,
           );
         }
-        dbError('أُلغي إنشاء المنتج لأن ربط الصورة فشل: ' + mediaError.message, null, returnTo);
+        const cleanupNote = storageCleanupError ? ' | تعذر تنظيف ملف التخزين: ' + storageCleanupError.message : '';
+        dbError('أُلغي إنشاء المنتج لأن ربط الصورة فشل: ' + mediaError.message + cleanupNote, null, returnTo);
       }
       const cleanupNote = storageCleanupError ? ' | تعذر تنظيف ملف التخزين: ' + storageCleanupError.message : '';
       dbError('حُفظت بيانات المنتج لكن تعذر ربط الوسيط: ' + mediaError.message + cleanupNote, null, returnTo);
