@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Evidence = {
   id: string;
@@ -21,16 +21,16 @@ export function TalentEvidenceReviewWorkspace() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     const response = await fetch('/api/talent/evidence', { cache: 'no-store' });
     const result = await response.json() as { evidence?: Evidence[]; error?: string };
     if (!response.ok) throw new Error(result.error || 'تعذر تحميل الأدلة.');
     setItems(result.evidence ?? []);
-  }
+  }, []);
 
   useEffect(() => {
     void load().catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الأدلة.')).finally(() => setLoading(false));
-  }, []);
+  }, [load]);
 
   async function review(item: Evidence, status: 'verified' | 'rejected' | 'unverified') {
     setBusyId(item.id);
