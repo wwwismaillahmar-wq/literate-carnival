@@ -271,7 +271,7 @@ export async function registerProductMedia(input: {
   objectPath: string;
   mimeType: string;
   fileSize: number;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; warning?: string | null }> {
   const { db, user } = await requireSuperAdmin();
   const allowed = new Set([
     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -304,11 +304,11 @@ export async function registerProductMedia(input: {
     file_size: input.fileSize,
   });
   if (error) return { ok: false, error: 'تم رفع الملف لكن تعذر ربطه بالمنتج: ' + error.message };
-  await audit(db, user.id, 'CREATE', 'product_media', input.objectPath, { productId: input.productId, mimeType: input.mimeType, fileSize: input.fileSize });
+  const warning = await auditWithWarning(db, user.id, 'CREATE', 'product_media', input.objectPath, { productId: input.productId, mimeType: input.mimeType, fileSize: input.fileSize });
   revalidatePath('/admin/products');
   revalidatePath('/products');
   revalidatePath('/products/' + product.slug);
-  return { ok: true };
+  return { ok: true, warning };
 }
 
 export async function deleteProductMedia(formData: FormData) {
