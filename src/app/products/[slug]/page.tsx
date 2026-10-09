@@ -33,6 +33,7 @@ export default async function ProductDetail({ params }: { params: Promise<{ slug
     .from('media_assets')
     .select('id,media_type,mime_type,object_path,bucket_id')
     .eq('product_id', product.id)
+    .eq('upload_status', 'uploaded')
     .order('created_at', { ascending: true });
 
   const gallery = [];
