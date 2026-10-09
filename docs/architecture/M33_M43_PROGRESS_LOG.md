@@ -20,6 +20,7 @@ This log is an implementation record, not an acceptance certificate.
 - Added `academy_enrollments` and `academy_lesson_progress` with unique keys to prevent duplicate enrollment and duplicate progress rows.
 - Added authenticated APIs for enrollment and lesson-progress read/write.
 - Added a learner UI to enroll and mark lessons complete, with visible error handling.
+- Added assessment authoring, server-side grading with bounded attempts, and certificate issuance only on a passing result; certificate codes have a public verification endpoint/page.
 - Added RLS integrity constraints tying progress to the learner's enrollment and the lesson's published module/course.
 - Added pgTAP contract assertions in `supabase/tests/m34_academy_enrollment_progress.test.sql`.
 - Assessments, grading, certificates, and payment-backed course access are **NOT IMPLEMENTED** in this increment.
@@ -30,7 +31,10 @@ This log is an implementation record, not an acceptance certificate.
 - Added article source metadata and revision snapshots on editorial changes, with an admin-only history API/UI.
 - Added a public navbar logo/brand-color read from the saved public settings.
 - Connected configured logo path and brand color to the public navbar, and configured tagline/footer text to public footer.
-- Gaps remain: partner organization portal, knowledge versioning/source references, complete CRM assignment/status audit, and safe logo upload/replacement lifecycle.
+- Added a partner portal over existing M04 organizations/memberships; approving an account-linked partner application creates an organization and active partner membership transactionally.
+- Added article source metadata and revision snapshots on editorial changes, with an admin-only history API/UI.
+- Added a public navbar logo/brand-color read from the saved public settings and a validated logo upload/replacement endpoint.
+- Added CRM lead assignment and transactional status/assignment history.
 - Status: **PARTIAL / RUNTIME UNVERIFIED**.
 
 ### M40 — Billing
@@ -41,6 +45,8 @@ This log is an implementation record, not an acceptance certificate.
 
 ### M41 — Media lifecycle
 - Added pending/uploaded state, completion confirmation, and a restrictive visibility guard to the existing media flow.
+- Removed the obsolete social-only `media_one_parent` check that conflicted with the newer product/message parent invariant and blocked product/message media registration.
+- Prevented a failed audit write from being misreported as failed product-media registration after the row was already committed.
 - Shared lifecycle coverage for academy, knowledge, talent, and partner files plus failed-write cleanup remains open.
 - Status: **PARTIAL / RUNTIME UNVERIFIED**.
 
@@ -68,3 +74,9 @@ This log is an implementation record, not an acceptance certificate.
 ## Commit handling
 
 The work is isolated on `feat/m33-m43-domain-completion`; the main branch has not been moved by this workstream. Before release, the branch changes can be consolidated into one reviewable commit on top of its recorded base, then subjected to the requested single verification/release window when permissions are available. Do not deploy from this branch during implementation.
+
+
+## Latest continuation note
+
+- Current work remains isolated on the feature branch. Recent commits add M34 assessment authoring/grading/certificates, M36 approval-to-organization flow, M38 lead assignment/history, M39 actual logo upload, M40 atomic payment settlement, M41 media-parent correction, and M42 bounded audited event retry.
+- No build, migration replay, pgTAP suite, authenticated browser test, or end-to-end acceptance has run for the current head. These are code additions, not a claim of verified completion.
