@@ -148,19 +148,16 @@ export async function saveProduct(formData: FormData) {
 
     console.log('[M04 saveProduct] update verified', { productId, saved });
   } else {
-    const { error } = await db.from('products').insert(payload);
-    if (error) dbError('تعذر إنشاء المنتج', error, returnTo);
-
-    const { data: saved, error: verifyError } = await db
+    // Return the inserted row directly. A follow-up lookup by slug can be
+    // blocked independently by RLS and can make a successful insert look failed.
+    const { data: saved, error } = await db
       .from('products')
+      .insert(payload)
       .select('id')
-      .eq('slug', slug)
-      .order('id', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .single();
 
-    if (verifyError) dbError('تم إنشاء المنتج لكن تعذر التحقق من النتيجة', verifyError, returnTo);
-    if (!saved) dbError('تم إنشاء المنتج لكن لم يظهر بعد في قاعدة البيانات', null, returnTo);
+    if (error) dbError('تعذر إنشاء المنتج', error, returnTo);
+    if (!saved?.id) dbError('لم تُرجع قاعدة البيانات معرّف المنتج بعد الإنشاء', null, returnTo);
 
     productId = saved.id;
 
