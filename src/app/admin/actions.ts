@@ -207,7 +207,7 @@ export async function registerProductMedia(input: {
   objectPath: string;
   mimeType: string;
   fileSize: number;
-}) {
+}): Promise<{ ok: boolean; error?: string }> {
   const { db, user } = await requireSuperAdmin();
   const allowed = new Set([
     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -244,7 +244,7 @@ export async function registerProductMedia(input: {
   revalidatePath('/admin/products');
   revalidatePath('/products');
   revalidatePath('/products/' + product.slug);
-  return { ok: true as const };
+  return { ok: true };
 }
 
 export async function deleteProductMedia(formData: FormData) {
