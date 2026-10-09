@@ -9,6 +9,7 @@ export function AssessmentRunner({ assessmentId }: { assessmentId: string }) {
   const [assessment,setAssessment]=useState<Assessment|null>(null);
   const [answers,setAnswers]=useState<Record<string,string>>({});
   const [result,setResult]=useState<{score:number;passed:boolean;attempt_number:number}|null>(null);
+  const [certificate,setCertificate]=useState<{certificate_code:string;issued_at:string}|null>(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
@@ -31,9 +32,9 @@ export function AssessmentRunner({ assessmentId }: { assessmentId: string }) {
     setBusy(true);setError('');setResult(null);
     try{
       const response=await fetch('/api/academy/assessments/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assessmentId:assessment.id,answers})});
-      const data=await response.json() as {attempt?:{score:number;passed:boolean;attempt_number:number};error?:string};
+      const data=await response.json() as {attempt?:{score:number;passed:boolean;attempt_number:number};certificate?:{certificate_code:string;issued_at:string}|null;error?:string};
       if(!response.ok||!data.attempt)throw new Error(data.error||'تعذر تصحيح الاختبار.');
-      setResult(data.attempt);
+      setResult(data.attempt);setCertificate(data.certificate ?? null);
     }catch(e){setError(e instanceof Error?e.message:'تعذر تصحيح الاختبار.');}
     finally{setBusy(false);}
   }
@@ -44,7 +45,7 @@ export function AssessmentRunner({ assessmentId }: { assessmentId: string }) {
   return <section className="card" style={{marginTop:20}}>
     <h1>{assessment.title}</h1><p className="muted">درجة النجاح: {assessment.passScore}% · التصحيح يتم على الخادم.</p>
     {error&&<p role="alert">{error}</p>}
-    {result&&<div className="card" role="status"><h2>{result.passed?'اجتزت الاختبار':'لم تبلغ درجة النجاح'}</h2><p>النتيجة: {result.score}% · المحاولة رقم {result.attempt_number}</p></div>}
+    {result&&<div className="card" role="status"><h2>{result.passed?'اجتزت الاختبار':'لم تبلغ درجة النجاح'}</h2><p>النتيجة: {result.score}% · المحاولة رقم {result.attempt_number}</p>{certificate&&<p>رمز الشهادة: <strong>{certificate.certificate_code}</strong> · <a href={'/certificates/verify?code='+encodeURIComponent(certificate.certificate_code)}>التحقق من الشهادة</a></p>}</div>}
     <form onSubmit={submit} style={{display:'grid',gap:16,marginTop:16}}>
       {assessment.questions.map((question,index)=><fieldset key={question.id} className="card" style={{display:'grid',gap:8}}>
         <legend>{index+1}. {question.prompt}</legend>

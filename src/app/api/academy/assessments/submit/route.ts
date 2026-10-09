@@ -38,7 +38,12 @@ export async function POST(request: Request) {
     }
     const result = Array.isArray(data) ? data[0] : data;
     if (!result?.attempt_id) return NextResponse.json({ error: 'لم تُرجع قاعدة البيانات نتيجة تصحيح صالحة.' }, { status: 500 });
-    return NextResponse.json({ attempt: result });
+    let certificate = null;
+    if (result.passed === true) {
+      const { data: issued } = await db.from('academy_certificates').select('certificate_code,issued_at').eq('user_id', user.id).eq('assessment_id', id).maybeSingle();
+      certificate = issued ?? null;
+    }
+    return NextResponse.json({ attempt: result, certificate });
   } catch {
     return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
   }
