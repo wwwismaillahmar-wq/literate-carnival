@@ -13,3 +13,9 @@ input,select,textarea{width:100%;background:#171b1e;color:var(--text);border:1px
 @media(max-width:800px){.message-popover{right:12px;bottom:12px;width:calc(100vw - 24px)}.privacy-options{grid-template-columns:1fr}.social-author__identity{max-width:calc(100% - 48px)}}
 
 .message-composer{border-top:1px solid var(--line);padding:10px;background:#151a1d;display:grid;gap:7px}.message-composer__form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.message-composer__actions{display:flex;align-items:center;gap:7px}.message-attach-button{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;color:var(--gold);cursor:pointer;font-size:19px}.message-attach-button input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.message-composer__pending{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;color:var(--gold);font-size:12px}.message-composer__pending button{margin-inline-start:auto;border:0;background:transparent;color:var(--muted);font-size:18px}.message-composer .error-text{font-size:12px}.message-popover__panel>.message-composer{border-top:1px solid var(--line)}
+
+/* Explicit admin grid variants; previously .two/.four were used in JSX but had no layout rules. */
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1000px){.grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px){.grid.two,.grid.four{grid-template-columns:1fr}}
