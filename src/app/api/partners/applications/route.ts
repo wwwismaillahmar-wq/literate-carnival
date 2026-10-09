@@ -27,7 +27,7 @@ export async function GET() {
   const { user, allowed } = await isSuperAdmin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول لعرض الطلبات.' }, { status: 401 });
   let query = db.from('partner_applications')
-    .select('id,owner_id,contact_name,phone,email,organization_name,partnership_type,message,status,admin_note,assigned_to,created_at,updated_at')
+    .select('id,owner_id,contact_name,phone,email,organization_name,partnership_type,message,status,admin_note,assigned_to,organization_id,created_at,updated_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (!allowed) query = query.eq('owner_id', user.id);
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       status: 'submitted',
       admin_note: '',
       assigned_to: null,
-    }).select('id,status,created_at').single();
+    }).select('id,status,organization_id,created_at').single();
 
     if (error) return NextResponse.json({ error: 'تعذر حفظ طلب الشراكة في قاعدة البيانات.' }, { status: 500 });
     return NextResponse.json({ application: data }, { status: 201 });
@@ -100,7 +100,7 @@ export async function PATCH(request: Request) {
     if (adminNote !== undefined) patch.admin_note = adminNote;
     if (assignedTo !== undefined) patch.assigned_to = assignedTo;
     const { data, error } = await db.from('partner_applications').update(patch).eq('id', id)
-      .select('id,status,admin_note,assigned_to,updated_at').maybeSingle();
+      .select('id,status,admin_note,assigned_to,organization_id,updated_at').maybeSingle();
     if (error) return NextResponse.json({ error: 'تعذر تحديث الطلب.' }, { status: 500 });
     if (!data) return NextResponse.json({ error: 'الطلب غير موجود.' }, { status: 404 });
     return NextResponse.json({ application: data });
