@@ -88,7 +88,7 @@ export default async function AdminProducts({ searchParams }: {
                     {!productMedia.length && <p className="muted">لا توجد وسائط مرتبطة بهذا المنتج حتى الآن.</p>}
                   </div>
                 </div>
-                <form action={deleteProduct} style={{marginTop:16}} onSubmit={undefined as never}>
+                <form action={deleteProduct} style={{marginTop:16}}>
                   <input type="hidden" name="id" value={product.id}/><input type="hidden" name="return_to" value="/admin/products"/>
                   <button type="submit">حذف المنتج</button>
                 </form>
