@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Activity = { id: string; activity_type: string; body: string; follow_up_at: string | null; created_at: string };
 const activityLabels: Record<string, string> = {
@@ -16,16 +16,16 @@ export function LeadActivityPanel({ leadId }: { leadId: number }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     const response = await fetch('/api/crm/activities?leadId=' + leadId, { cache: 'no-store' });
     const result = await response.json() as { activities?: Activity[]; error?: string };
     if (!response.ok) throw new Error(result.error || 'تعذر تحميل سجل المتابعة.');
     setItems(result.activities ?? []);
-  }
+  }, [leadId]);
 
   useEffect(() => {
     void load().catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل سجل المتابعة.'));
-  }, [leadId]);
+  }, [load]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
