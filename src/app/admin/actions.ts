@@ -203,17 +203,17 @@ export async function uploadProductMedia(formData: FormData) {
 }
 
 export async function deleteProductMedia(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=textValue(formData,'id'); if(!id)throw new Error('معرّف الوسيط غير صالح.');
-  const {data:media,error:readError}=await db.from('media_assets').select('bucket_id,object_path').eq('id',id).maybeSingle(); if(readError)dbError('تعذر قراءة الوسيط',readError); if(!media)throw new Error('الوسيط غير موجود.');
-  const {error:storageError}=await db.storage.from(media.bucket_id).remove([media.object_path]); if(storageError)dbError('تعذر حذف ملف الوسيط',storageError);
-  const {error:deleteError}=await db.from('media_assets').delete().eq('id',id); if(deleteError)dbError('تعذر حذف سجل الوسيط',deleteError);
-  revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/control');finish('تم حذف الوسيط.');
+  const {db}=await requireSuperAdmin(); const returnTo=textValue(formData,'return_to')==='/admin/products'?'/admin/products':'/admin/control'; const id=textValue(formData,'id'); if(!id)throw new Error('معرّف الوسيط غير صالح.');
+  const {data:media,error:readError}=await db.from('media_assets').select('bucket_id,object_path').eq('id',id).maybeSingle(); if(readError)dbError('تعذر قراءة الوسيط',readError, returnTo); if(!media)throw new Error('الوسيط غير موجود.');
+  const {error:storageError}=await db.storage.from(media.bucket_id).remove([media.object_path]); if(storageError)dbError('تعذر حذف ملف الوسيط',storageError, returnTo);
+  const {error:deleteError}=await db.from('media_assets').delete().eq('id',id); if(deleteError)dbError('تعذر حذف سجل الوسيط',deleteError, returnTo);
+  revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/control'); revalidatePath('/admin/products');finish('تم حذف الوسيط.', returnTo);
 }
 
 export async function deleteProduct(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=Number(formData.get('id')); if(!id)throw new Error('معرّف المنتج غير صالح.');
-  const {error}=await db.from('products').delete().eq('id',id); if(error)dbError('تعذر حذف المنتج',error); await audit(db,(await db.auth.getUser()).data.user!.id,'DELETE','product',String(id));
-  revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم حذف المنتج.');
+  const {db}=await requireSuperAdmin(); const returnTo=textValue(formData,'return_to')==='/admin/products'?'/admin/products':'/admin/control'; const id=Number(formData.get('id')); if(!id)throw new Error('معرّف المنتج غير صالح.');
+  const {error}=await db.from('products').delete().eq('id',id); if(error)dbError('تعذر حذف المنتج',error, returnTo); await audit(db,(await db.auth.getUser()).data.user!.id,'DELETE','product',String(id));
+  revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/dashboard');revalidatePath('/admin/control'); revalidatePath('/admin/products');finish('تم حذف المنتج.', returnTo);
 }
 
 export async function saveCategory(formData: FormData) {
