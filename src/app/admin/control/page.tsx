@@ -6,6 +6,7 @@ import LogoutButton from '@/components/LogoutButton';
 export const dynamic = 'force-dynamic';
 
 const areas = [
+  { href: '/admin/platform', title: 'مركز تشغيل M26–M32', eyebrow: 'PLATFORM / M26–M32', description: 'البحث الموحد، صندوق الإشعارات، قاعدة المعرفة، التقارير، بوابة الذكاء الاصطناعي، التوصيات ومؤشرات التشغيل.' },
   { href: '/admin/products', title: 'المنتجات', eyebrow: 'MARKET / PRODUCTS', description: 'إنشاء المنتجات وتعديلها وحفظها ونشرها وإدارة صورها وفيديوهاتها.' },
   { href: '/admin/categories', title: 'فئات السوق', eyebrow: 'MARKET / CATEGORIES', description: 'إنشاء الفئات وتعديلها وحذفها ومراجعة ارتباطها بالمنتجات.' },
   { href: '/admin/market', title: 'السوق والعملاء', eyebrow: 'MARKET / LEADS', description: 'متابعة طلبات الاهتمام والعملاء المحتملين وحالة التواصل ومؤشرات الكتالوج.' },
