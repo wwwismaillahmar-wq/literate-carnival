@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 const domains = [
   ['products', 'السوق والمنتجات'], ['services', 'الخدمات'], ['profiles', 'المستخدمون'],
   ['posts', 'المنشورات'], ['contributions', 'المساهمات'], ['support_tickets', 'الدعم والشكاوى'],
-  ['platform_notifications', 'الإشعارات'], ['knowledge_articles', 'قاعدة المعرفة'],
+  ['notifications', 'الإشعارات'], ['knowledge_articles', 'قاعدة المعرفة'],
   ['platform_ai_requests', 'طلبات الذكاء الاصطناعي'], ['analytics_events', 'أحداث التحليلات'],
 ] as const;
 
