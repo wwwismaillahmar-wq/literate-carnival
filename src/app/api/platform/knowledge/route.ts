@@ -66,7 +66,9 @@ export async function PATCH(request: Request) {
     for (const key of ['title', 'excerpt', 'body', 'category'] as const) {
       if (body[key] !== undefined) {
         if (typeof body[key] !== 'string') return NextResponse.json({ error: 'صيغة الحقول غير صالحة.' }, { status: 400 });
-        patch[key] = body[key].trim();
+        const value = body[key].trim();
+        if ((key === 'title' && (value.length < 3 || value.length > 200)) || (key === 'excerpt' && value.length > 500) || (key === 'body' && (value.length < 1 || value.length > 50000)) || (key === 'category' && (value.length < 1 || value.length > 80))) return NextResponse.json({ error: 'أحد الحقول يتجاوز الحدود المسموحة أو أقصر من المطلوب.' }, { status: 400 });
+        patch[key] = value;
       }
     }
     if (body.slug !== undefined) {
