@@ -70,7 +70,7 @@ async function audit(db: Awaited<ReturnType<typeof createClient>>, userId: strin
 }
 
 function finish(message: string, returnTo = '/admin/control'): never {
-  const safeReturnTo = returnTo === '/admin/products' ? returnTo : '/admin/control';
+  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services'].includes(returnTo) ? returnTo : '/admin/control';
   redirect(safeReturnTo + '?success=' + encodeURIComponent(message));
 }
 
