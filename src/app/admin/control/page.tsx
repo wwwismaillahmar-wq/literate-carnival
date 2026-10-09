@@ -6,6 +6,7 @@ import LogoutButton from '@/components/LogoutButton';
 export const dynamic = 'force-dynamic';
 
 const areas = [
+  { href: '/admin/site-settings', title: 'إعدادات هوية الموقع', eyebrow: 'BRAND / M39', description: 'تحرير إعدادات الشعار والنصوص والألوان وبيانات التواصل المخزنة.' },
   { href: '/admin/academy', title: 'إدارة محتوى الأكاديمية', eyebrow: 'ACADEMY / M33–M34', description: 'إدارة وحدات الدورات والدروس على السجلات الموجودة في كتالوج الدورات.' },
   { href: '/admin/crm', title: 'إدارة علاقات العملاء', eyebrow: 'CRM / M38', description: 'متابعة العملاء المحتملين وتسجيل سجل الاتصالات ومواعيد المتابعة.' },
   { href: '/admin/knowledge', title: 'إدارة المعرفة والموسوعات', eyebrow: 'KNOWLEDGE / M37', description: 'إنشاء المقالات والمدخلات العلمية والتقنية ونشرها أو أرشفتها.' },
