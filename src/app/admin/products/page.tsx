@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { deleteProduct, deleteProductMedia, saveProduct } from '../actions';
+import ProductMediaUploader from '@/components/admin/ProductMediaUploader';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,7 @@ export default async function AdminProducts({ searchParams }: {
                 </div>
                 <ProductForm product={product} categories={categories} />
                 <div style={{marginTop:18,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.12)'}}>
-                  <h4>الصور والفيديوهات ({productMedia.length})</h4>
+                  <h4>الصور والفيديوهات ({productMedia.length})</h4>\n                  <ProductMediaUploader productId={product.id} />
                   <div className="grid three" style={{marginTop:12}}>
                     {productMedia.map((item) => <div className="card" key={item.id}>
                       {item.url && item.media_type === 'image' ? <img src={item.url} alt={product.name} style={{width:'100%',height:180,objectFit:'contain',borderRadius:8}} /> : null}
@@ -119,7 +120,7 @@ function ProductForm({ product, categories }: { product?: Product; categories: C
       <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> تمييزه في الرئيسية</label>
       <label>الأولوية الإعلانية 0–100<input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0}/></label>
     </div>
-    <label>إضافة صور أو فيديوهات (حد النموذج الحالي 1.5MB لكل ملف)<input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple /></label>
+    <p className="muted">بعد إنشاء المنتج، استخدم قسم الوسائط في بطاقة المنتج لرفع الصور والفيديوهات مباشرة إلى التخزين.</p>
     <button type="submit">{product ? 'حفظ التعديلات' : 'إنشاء المنتج'}</button>
   </form>;
 }
