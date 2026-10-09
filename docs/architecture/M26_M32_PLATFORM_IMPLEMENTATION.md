@@ -26,4 +26,10 @@ Migration `20261009140000_m26_m32_platform_foundation.sql` adds knowledge articl
 
 ## Honest completion status
 
-These are concrete first-pass module implementations, not proof that M26–M32 are fully accepted. M27 notifications are stored in a new recipient-scoped platform inbox; existing notification-producing workflows must be wired to it in subsequent integration work. M28 adds the knowledge base while reusing the established support-ticket workflow. AI stays unavailable until provider credentials are configured. Runtime acceptance remains required.
+These are concrete first-pass module implementations, not proof that M26–M32 are fully accepted. M27 reuses the established `notifications` table and existing notification page/actions; the new API adds recipient-scoped reading and an admin-only dispatch path. M28 adds the knowledge base while reusing the established support-ticket workflow. AI stays unavailable until provider credentials are configured. Runtime acceptance remains required.
+
+## GitHub Actions evidence
+
+- Run [37933666249](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/37933666249): locked dependency install, ESLint, TypeScript check, and Next.js production build all passed on the M26–M32 pull request.
+- This workflow run did not execute a clean migration replay or pgTAP. The separate PR #22 database gate is still blocked by earlier M00–M25 migration ordering/schema issues, so the new pgTAP assertions have not yet been executed against a fully replayed database.
+- No authenticated end-to-end route suite has been run yet. Do not treat the passing build as proof of route authorization, persistence/read-back, AI provider operation, or notification delivery.
