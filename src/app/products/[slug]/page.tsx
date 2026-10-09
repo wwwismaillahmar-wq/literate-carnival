@@ -19,6 +19,16 @@ export default async function ProductDetail({ params }: { params: Promise<{ slug
 
   if (error || !product) notFound();
 
+  const { data: reviews, error: reviewsError } = await db
+    .from('reviews')
+    .select('id,rating,body,created_at')
+    .eq('subject_type', 'product')
+    .eq('subject_id', String(product.id))
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (reviewsError) throw new Error('تعذر تحميل تقييمات المنتج.');
+
   const { data: media } = await db
     .from('media_assets')
     .select('id,media_type,mime_type,object_path,bucket_id')
@@ -97,6 +107,19 @@ export default async function ProductDetail({ params }: { params: Promise<{ slug
             </div>
           </article>
         </div>
+        <section className="card" style={{ marginTop: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <h2>تقييمات العملاء</h2>
+            <Link href="/reviews">تقييم مشترياتك أو خدماتك ←</Link>
+          </div>
+          {!reviews?.length ? <p className="muted">لا توجد تقييمات معتمدة لهذا المنتج بعد.</p> : <div style={{ display: 'grid', gap: 12 }}>
+            {reviews.map(review => <article key={review.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+              <strong aria-label={'التقييم ' + review.rating + ' من 5'}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong>
+              <p>{review.body || 'تقييم دون تعليق.'}</p>
+              <small className="muted">{new Date(review.created_at).toLocaleDateString('ar-DZ')}</small>
+            </article>)}
+          </div>}
+        </section>
       </div>
     </main>
   );
