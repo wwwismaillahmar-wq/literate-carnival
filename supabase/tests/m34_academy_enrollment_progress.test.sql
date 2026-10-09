@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public', 'academy_enrollments', 'Learner enrollment records are persisted');
+select has_table('public', 'academy_lesson_progress', 'Lesson progress records are persisted');
+select has_column('public', 'academy_enrollments', 'user_id', 'Enrollment ownership is explicit');
+select has_column('public', 'academy_enrollments', 'course_id', 'Enrollment points to a course identifier');
+select has_column('public', 'academy_enrollments', 'status', 'Enrollment has a controlled lifecycle');
+select has_column('public', 'academy_lesson_progress', 'lesson_id', 'Progress references a lesson');
+select has_column('public', 'academy_lesson_progress', 'completed_at', 'Completion has a timestamp');
+select has_policy('public', 'academy_enrollments', 'academy_enrollments_insert_own', 'Learners can enroll only as themselves');
+select has_policy('public', 'academy_lesson_progress', 'academy_progress_insert_own', 'Progress writes require an owned enrollment');
+select has_policy('public', 'academy_modules', 'academy_modules_published_read', 'Public curriculum reads only published modules');
+select * from finish();
+rollback;
