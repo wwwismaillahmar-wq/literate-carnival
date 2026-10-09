@@ -25,7 +25,7 @@ type Media = {
 };
 
 export default async function AdminProducts({ searchParams }: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
+  searchParams?: Promise<{ success?: string; error?: string; warning?: string }>;
 }) {
   const params = searchParams ? await searchParams : {};
   const db = await createClient();
@@ -62,6 +62,7 @@ export default async function AdminProducts({ searchParams }: {
         </div>
         {params.success && <div className="card" style={{marginTop:16,border:'1px solid #2f855a'}}><strong>✓ {params.success}</strong></div>}
         {params.error && <div className="card" role="alert" style={{marginTop:16,border:'1px solid #c53030'}}><strong>✕ {params.error}</strong></div>}
+        {params.warning && <div className="card" role="status" style={{marginTop:16,border:'1px solid #b7791f'}}><strong>تنبيه: {params.warning}</strong></div>}
         {loadErrors.length > 0 && <div className="card" role="alert" style={{marginTop:16,border:'1px solid #c53030'}}>
           <strong>تعذر تحميل بعض بيانات إدارة المنتجات. لم يعتبر النظام البيانات غير المحمّلة فارغة.</strong>
           <ul>{loadErrors.map((message) => <li key={message}>{message}</li>)}</ul>
