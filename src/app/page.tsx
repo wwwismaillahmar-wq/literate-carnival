@@ -9,6 +9,13 @@ export default async function HomePage(){
   const products=await getHomepageProducts();
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser();
+  const {data: settingRows}=await supabase.from('site_settings').select('setting_key,setting_value').eq('is_public',true);
+  const siteSettings=new Map((settingRows??[]).map(row=>[row.setting_key,row.setting_value]));
+  const homeEyebrow=siteSettings.get('home_eyebrow')||site.name;
+  const homeTitlePrimary=siteSettings.get('home_title_primary')||'نبني الجودة.';
+  const homeTitleAccent=siteSettings.get('home_title_accent')||'نصنع الثقة.';
+  const homeSubtitle=siteSettings.get('home_subtitle')||'تنجيد • خياطة • تفصيل — منتجات مخصصة، خدمات تنفيذية، وتكوين مهني ضمن منظومة ASLAN.';
+  const announcementText=siteSettings.get('announcement_text')||'';
   const {data:featuredPosts}=await supabase.from('posts').select('id,author_id,title,content,visibility,status,created_at,published_at,featured,featured_order').eq('status','published').eq('visibility','public').eq('featured',true).order('featured_order',{ascending:true}).order('featured_at',{ascending:false}).limit(6);
   const {data:featuredContributions}=await supabase.from('contributions').select('id,user_id,title,content,visibility,status,created_at,published_at,featured,featured_order').eq('status','published').eq('visibility','public').eq('featured',true).order('featured_order',{ascending:true}).order('featured_at',{ascending:false}).limit(6);
 
@@ -31,7 +38,8 @@ export default async function HomePage(){
     ...await Promise.all((featuredPosts??[]).map(post=>enrichContent({...post,author_id:post.author_id},'post_id'))),
     ...await Promise.all((featuredContributions??[]).map(item=>enrichContent({...item,author_id:item.user_id},'contribution_id'))),
   ];  return <main>
-    <section className="section"><div className="wrap"><span className="kicker">{site.name}</span><h1 className="display">نبني الجودة. <span className="gold">نصنع الثقة.</span></h1><p className="lead">تنجيد • خياطة • تفصيل — منتجات مخصصة، خدمات تنفيذية، وتكوين مهني ضمن منظومة ASLAN.</p><div className="actions"><Link className="button primary" href="/products">استكشف المنتجات</Link><Link className="button secondary" href="/services">اطلب خدمة</Link></div></div></section>
+    {announcementText&&<section className="section" aria-label="إعلان المنصة"><div className="wrap card">{announcementText}</div></section>}
+    <section className="section"><div className="wrap"><span className="kicker">{homeEyebrow}</span><h1 className="display">{homeTitlePrimary} <span className="gold">{homeTitleAccent}</span></h1><p className="lead">{homeSubtitle}</p><div className="actions"><Link className="button primary" href="/products">استكشف المنتجات</Link><Link className="button secondary" href="/services">اطلب خدمة</Link></div></div></section>
 
     <section className="section">
       <div className="wrap">
