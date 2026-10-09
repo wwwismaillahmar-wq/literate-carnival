@@ -52,7 +52,7 @@ export default async function AdminProducts({ searchParams }: {
       <div className="wrap">
         <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
           <div><span className="kicker">ADMIN / MARKET / PRODUCTS</span><h1>إدارة المنتجات</h1><p className="muted">إنشاء وتعديل وحفظ ونشر المنتجات وإدارة الوسائط المرتبطة بها.</p></div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="card" href="/admin/dashboard">مركز الإدارة</Link><Link className="card" href="/products" target="_blank">معاينة المتجر</Link><Link className="card" href="/admin/market">إدارة السوق</Link></div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="card" href="/admin/dashboard">مركز الإدارة</Link><Link className="card" href="/products" target="_blank">معاينة المتجر</Link><Link className="card" href="/admin/market">إدارة السوق</Link><Link className="card" href="/admin/categories">إدارة الفئات</Link></div>
         </div>
         {params.success && <div className="card" style={{marginTop:16,border:'1px solid #2f855a'}}><strong>✓ {params.success}</strong></div>}
         {params.error && <div className="card" style={{marginTop:16,border:'1px solid #c53030'}}><strong>✕ {params.error}</strong></div>}
