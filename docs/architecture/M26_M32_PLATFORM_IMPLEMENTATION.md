@@ -6,7 +6,7 @@
 ## Implemented in this change set
 
 - **M26:** `GET /api/platform/search` validates query length and pagination, searches products/services/courses/public posts/public contributions/published knowledge, records only a SHA-256 query hash for authenticated searches, and returns unavailable sources explicitly instead of hiding partial failure.
-- **M27:** `GET/PATCH /api/platform/notifications` lists only the signed-in recipient's notifications and marks one/all unread notifications as read. New `platform_notifications` schema uses recipient-scoped RLS.
+- **M27:** `GET/PATCH /api/platform/notifications` lists only the signed-in recipient's notifications and marks one/all unread notifications as read. The API reuses the existing `notifications` table and its recipient-scoped access rules.
 - **M28:** `GET/POST/PATCH/DELETE /api/platform/knowledge` supports published public reads, admin drafts/publishing/editing and archive-on-delete, with validation, unique-slug conflict handling and RLS. Existing support-ticket workflows remain in the established M18–M25 surface.
 - **M29:** `GET /api/platform/analytics?days=30` is super-admin-only, clamps the reporting period to 1–90 days, groups stored analytics events and reports truncation.
 - **M30:** `POST /api/platform/ai` keeps provider credentials server-side, validates input, enforces a per-user hourly quota, records a non-reversible input hash, applies a provider timeout and persists success/failure. It returns an explicit 503 until server environment variables `ASLAN_AI_BASE_URL`, `ASLAN_AI_API_KEY`, and `ASLAN_AI_MODEL` are configured.
@@ -15,7 +15,7 @@
 
 ## Schema
 
-Migration `20261009140000_m26_m32_platform_foundation.sql` adds platform notifications, knowledge articles, AI request audit/quota records, recommendation telemetry and privacy-preserving search telemetry. It is additive and does not rewrite historical migration IDs.
+Migration `20261009140000_m26_m32_platform_foundation.sql` adds knowledge articles, AI request audit/quota records, recommendation telemetry and privacy-preserving search telemetry. It is additive and does not rewrite historical migration IDs.
 
 ## Required verification before declaring these stages complete
 
