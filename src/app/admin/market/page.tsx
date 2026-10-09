@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 
 type Lead = { id: number; name: string | null; phone: string | null; type: string | null; status: string | null; product_id: number | null; created_at: string };
 
-export default async function MarketAdmin() {
+export default async function MarketAdmin({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
+  const params = searchParams ? await searchParams : {};
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
@@ -31,7 +32,9 @@ export default async function MarketAdmin() {
 
   return <main className="section"><div className="wrap">
     <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
-      <div><span className="kicker">M12 / MARKET OPERATIONS</span><h1>إدارة السوق</h1><p className="muted">إدارة كتالوج السوق والعملاء المحتملين ومتابعة الطلب على المنتجات. إدارة بيانات المنتج ووسائطه من صفحة المنتجات المستقلة.</p></div>
+      <div><span className="kicker">M12 / MARKET OPERATIONS</span><h1>إدارة السوق</h1>
+      {params.success && <div className="card" style={{marginTop:16,border:"1px solid #2f855a"}}><strong>✓ {params.success}</strong></div>}
+      {params.error && <div className="card" style={{marginTop:16,border:"1px solid #c53030"}}><strong>✕ {params.error}</strong></div><p className="muted">إدارة كتالوج السوق والعملاء المحتملين ومتابعة الطلب على المنتجات. إدارة بيانات المنتج ووسائطه من صفحة المنتجات المستقلة.</p></div>
       <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="card" href="/admin/control">بوابة الإدارة</Link><Link className="card" href="/admin/products">إدارة المنتجات</Link><Link className="card" href="/products" target="_blank">عرض المتجر</Link></div>
     </div>
     {(productsResult.error || categoriesResult.error || leadsResult.error) && <div className="card" style={{marginTop:16,border:'1px solid #c53030'}}><strong>تعذر تحميل جزء من بيانات السوق.</strong><p className="muted">{[productsResult.error?.message,categoriesResult.error?.message,leadsResult.error?.message].filter(Boolean).join(' · ')}</p></div>}
