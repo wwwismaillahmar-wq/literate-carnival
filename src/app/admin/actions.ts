@@ -47,16 +47,18 @@ async function uniqueProductSlug(db: Awaited<ReturnType<typeof createClient>>, n
   }
 }
 
-function dbError(action: string, error: { message?: string } | null | undefined): never {
-  redirect('/admin/control?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
+function dbError(action: string, error: { message?: string } | null | undefined, returnTo = '/admin/control'): never {
+  const safeReturnTo = returnTo === '/admin/products' ? returnTo : '/admin/control';
+  redirect(safeReturnTo + '?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
 }
 
 async function audit(db: Awaited<ReturnType<typeof createClient>>, userId: string, action: 'CREATE'|'UPDATE'|'DELETE'|'AUTHORIZE'|'REVOKE'|'OTHER', resourceType: string, resourceId?: string, metadata?: Record<string, unknown>) {
   await new SupabaseAuditWriter().record({id: crypto.randomUUID() as never, occurredAt: new Date().toISOString() as never, actorId: userId as never, action, resourceType, resourceId: resourceId as never, success: true, metadata});
 }
 
-function finish(message: string): never {
-  redirect('/admin/control?success=' + encodeURIComponent(message));
+function finish(message: string, returnTo = '/admin/control'): never {
+  const safeReturnTo = returnTo === '/admin/products' ? returnTo : '/admin/control';
+  redirect(safeReturnTo + '?success=' + encodeURIComponent(message));
 }
 
 export async function saveProduct(formData: FormData) {
@@ -64,9 +66,10 @@ export async function saveProduct(formData: FormData) {
   const id = textValue(formData, 'id');
   const name = textValue(formData, 'name');
   const submittedSlug = textValue(formData, 'slug');
+  const returnTo = textValue(formData, 'return_to') === '/admin/products' ? '/admin/products' : '/admin/control';
 
   if (!name) {
-    return redirect('/admin/control?error=' + encodeURIComponent('اسم المنتج مطلوب.'));
+    return redirect(returnTo + '?error=' + encodeURIComponent('اسم المنتج مطلوب.'));
   }
 
   const productIdInput = id ? Number(id) : null;
@@ -90,7 +93,7 @@ export async function saveProduct(formData: FormData) {
 
   if (productIdInput) {
     const { error } = await db.from('products').update(payload).eq('id', productIdInput);
-    if (error) dbError('تعذر تعديل المنتج', error);
+    if (error) dbError('تعذر تعديل المنتج', error, returnTo);
 
     const { data: saved, error: verifyError } = await db
       .from('products')
@@ -98,15 +101,15 @@ export async function saveProduct(formData: FormData) {
       .eq('id', productIdInput)
       .maybeSingle();
 
-    if (verifyError) dbError('تمت محاولة تعديل المنتج لكن تعذر التحقق من النتيجة', verifyError);
-    if (!saved) dbError('تمت محاولة تعديل المنتج لكن المنتج غير قابل للقراءة بعد الحفظ', null);
+    if (verifyError) dbError('تمت محاولة تعديل المنتج لكن تعذر التحقق من النتيجة', verifyError, returnTo);
+    if (!saved) dbError('تمت محاولة تعديل المنتج لكن المنتج غير قابل للقراءة بعد الحفظ', null, returnTo);
 
     productId = saved.id;
 
     console.log('[M04 saveProduct] update verified', { productId, saved });
   } else {
     const { error } = await db.from('products').insert(payload);
-    if (error) dbError('تعذر إنشاء المنتج', error);
+    if (error) dbError('تعذر إنشاء المنتج', error, returnTo);
 
     const { data: saved, error: verifyError } = await db
       .from('products')
@@ -116,8 +119,8 @@ export async function saveProduct(formData: FormData) {
       .limit(1)
       .maybeSingle();
 
-    if (verifyError) dbError('تم إنشاء المنتج لكن تعذر التحقق من النتيجة', verifyError);
-    if (!saved) dbError('تم إنشاء المنتج لكن لم يظهر بعد في قاعدة البيانات', null);
+    if (verifyError) dbError('تم إنشاء المنتج لكن تعذر التحقق من النتيجة', verifyError, returnTo);
+    if (!saved) dbError('تم إنشاء المنتج لكن لم يظهر بعد في قاعدة البيانات', null, returnTo);
 
     productId = saved.id;
 
@@ -140,7 +143,7 @@ export async function saveProduct(formData: FormData) {
 
   for (const file of files) {
     if (!allowed.includes(file.type) || file.size > 1.5 * 1024 * 1024) {
-      return redirect('/admin/control?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 1.5MB في نموذج الإدارة الحالي: ' + file.name));
+      return redirect(returnTo + '?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 1.5MB في نموذج الإدارة الحالي: ' + file.name));
     }
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
@@ -159,7 +162,7 @@ export async function saveProduct(formData: FormData) {
       upsert: false,
     });
 
-    if (uploadError) dbError('تعذر رفع ' + file.name, uploadError);
+    if (uploadError) dbError('تعذر رفع ' + file.name, uploadError, returnTo);
 
     const { error: mediaError } = await db.from('media_assets').insert({
       owner_id: user.id,
@@ -173,7 +176,7 @@ export async function saveProduct(formData: FormData) {
 
     if (mediaError) {
       await db.storage.from('aslan-media').remove([objectPath]);
-      dbError('تعذر ربط الوسيط بالمنتج', mediaError);
+      dbError('تعذر ربط الوسيط بالمنتج', mediaError, returnTo);
     }
   }
 
@@ -186,7 +189,7 @@ export async function saveProduct(formData: FormData) {
   await audit(db,user.id,id?'UPDATE':'CREATE','product',String(productId),{mediaCount:files.length});
   console.log('[M04 saveProduct] success', { productId, userId: user.id, mediaCount: files.length });
 
-  finish(id ? 'تم حفظ المنتج وتحقق النظام من التعديل.' : 'تم إنشاء المنتج وتحقق النظام من الحفظ.');
+  finish(id ? 'تم حفظ المنتج وتحقق النظام من التعديل.' : 'تم إنشاء المنتج وتحقق النظام من الحفظ.', returnTo);
 }
 export async function uploadProductMedia(formData: FormData) {
   const {db,user}=await requireSuperAdmin(); const productId=Number(formData.get('product_id')); const file=formData.get('file');
