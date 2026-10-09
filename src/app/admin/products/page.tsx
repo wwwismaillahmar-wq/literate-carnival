@@ -111,6 +111,16 @@ function ProductForm({ product, categories }: { product?: Product; categories: C
     <label>اسم المنتج<input name="name" defaultValue={product?.name ?? ''} required /></label>
     <label>الرابط المختصر (يُنشأ تلقائيًا عند تركه فارغًا)<input name="slug" defaultValue={product?.slug ?? ''} /></label>
     <label>الوصف<textarea name="description" defaultValue={product?.description ?? ''} rows={4}/></label>
+    {!product && (
+      <label>صورة المنتج
+        <input
+          name="media"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+        />
+        <small className="muted">يمكن إرفاق صورة واحدة عند الإنشاء (حتى 1.5 ميغابايت). أضف صورًا إضافية بعد حفظ المنتج.</small>
+      </label>
+    )}
     <div className="grid three">
       <label>السعر بالدينار<input name="price_dzd" type="number" min="0" step="1" defaultValue={product?.price_dzd ?? ''}/></label>
       <label>المخزون<input name="stock" type="number" min="0" step="1" defaultValue={product?.stock ?? 0}/></label>
