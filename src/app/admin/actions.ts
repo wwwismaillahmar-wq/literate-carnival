@@ -24,6 +24,19 @@ function nullableText(formData: FormData, key: string) {
   return value || null;
 }
 
+function algeriaDateTimeToIso(value: string): string | null {
+  if (!value) return null;
+  const normalized = value.length === 16 ? value + ':00' : value;
+  const parsed = new Date(normalized + '+01:00');
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+}
+
+function algeriaDateEndToIso(value: string): string | null {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return null;
+  const parsed = new Date(value + 'T23:59:59+01:00');
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+}
+
 function slugify(value: string) {
   const transliteration: Record<string,string> = {
     'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh',
@@ -553,15 +566,17 @@ export async function issueServiceQuote(formData: FormData) {
   const requestId = textValue(formData, 'request_id');
   const amount = Number(textValue(formData, 'amount'));
   const validUntilText = textValue(formData, 'valid_until');
+  const validUntil = validUntilText ? algeriaDateEndToIso(validUntilText) : null;
   const notes = textValue(formData, 'notes');
   if (!requestId || !Number.isFinite(amount) || amount < 0) return redirect('/admin/services?error=' + encodeURIComponent('حدد طلب خدمة ومبلغ عرض صحيح.'));
+  if (validUntilText && !validUntil) return redirect('/admin/services?error=' + encodeURIComponent('تاريخ صلاحية العرض غير صالح.'));
   const quoteNumber = 'ASQ-' + new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + crypto.randomUUID().slice(0, 6).toUpperCase();
   const { data: quoteId, error } = await db.rpc('create_service_quote', {
     p_request_id: requestId,
     p_quote_number: quoteNumber,
     p_amount: amount,
     p_currency: 'DZD',
-    p_valid_until: validUntilText ? new Date(validUntilText).toISOString() : null,
+    p_valid_until: validUntil,
     p_notes: notes,
   });
   if (error) dbError('تعذر إصدار عرض السعر', error, '/admin/services');
@@ -579,13 +594,15 @@ export async function scheduleServiceAppointment(formData: FormData) {
   const assignedTo = textValue(formData, 'assigned_to') || null;
   const location = textValue(formData, 'location') || null;
   const notes = textValue(formData, 'notes');
-  if (!requestId || !startsAtText || !endsAtText || new Date(endsAtText) <= new Date(startsAtText)) {
+  const startsAt = algeriaDateTimeToIso(startsAtText);
+  const endsAt = algeriaDateTimeToIso(endsAtText);
+  if (!requestId || !startsAt || !endsAt || new Date(endsAt) <= new Date(startsAt)) {
     return redirect('/admin/services?error=' + encodeURIComponent('حدد الطلب ووقت بداية ونهاية صحيحين للموعد.'));
   }
   const { data: appointmentId, error } = await db.rpc('create_service_appointment', {
     p_request_id: requestId,
-    p_starts_at: new Date(startsAtText).toISOString(),
-    p_ends_at: new Date(endsAtText).toISOString(),
+    p_starts_at: startsAt,
+    p_ends_at: endsAt,
     p_assigned_to: assignedTo,
     p_location: location,
     p_notes: notes,
@@ -599,16 +616,17 @@ export async function scheduleServiceAppointment(formData: FormData) {
 
 export async function transitionServiceRequest(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
+  const returnTo = textValue(formData, 'return_to') === '/admin/services' ? '/admin/services' : '/admin/control';
   const requestId = textValue(formData, 'request_id');
   const toStatus = textValue(formData, 'to_status');
   const note = textValue(formData, 'note');
   if (!requestId || !toStatus) throw new Error('بيانات انتقال طلب الخدمة غير صالحة.');
   const { error } = await db.rpc('transition_service_request', { p_request_id: requestId, p_to_status: toStatus, p_note: note });
-  if (error) dbError('تعذر تغيير حالة طلب الخدمة', error);
+  if (error) dbError('تعذر تغيير حالة طلب الخدمة', error, returnTo);
   await audit(db, user.id, 'UPDATE', 'service_requests', requestId, { toStatus, note });
   revalidatePath('/admin/services');
   revalidatePath('/service-requests');
-  finish('تم تحديث حالة طلب الخدمة.');
+  finish('تم تحديث حالة طلب الخدمة.', returnTo);
 }
 
 export async function markPaymentPaid(formData: FormData) {
