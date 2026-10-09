@@ -81,6 +81,6 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
         </ol>
       </article>)}
     </section>
-    <CourseLearningActions courseId={String(course.id)} lessonIds={(lessons ?? []).map(lesson => lesson.id)} />
+    <CourseLearningActions courseId={String(course.id)} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />
   </div></main>;
 }

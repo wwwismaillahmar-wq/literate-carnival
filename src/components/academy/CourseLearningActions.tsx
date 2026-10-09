@@ -6,7 +6,7 @@ import Link from 'next/link';
 type Enrollment = { id: string; course_id: string; status: string };
 type Progress = { lesson_id: string; completed: boolean };
 
-export function CourseLearningActions({ courseId, lessonIds }: { courseId: string; lessonIds: string[] }) {
+export function CourseLearningActions({ courseId, lessons }: { courseId: string; lessons: { id: string; title: string }[] }) {
   const [enrolled, setEnrolled] = useState(false);
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -86,9 +86,9 @@ export function CourseLearningActions({ courseId, lessonIds }: { courseId: strin
     {signedIn === false ? <p>سجّل الدخول لتسجيل نفسك وحفظ تقدمك الدراسي. <Link href="/login">تسجيل الدخول</Link></p>
       : !enrolled ? <><p className="muted">التسجيل متاح للدورات المنشورة. لا يُعد هذا تسجيلًا مدفوعًا ولا يؤكد أي عملية دفع.</p><button className="btn primary" type="button" disabled={busy} onClick={() => void enroll()}>{busy ? 'جارٍ التسجيل...' : 'التسجيل في الدورة'}</button></>
       : <><strong>أنت مسجل في هذه الدورة</strong><p className="muted">علّم الدروس التي أكملتها لحفظ تقدمك.</p>
-        {lessonIds.map(id => <label key={id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <input type="checkbox" checked={completed[id] === true} disabled={busy} onChange={event => void toggleLesson(id, event.target.checked)} />
-          تم إكمال الدرس ({id.slice(0, 8)})
+        {lessons.map(lesson => <label key={lesson.id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <input type="checkbox" checked={completed[lesson.id] === true} disabled={busy} onChange={event => void toggleLesson(lesson.id, event.target.checked)} />
+          {lesson.title}
         </label>)}
       </>}
   </section>;

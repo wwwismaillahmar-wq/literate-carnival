@@ -16,6 +16,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const origin = request.headers.get('origin');
+  if (origin) { try { if (new URL(origin).origin !== new URL(request.url).origin) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 }); } catch { return NextResponse.json({ error: 'مصدر الطلب غير صالح.' }, { status: 403 }); } }
   try {
     const db = await createClient();
     const { data: { user } } = await db.auth.getUser();
