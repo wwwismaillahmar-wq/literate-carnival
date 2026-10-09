@@ -11,4 +11,7 @@ export async function POST(request:Request) {
  let referrerHost:string|null=null; try { if(v.referrer) referrerHost=new URL(String(v.referrer)).host.slice(0,255); } catch {}
  const clean=(x:unknown,max:number)=>typeof x==='string'?x.trim().slice(0,max)||null:null;
  const db=await createClient(); const {data:{user}}=await db.auth.getUser();
- const {error}=await db.from('analytics_events').insert({event_name:event,path,referrer_host:referrerHost,utm_source:cl¶»§q«^
+ const {error}=await db.from('analytics_events').insert({event_name:event,path,referrer_host:referrerHost,utm_source:clean(v.utm_source,120),utm_campaign:clean(v.utm_campaign,160),user_id:user?.id??null,metadata:{source:'consented_first_party'}});
+ if(error) return NextResponse.json({error:'event_not_saved'},{status:503});
+ return NextResponse.json({ok:true},{status:202});
+}

@@ -16,4 +16,30 @@ This implementation follows the official ASLAN master reference capabilities for
 - Acceptance: anonymous users redirect to login, non-admin mutations are denied, admin changes persist and notify customers.
 
 ## M20 â€” Roles and permissions
-- Existing RBAC remains authoritative. Admin mutation¶»§q«^
+- Existing RBAC remains authoritative. Admin mutations check has_role('super_admin'); table policies use private.is_super_admin().
+- Customer rows remain owner-scoped; analytics is admin-read only.
+
+## M21 â€” Database integrity
+- Added tables use keys, foreign keys, bounded fields, status checks, unique dedupe keys and queue indexes.
+- Review eligibility is checked in PostgreSQL, not trusted from form fields.
+- Important source-of-truth gap: production's migration registry contains M11/M14 foundation migrations whose SQL files are absent from Git. Restore those historical source files before claiming a fresh database can replay the entire history.
+
+## M22 â€” Security and operations
+- RLS is enabled on all new tables.
+- Browser clients cannot insert notifications or reviews directly.
+- Analytics accepts only allowlisted events, validates same-origin requests, stores no IP/device fingerprint and runs only after opt-in consent.
+- Payment-completed events must only be emitted by a trusted payment callback/workflow; client page views are not proof of payment.
+
+## M23 â€” SEO
+- Sitemap lists public marketing/catalog routes only.
+- Robots disallows private account, checkout, order, support and administration paths.
+- Canonical origin is configurable through NEXT_PUBLIC_SITE_URL.
+
+## M24 â€” Analytics
+- First-party page views are opt-in; rejecting consent disables collection.
+- Events include only a limited referrer host and campaign tags.
+- Admin counts reflect stored events; no fabricated traffic, revenue or conversion metrics are presented.
+
+## M25 â€” Documentation and acceptance
+- This file records scope and invariants.
+- Production completion requires applied migration, green CI, READY production deployment, authenticated ticket lifecycle tests, review-eligibility tests and runtime checks. A successful build alone is not acceptance.

@@ -12,4 +12,12 @@ export default async function NotificationsPage({searchParams}:{searchParams:Pro
  if(error) throw new Error('تعذر تحميل الإشعارات.');
  const unread=(items??[]).filter(n=>!n.read_at).length;
  return <main className="section"><div className="wrap">
-  <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}><div><span className="kicker">ACCOUNT / NOTIFICATIONS</span><h1>الإشعارات</h1><p className="muted">تحديثات فعلية لطلباتك ومدفوعاتك وخدماتك والدعم.</p></div>{unread>0&&<form action={markAllNotificationsRead}><button className="bt���q�^
+  <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}><div><span className="kicker">ACCOUNT / NOTIFICATIONS</span><h1>الإشعارات</h1><p className="muted">تحديثات فعلية لطلباتك ومدفوعاتك وخدماتك والدعم.</p></div>{unread>0&&<form action={markAllNotificationsRead}><button className="btn gold" type="submit"><CheckCheck size={17}/> تعليم الكل كمقروء ({unread})</button></form>}</div>
+  {params.error&&<p className="card" role="alert">تعذر حفظ حالة الإشعار. حدّث الصفحة وحاول مجددًا.</p>}
+  {!items?.length?<section className="card" style={{marginTop:24}}><Bell/><h2>لا توجد إشعارات بعد</h2><p className="muted">ستظهر هنا تحديثات الطلبات والدفع والخدمات والدعم.</p><Link href="/account">العودة إلى حسابي ←</Link></section>:
+   <section style={{display:'grid',gap:12,marginTop:24}}>{items.map(n=>{const Icon=icons[n.notification_type]??Bell;return <article className="card" key={n.id} style={{display:'flex',gap:14,alignItems:'flex-start',borderColor:n.read_at?undefined:'rgba(217,176,92,.55)'}}>
+    <Icon size={22} aria-hidden="true"/><div style={{flex:1,minWidth:0}}><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}><strong>{n.title}</strong>{!n.read_at&&<span className="kicker">جديد</span>}</div><p>{n.body}</p><small className="muted">{new Date(n.created_at).toLocaleString('ar-DZ')}</small>{n.href&&<p><Link href={n.href}>فتح التفاصيل ←</Link></p>}</div>
+    {!n.read_at&&<form action={markNotificationRead}><input type="hidden" name="notification_id" value={n.id}/><button className="btn line" type="submit">تمت القراءة</button></form>}
+   </article>})}</section>}
+ </div></main>;
+}
