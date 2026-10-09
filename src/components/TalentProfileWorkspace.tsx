@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Profile = {
   id: string;
@@ -43,7 +43,7 @@ export function TalentProfileWorkspace() {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     const response = await fetch('/api/talent/profile', { cache: 'no-store' });
     const result = await response.json() as { profile?: Profile | null; evidence?: Evidence[]; error?: string };
     if (!response.ok) throw new Error(result.error || 'تعذر تحميل الملف المهني.');
@@ -54,11 +54,11 @@ export function TalentProfileWorkspace() {
     setSkillsText((next?.skills ?? []).join(', '));
     setPublicProfile(next?.public_profile ?? false);
     setEvidence(result.evidence ?? []);
-  }
+  }, []);
 
   useEffect(() => {
     void load().catch(error => setStatus(error instanceof Error ? error.message : 'تعذر تحميل الملف المهني.'));
-  }, []);
+  }, [load]);
 
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
