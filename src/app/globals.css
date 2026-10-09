@@ -19,3 +19,12 @@ input,select,textarea{width:100%;background:#171b1e;color:var(--text);border:1px
 .grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:1000px){.grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:800px){.grid.two,.grid.four{grid-template-columns:1fr}}
+
+.market-toolbar{display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(150px,1fr));gap:12px;margin:22px 0 14px}
+.market-toolbar label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+.market-category{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--gold);font-size:12px}
+.market-stock{display:inline-flex;align-items:center;border:1px solid rgba(220,120,100,.35);border-radius:999px;padding:3px 10px;color:#e9a18e;font-size:12px}
+.market-stock--available{border-color:rgba(85,180,130,.4);color:#91d8b0}
+.market-description{min-height:3.2em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media(max-width:1000px){.market-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.market-toolbar{grid-template-columns:1fr}}
