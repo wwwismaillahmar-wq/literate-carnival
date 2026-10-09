@@ -22,9 +22,12 @@ export default async function Dashboard() {
   if (authorizationError || !isSuperAdmin) redirect('/');
 
   const [
-    { count: users }, { count: roles }, { count: permissions }, { count: organizations },
-    { count: products }, { count: categories }, { count: leads }, { count: posts },
-    { count: contributions }, { count: conversations }, { count: messages }, { count: gallery },
+    { count: users, error: usersError }, { count: roles, error: rolesError },
+    { count: permissions, error: permissionsError }, { count: organizations, error: organizationsError },
+    { count: products, error: productsError }, { count: categories, error: categoriesError },
+    { count: leads, error: leadsError }, { count: posts, error: postsError },
+    { count: contributions, error: contributionsError }, { count: conversations, error: conversationsError },
+    { count: messages, error: messagesError }, { count: gallery, error: galleryError },
   ] = await Promise.all([
     db.from('profiles').select('*', { count: 'exact', head: true }),
     db.from('roles').select('*', { count: 'exact', head: true }),
@@ -48,9 +51,24 @@ export default async function Dashboard() {
     ]);
 
   const statGroups = [
-    { title: 'الهوية والصلاحيات', items: [['المستخدمون', users], ['الأدوار', roles], ['الصلاحيات', permissions], ['المؤسسات', organizations]] },
-    { title: 'التجارة والسوق', items: [['المنتجات', products], ['الفئات', categories], ['العملاء المحتملون', leads], ['المعرض', gallery]] },
-    { title: 'المجتمع والمراسلة', items: [['المنشورات', posts], ['المساهمات', contributions], ['المحادثات', conversations], ['الرسائل', messages]] },
+    { title: 'الهوية والصلاحيات', items: [
+      { label: 'المستخدمون', value: users, error: usersError },
+      { label: 'الأدوار', value: roles, error: rolesError },
+      { label: 'الصلاحيات', value: permissions, error: permissionsError },
+      { label: 'المؤسسات', value: organizations, error: organizationsError },
+    ] },
+    { title: 'التجارة والسوق', items: [
+      { label: 'المنتجات', value: products, error: productsError },
+      { label: 'الفئات', value: categories, error: categoriesError },
+      { label: 'العملاء المحتملون', value: leads, error: leadsError },
+      { label: 'المعرض', value: gallery, error: galleryError },
+    ] },
+    { title: 'المجتمع والمراسلة', items: [
+      { label: 'المنشورات', value: posts, error: postsError },
+      { label: 'المساهمات', value: contributions, error: contributionsError },
+      { label: 'المحادثات', value: conversations, error: conversationsError },
+      { label: 'الرسائل', value: messages, error: messagesError },
+    ] },
   ];
 
   return (
@@ -93,8 +111,13 @@ export default async function Dashboard() {
       </section>
 
       <div className="grid three" style={{marginTop:25}}>
-        {statGroups.flatMap(group => group.items.map(([label, value]) => (
-          <div className="card" key={label as string}><span className="kicker">{group.title}</span><h2>{value ?? 0}</h2><p className="muted">{label}</p></div>
+        {statGroups.flatMap(group => group.items.map(item => (
+          <div className="card" key={item.label}>
+            <span className="kicker">{group.title}</span>
+            <h2>{item.error ? '—' : item.value ?? 0}</h2>
+            <p className="muted">{item.label}</p>
+            {item.error && <small role="alert" className="muted">تعذر تحميل هذا المؤشر: {item.error.message}</small>}
+          </div>
         )))}
       </div>
 
