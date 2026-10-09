@@ -3,7 +3,7 @@
 **Snapshot date:** 2026-10-09  
 **Branch under verification:** `chore/m00-m25-runtime-acceptance`  
 **Snapshot commit:** `4a7a468ff2ac66e308a89a5bcb2f8faa8be9cfec`  
-**Status rule:** a stage is not closed because code exists or CI passes. Closure requires the real workflow, authorization, persistence/read-back, failure path, regression evidence, and documentation.
+**Status rule:** a stage is not closed because code exists or CI passes. Closure requires the real workflow, authorization, persistence/read-back, failure path, regression evidence, and documentation. No Vercel deployment is authorized; work and verification are limited to GitHub repository/Actions.
 
 ## Build evidence
 
@@ -15,7 +15,7 @@ The combined branch passed GitHub Actions run [37922876862](https://github.com/w
 
 This proves repository build quality only. It does **not** prove production database migrations, authenticated runtime workflows, payment provider operation, or deployment behavior.
 
-A new clean-database replay was added in PR #22. Its first run **failed** before tests could start: `20260908070000_aslan_core_security_and_catalog.sql` alters `public.products` before the later `20261001000000_aslan_foundational_schema.sql` creates it. Evidence: [run 37925059334](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/37925059334). This is an active release blocker, not a passing test.
+A clean-database replay is configured in PR #22. Run [37925059334](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/37925059334) exposed `public.products` ordering; a guarded adjustment was made without changing the historical migration ID. The next run [37925762659](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/37925762659) then reached the social foundation migration and failed because `public.contributions` does not exist at `20261003231845_aslan_social_content_foundation.sql`. The DB container startup also emitted a Docker image rate-limit warning, but the fatal recorded SQL error is the missing relation. Migration replay and pgTAP remain **not passed**.
 
 ## Milestone status
 
@@ -58,4 +58,4 @@ A new clean-database replay was added in PR #22. Its first run **failed** before
 
 ## Release gate
 
-Do not mark M00–M25 fully closed and do not begin M26 until all rows above have evidence for their required real workflows. In particular, a green build is necessary but insufficient; the missing historical migration source and unrun database/authenticated runtime acceptance remain blockers.
+Do not mark M00–M25 fully closed and do not begin implementation of M26–M32 until all rows above have evidence for their required real workflows. No authoritative definitions for M26–M32 were found in the current repository search, so their scope must be sourced from the accepted master roadmap rather than invented. In particular, a green build is necessary but insufficient; missing M11/M14 source and unrun database/authenticated runtime acceptance remain blockers.
