@@ -101,7 +101,10 @@ export default async function Dashboard() {
         <span className="kicker">APPLICATIONS / EXTENSIONS</span><h2>تطبيقات المنصة</h2>
         <p className="muted">سجل مركزي قابل للتوسع للتطبيقات المستقبلية. لا يوجد تشغيل ديناميكي لإضافات غير موثوقة؛ كل تطبيق يمر عبر الصلاحيات الحالية.</p>
         <div className="grid three" style={{marginTop:20}}>{ADMIN_APPLICATIONS.map(app =>
-          <div className="card" key={app.id}><strong>{app.name}</strong><p className="muted">{app.description}</p><small>{app.status}</small></div>
+          <article className="card" key={app.id}>
+            <strong>{app.name}</strong><p className="muted">{app.description}</p><small>{app.status}</small>
+            {app.entryPath ? <p><Link href={app.entryPath}>فتح الوحدة ←</Link></p> : <p className="muted">لا يوجد مسار تفعيل بعد.</p>}
+          </article>
         )}</div>
       </section>
 
