@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 const types = ['about','vision','mission','activity','project','portfolio','news','faq'] as const;
 type CompanyContent = { id:string; content_type:string; slug:string; title:string; excerpt:string|null; body:string|null; sort_order:number; published:boolean; };
 
-export default async function AdminCompanyPage() {
+export default async function AdminCompanyPage({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
+  const params = searchParams ? await searchParams : {};
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
@@ -20,6 +21,9 @@ export default async function AdminCompanyPage() {
     <Link href="/admin/control">← مركز التشغيل</Link>
     <span className="kicker" style={{display:'block',marginTop:24}}>M09 / COMPANY CONTENT</span>
     <h1>محتوى الشركة</h1>
+    {params.success && <div className="card" style={{marginTop:16,border:"1px solid #2f855a"}}><strong>✓ {params.success}</strong></div>}
+    {params.error && <div className="card" style={{marginTop:16,border:"1px solid #c53030"}}><strong>✕ {params.error}</strong></div>}
+    <p className="muted">كل عملية حفظ أو حذف تُظهر نتيجتها هنا بعد التحقق من قاعدة البيانات.</p>
     <p className="muted">إدارة مباشرة لمحتوى عن ASLAN والرؤية والرسالة والأنشطة والمشاريع والأخبار والأسئلة الشائعة.</p>
     <section className="card" style={{marginTop:24}}>
       <h2>إضافة محتوى</h2>
