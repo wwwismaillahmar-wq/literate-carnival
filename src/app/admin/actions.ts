@@ -48,7 +48,7 @@ async function uniqueProductSlug(db: Awaited<ReturnType<typeof createClient>>, n
 }
 
 function dbError(action: string, error: { message?: string } | null | undefined, returnTo = '/admin/control'): never {
-  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog'].includes(returnTo) ? returnTo : '/admin/control';
+  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services'].includes(returnTo) ? returnTo : '/admin/control';
   redirect(safeReturnTo + '?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
 }
 
@@ -546,6 +546,55 @@ export async function deleteService(formData: FormData) {
   revalidatePath('/admin/services');
   revalidatePath('/admin/services/catalog');
   finish('تم حذف الخدمة.', returnTo);
+}
+
+export async function issueServiceQuote(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const requestId = textValue(formData, 'request_id');
+  const amount = Number(textValue(formData, 'amount'));
+  const validUntilText = textValue(formData, 'valid_until');
+  const notes = textValue(formData, 'notes');
+  if (!requestId || !Number.isFinite(amount) || amount < 0) return redirect('/admin/services?error=' + encodeURIComponent('حدد طلب خدمة ومبلغ عرض صحيح.'));
+  const quoteNumber = 'ASQ-' + new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + crypto.randomUUID().slice(0, 6).toUpperCase();
+  const { data: quoteId, error } = await db.rpc('create_service_quote', {
+    p_request_id: requestId,
+    p_quote_number: quoteNumber,
+    p_amount: amount,
+    p_currency: 'DZD',
+    p_valid_until: validUntilText ? new Date(validUntilText).toISOString() : null,
+    p_notes: notes,
+  });
+  if (error) dbError('تعذر إصدار عرض السعر', error, '/admin/services');
+  await audit(db, user.id, 'CREATE', 'service_quote', String(quoteId), { requestId, quoteNumber, amount });
+  revalidatePath('/admin/services');
+  revalidatePath('/service-requests');
+  finish('تم إصدار عرض السعر ' + quoteNumber + ' وتحديث الطلب إلى quoted.', '/admin/services');
+}
+
+export async function scheduleServiceAppointment(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const requestId = textValue(formData, 'request_id');
+  const startsAtText = textValue(formData, 'starts_at');
+  const endsAtText = textValue(formData, 'ends_at');
+  const assignedTo = textValue(formData, 'assigned_to') || null;
+  const location = textValue(formData, 'location') || null;
+  const notes = textValue(formData, 'notes');
+  if (!requestId || !startsAtText || !endsAtText || new Date(endsAtText) <= new Date(startsAtText)) {
+    return redirect('/admin/services?error=' + encodeURIComponent('حدد الطلب ووقت بداية ونهاية صحيحين للموعد.'));
+  }
+  const { data: appointmentId, error } = await db.rpc('create_service_appointment', {
+    p_request_id: requestId,
+    p_starts_at: new Date(startsAtText).toISOString(),
+    p_ends_at: new Date(endsAtText).toISOString(),
+    p_assigned_to: assignedTo,
+    p_location: location,
+    p_notes: notes,
+  });
+  if (error) dbError('تعذر جدولة الموعد', error, '/admin/services');
+  await audit(db, user.id, 'CREATE', 'service_appointment', String(appointmentId), { requestId, startsAt: startsAtText, endsAt: endsAtText, assignedTo });
+  revalidatePath('/admin/services');
+  revalidatePath('/service-requests');
+  finish('تم إنشاء الموعد وربطه بطلب الخدمة.', '/admin/services');
 }
 
 export async function transitionServiceRequest(formData: FormData) {
