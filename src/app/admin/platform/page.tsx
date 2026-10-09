@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import PlatformWorkspace from './PlatformWorkspace';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,7 @@ export default async function PlatformControlCenter() {
         <Link href={item.code === 'M32' ? '/api/platform/admin' : item.code === 'M29' ? '/api/platform/analytics' : item.code === 'M31' ? '/api/platform/recommendations' : item.code === 'M26' ? '/api/platform/search?q=aslan' : item.code === 'M28' ? '/api/platform/knowledge' : '/admin/platform'}>فتح واجهة الوحدة ←</Link>
       </article>)}
     </div>
+    <PlatformWorkspace />
     <p style={{marginTop:24}}><Link href="/admin/control">العودة إلى الإدارة الرئيسية ←</Link></p>
   </div></main>;
 }
