@@ -13,6 +13,6 @@ create index if not exists notifications_recipient_created_idx on public.notific
 create index if not exists notifications_unread_idx on public.notifications(recipient_id,created_at desc) where read_at is null;
 alter table public.notifications enable row level security;
 drop policy if exists notifications_owner_read on public.notifications;
-create policy notifications_owner_read on public.notifications for select to authenticated using (recipient_id=(select auth.uid()) or (select private.is_super_admin()));
+create policy notifications_owner_read on public.notifications for select to authenticated using (recipient_id=(select auth.uid()) or (select private.is_super_admin((select auth.uid()))));
 drop policy if exists notifications_owner_update on public.notifications;
-create policy notifications_owner_update on public.notifications for update to authenticated using (recipient_id=(select auth.uid())) with check (recipient_id=(select auth.uid())¶»§q«^
+create policy notifications_owner_update on public.notifications for update to authenticated using (recipient_id=(select auth.uid())) with check (recipient_id=¶»§q«^
