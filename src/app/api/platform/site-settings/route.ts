@@ -31,10 +31,10 @@ export async function GET() {
   if (!user || !allowed) query = query.eq('is_public', true);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'تعذر تحميل إعدادات الموقع.' }, { status: 500 });
-  return NextResponse.json({
-    settings: Object.fromEntries((data ?? []).map(row => [row.setting_key, row.setting_value])),
-    admin: allowed,
-  });
+  const settings = Object.fromEntries((data ?? []).map(row => [row.setting_key, row.setting_value]));
+  const logoPath = typeof settings.brand_logo_path === 'string' ? settings.brand_logo_path.trim() : '';
+  const brandLogoUrl = logoPath ? db.storage.from('aslan-media').getPublicUrl(logoPath).data.publicUrl : null;
+  return NextResponse.json({ settings, brandLogoUrl, admin: allowed });
 }
 
 export async function PATCH(request: Request) {
