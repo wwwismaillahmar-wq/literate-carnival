@@ -349,8 +349,20 @@ export async function deleteCategory(formData: FormData) {
 }
 
 export async function updateLeadStatus(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=Number(formData.get('id')),status=textValue(formData,'status'); if(!id||!['new','contacted','qualified','closed'].includes(status))throw new Error('بيانات العميل المحتمل غير صالحة.');
-  const {error}=await db.from('leads').update({status}).eq('id',id); if(error)dbError('تعذر تحديث حالة العميل المحتمل',error); revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تحديث حالة العميل المحتمل.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/market';
+  const id = Number(formData.get('id'));
+  const status = textValue(formData, 'status');
+  if (!Number.isInteger(id) || id <= 0 || !['new','contacted','qualified','closed'].includes(status)) {
+    return redirect(returnTo + '?error=' + encodeURIComponent('بيانات العميل المحتمل غير صالحة.'));
+  }
+  const { error } = await db.from('leads').update({ status }).eq('id', id);
+  if (error) dbError('تعذر تحديث حالة العميل المحتمل', error, returnTo);
+  await audit(db, user.id, 'UPDATE', 'lead', String(id), { status });
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/market');
+  revalidatePath('/admin/control');
+  finish('تم تحديث حالة العميل المحتمل.', returnTo);
 }
 
 export async function updatePost(formData: FormData) {
