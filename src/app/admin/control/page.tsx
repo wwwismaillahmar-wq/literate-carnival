@@ -6,6 +6,7 @@ import LogoutButton from '@/components/LogoutButton';
 export const dynamic = 'force-dynamic';
 
 const areas = [
+  { href: '/admin/crm', title: 'إدارة علاقات العملاء', eyebrow: 'CRM / M38', description: 'متابعة العملاء المحتملين وتسجيل سجل الاتصالات ومواعيد المتابعة.' },
   { href: '/admin/knowledge', title: 'إدارة المعرفة والموسوعات', eyebrow: 'KNOWLEDGE / M37', description: 'إنشاء المقالات والمدخلات العلمية والتقنية ونشرها أو أرشفتها.' },
   { href: '/admin/talent', title: 'مراجعة الأدلة المهنية', eyebrow: 'TALENT / M35', description: 'مراجعة أدلة التدريب والمشاريع والخبرات وتوثيقها إداريًا.' },
   { href: '/admin/partners', title: 'طلبات الشراكة', eyebrow: 'PARTNERS / M36', description: 'مراجعة طلبات الشراكة المحفوظة وتحديث حالتها وملاحظاتها الإدارية.' },
