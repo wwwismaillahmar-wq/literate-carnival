@@ -289,14 +289,39 @@ export async function deleteProduct(formData: FormData) {
 }
 
 export async function saveCategory(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=textValue(formData,'id'),name=textValue(formData,'name'),slug=textValue(formData,'slug'); if(!name||!slug)throw new Error('اسم الفئة وslug مطلوبان.');
-  const payload={name,slug}; const result=id?await db.from('categories').update(payload).eq('id',Number(id)):await db.from('categories').insert(payload); if(result.error)dbError('تعذر حفظ الفئة',result.error);
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish(id?'تم حفظ الفئة.':'تم إنشاء الفئة.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = textValue(formData, 'return_to') === '/admin/categories' ? '/admin/categories' : '/admin/control';
+  const id = textValue(formData, 'id');
+  const name = textValue(formData, 'name');
+  const slug = textValue(formData, 'slug').toLowerCase();
+  if (!name || !slug) return redirect(returnTo + '?error=' + encodeURIComponent('اسم الفئة والرابط المختصر مطلوبان.'));
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return redirect(returnTo + '?error=' + encodeURIComponent('الرابط المختصر يجب أن يحتوي على حروف لاتينية صغيرة وأرقام وشرطات فقط.'));
+  const payload = { name, slug };
+  const result = id
+    ? await db.from('categories').update(payload).eq('id', Number(id))
+    : await db.from('categories').insert(payload);
+  if (result.error) dbError('تعذر حفظ الفئة', result.error, returnTo);
+  await audit(db, user.id, id ? 'UPDATE' : 'CREATE', 'category', id || slug, { name, slug });
+  revalidatePath('/products');
+  revalidatePath('/admin/products');
+  revalidatePath('/admin/market');
+  revalidatePath('/admin/control');
+  finish(id ? 'تم حفظ الفئة.' : 'تم إنشاء الفئة.', returnTo);
 }
 
 export async function deleteCategory(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=Number(formData.get('id')); if(!id)throw new Error('معرّف الفئة غير صالح.'); const {error}=await db.from('categories').delete().eq('id',id); if(error)dbError('تعذر حذف الفئة',error);
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم حذف الفئة.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = textValue(formData, 'return_to') === '/admin/categories' ? '/admin/categories' : '/admin/control';
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id) || id <= 0) return redirect(returnTo + '?error=' + encodeURIComponent('معرّف الفئة غير صالح.'));
+  const { error } = await db.from('categories').delete().eq('id', id);
+  if (error) dbError('تعذر حذف الفئة؛ قد تكون مرتبطة بمنتجات', error, returnTo);
+  await audit(db, user.id, 'DELETE', 'category', String(id));
+  revalidatePath('/products');
+  revalidatePath('/admin/products');
+  revalidatePath('/admin/market');
+  revalidatePath('/admin/control');
+  finish('تم حذف الفئة.', returnTo);
 }
 
 export async function updateLeadStatus(formData: FormData) {
