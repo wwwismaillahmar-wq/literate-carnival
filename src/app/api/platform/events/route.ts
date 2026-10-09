@@ -15,8 +15,14 @@ export async function GET() {
     .order('created_at', { ascending: false }).limit(200);
   if (error) return NextResponse.json({ error: 'تعذر تحميل سجل المهام. تحقق من ترحيلات M08 وصلاحيات الجدول.' }, { status: 500 });
   const events = data ?? [];
+  const eventIds = events.map(event => event.id);
+  const { data: recoveryLogs, error: logsError } = eventIds.length
+    ? await db.from('platform_event_recovery_logs').select('id,event_id,actor_id,reason,previous_attempts,retry_number,created_at').in('event_id', eventIds).order('created_at', { ascending: false }).limit(300)
+    : { data: [], error: null };
   return NextResponse.json({
     events,
+    recoveryLogs: logsError ? null : recoveryLogs ?? [],
+    recoveryLogsUnavailable: Boolean(logsError),
     summary: {
       pending: events.filter(event => event.status === 'pending').length,
       processing: events.filter(event => event.status === 'processing').length,

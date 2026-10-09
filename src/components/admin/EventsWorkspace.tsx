@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 type EventRow = { id: string; event_name: string; aggregate_type: string; aggregate_id: string | null; status: string; attempts: number; manual_retry_count: number; available_at: string; created_at: string; processed_at: string | null; last_error: string | null };
 type Summary = { pending: number; processing: number; failed: number };
+type RecoveryLog = { id: string; event_id: string; actor_id: string | null; reason: string; previous_attempts: number; retry_number: number; created_at: string };
 
 export function EventsWorkspace() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [summary, setSummary] = useState<Summary>({ pending: 0, processing: 0, failed: 0 });
+  const [recoveryLogs, setRecoveryLogs] = useState<RecoveryLog[]>([]);
+  const [logsUnavailable, setLogsUnavailable] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -17,10 +20,12 @@ export function EventsWorkspace() {
     setLoading(true);
     try {
       const response = await fetch('/api/platform/events', { cache: 'no-store' });
-      const result = await response.json() as { events?: EventRow[]; summary?: Summary; error?: string };
+      const result = await response.json() as { events?: EventRow[]; summary?: Summary; recoveryLogs?: RecoveryLog[] | null; recoveryLogsUnavailable?: boolean; error?: string };
       if (!response.ok) throw new Error(result.error || 'تعذر تحميل سجل الأحداث.');
       setEvents(result.events ?? []);
       setSummary(result.summary ?? { pending: 0, processing: 0, failed: 0 });
+      setRecoveryLogs(result.recoveryLogs ?? []);
+      setLogsUnavailable(result.recoveryLogsUnavailable === true);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل سجل الأحداث.');
@@ -68,6 +73,8 @@ export function EventsWorkspace() {
       <p className="muted">النوع: {event.aggregate_type} · المعرّف: {event.aggregate_id || '—'}</p>
       {event.last_error && <p role="alert">آخر خطأ: {event.last_error}</p>}
       <p className="muted">الموعد التالي: {new Date(event.available_at).toLocaleString('ar-DZ')}</p>
+      {logsUnavailable && <p className="muted">تعذر تحميل سجل أسباب إعادة المحاولة.</p>}
+      {recoveryLogs.filter(log => log.event_id === event.id).map(log => <div className="card" key={log.id}><strong>إعادة المحاولة اليدوية #{log.retry_number}</strong><p>{log.reason}</p><small className="muted">المحاولات السابقة: {log.previous_attempts} · {new Date(log.created_at).toLocaleString('ar-DZ')}</small></div>)}
       {event.status === 'failed' && <div style={{display:'grid',gap:8,marginTop:12}}>
         <p className="muted">إعادات المحاولة اليدوية: {event.manual_retry_count}/3</p>
         <label>سبب إعادة المحاولة<input minLength={5} maxLength={1000} value={reasons[event.id] ?? ''} onChange={e => setReasons(current => ({...current,[event.id]:e.target.value}))} placeholder="اذكر ما الذي تم إصلاحه" /></label>
