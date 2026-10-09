@@ -512,6 +512,42 @@ export async function savePaymentProviderConfig(formData: FormData) {
   finish('تم حفظ إعدادات بوابة الدفع.');
 }
 
+export async function saveService(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/services/catalog';
+  const id = textValue(formData, 'id');
+  const name = textValue(formData, 'name');
+  const slug = textValue(formData, 'slug').toLowerCase();
+  const description = textValue(formData, 'description');
+  if (!name || !slug) return redirect(returnTo + '?error=' + encodeURIComponent('اسم الخدمة والرابط المختصر مطلوبان.'));
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return redirect(returnTo + '?error=' + encodeURIComponent('الرابط المختصر غير صالح.'));
+  const payload = { name, slug, description, active: formData.get('active') === 'on', updated_at: new Date().toISOString() };
+  const result = id
+    ? await db.from('services').update(payload).eq('id', id)
+    : await db.from('services').insert(payload);
+  if (result.error) dbError('تعذر حفظ الخدمة', result.error, returnTo);
+  await audit(db, user.id, id ? 'UPDATE' : 'CREATE', 'service', id || slug, { name, slug, active: payload.active });
+  revalidatePath('/services');
+  revalidatePath('/admin/services');
+  revalidatePath('/admin/services/catalog');
+  revalidatePath('/admin/control');
+  finish(id ? 'تم حفظ تعديلات الخدمة.' : 'تم إنشاء الخدمة.', returnTo);
+}
+
+export async function deleteService(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/services/catalog';
+  const id = textValue(formData, 'id');
+  if (!id) return redirect(returnTo + '?error=' + encodeURIComponent('معرّف الخدمة غير صالح.'));
+  const { error } = await db.from('services').delete().eq('id', id);
+  if (error) dbError('تعذر حذف الخدمة؛ قد تكون مرتبطة بطلبات خدمة موجودة', error, returnTo);
+  await audit(db, user.id, 'DELETE', 'service', id);
+  revalidatePath('/services');
+  revalidatePath('/admin/services');
+  revalidatePath('/admin/services/catalog');
+  finish('تم حذف الخدمة.', returnTo);
+}
+
 export async function transitionServiceRequest(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
   const requestId = textValue(formData, 'request_id');
