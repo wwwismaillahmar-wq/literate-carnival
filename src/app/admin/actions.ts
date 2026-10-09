@@ -226,7 +226,7 @@ export async function registerProductMedia(input: {
   if (!input.objectPath.startsWith(expectedPrefix) || input.objectPath.includes('..')) {
     return { ok: false, error: 'مسار الملف غير مطابق للمنتج أو المستخدم الحالي.' };
   }
-  const { data: product, error: productError } = await db.from('products').select('id').eq('id', input.productId).maybeSingle();
+  const { data: product, error: productError } = await db.from('products').select('id,slug').eq('id', input.productId).maybeSingle();
   if (productError || !product) {
     return { ok: false, error: productError?.message ?? 'المنتج غير موجود.' };
   }
@@ -243,7 +243,7 @@ export async function registerProductMedia(input: {
   await audit(db, user.id, 'CREATE', 'product_media', input.objectPath, { productId: input.productId, mimeType: input.mimeType, fileSize: input.fileSize });
   revalidatePath('/admin/products');
   revalidatePath('/products');
-  revalidatePath('/products/' + (await db.from('products').select('slug').eq('id', input.productId).single()).data?.slug);
+  revalidatePath('/products/' + product.slug);
   return { ok: true as const };
 }
 
