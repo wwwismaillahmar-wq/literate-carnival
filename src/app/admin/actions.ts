@@ -97,6 +97,22 @@ export async function saveProduct(formData: FormData) {
   if (!Number.isInteger(stockValue) || stockValue < 0) return redirect(returnTo + '?error=' + encodeURIComponent('المخزون يجب أن يكون عددًا صحيحًا غير سالب.'));
   if (categoryValue !== null && (!Number.isInteger(categoryValue) || categoryValue <= 0)) return redirect(returnTo + '?error=' + encodeURIComponent('الفئة المحددة غير صالحة.'));
   if (submittedSlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(submittedSlug)) return redirect(returnTo + '?error=' + encodeURIComponent('الرابط المختصر يجب أن يحتوي على حروف لاتينية صغيرة وأرقام وشرطات فقط.'));
+  const files = formData.getAll('media').filter(
+    (item): item is File => item instanceof File && item.size > 0
+  );
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+  // Validate the complete upload before any database write so invalid media
+  // cannot leave a product created while the form reports failure.
+  if (files.length > 1) {
+    return redirect(returnTo + '?error=' + encodeURIComponent('أرفق صورة واحدة فقط عند إنشاء المنتج. يمكن إضافة صور أخرى بعد الحفظ.'));
+  }
+  for (const file of files) {
+    if (!allowed.includes(file.type) || file.size > 1.5 * 1024 * 1024) {
+      return redirect(returnTo + '?error=' + encodeURIComponent('الصورة غير صالحة أو تتجاوز 1.5MB: ' + file.name));
+    }
+  }
+
   const slug = submittedSlug || await uniqueProductSlug(db, name, productIdInput ?? undefined);
 
   const payload = {
@@ -151,25 +167,7 @@ export async function saveProduct(formData: FormData) {
     console.log('[M04 saveProduct] insert verified', { productId });
   }
 
-  const files = formData.getAll('media').filter(
-    (item): item is File => item instanceof File && item.size > 0
-  );
-
-  const allowed = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'video/mp4',
-    'video/webm',
-    'video/quicktime',
-  ];
-
   for (const file of files) {
-    if (!allowed.includes(file.type) || file.size > 1.5 * 1024 * 1024) {
-      return redirect(returnTo + '?error=' + encodeURIComponent('الملف غير صالح أو يتجاوز 1.5MB في نموذج الإدارة الحالي: ' + file.name));
-    }
-
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
     const objectPath = user.id + '/products/' + productId + '/' + crypto.randomUUID() + '.' + ext;
     const bytes = Buffer.from(await file.arrayBuffer());
