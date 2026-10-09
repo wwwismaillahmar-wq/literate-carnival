@@ -56,6 +56,20 @@ A clean-database replay is configured in PR #22. Run [37925059334](https://githu
 - Kept successful product mutations visibly successful when audit logging fails, while showing a separate audit warning.
 - Applied the same truthful failed-read reporting to company content, dashboard metrics and control-center counts.
 
+## M26–M32 authoritative roadmap mapping
+
+The accepted project source `00_ASLAN_MASTER_REFERENCE_v1.0.docx` establishes the platform domains and logical entities; the project roadmap snapshot `مراجعة دورية لمشروع ASLAN.txt` explicitly maps the next milestones as follows. This mapping is sourced from project references, not invented:
+
+| Stage | Authoritative scope | Initial acceptance boundary |
+|---|---|---|
+| M26 | Search Platform | Search products/services/courses/content with validated filters, pagination, authorization-aware results, and database-backed integration tests. |
+| M27 | Notifications / Communications | Persisted notification lifecycle, recipient isolation, delivery/retry/idempotency, and read/unread state. |
+| M28 | Support / Complaints / Knowledge Base | Ticket/complaint creation, ownership, status lifecycle, attachments, admin handling, and knowledge-base publishing/access. |
+| M29 | Analytics / Reporting | Trusted event ingestion, consent boundaries, accurate database-backed reports, date filters, and role-protected exports. |
+| M30 | AI Platform | Server-only provider abstraction, validated requests, safe failure/fallback, quotas/audit, and no client-side secrets. |
+| M31 | Recommendations / Intelligence | Explainable recommendations from authorized, consent-appropriate data with deterministic fallbacks and evaluation tests. |
+| M32 | Admin Control Center | Unified role-protected operational dashboard for the domains above, truthful read failures, auditable mutations, and verified persistence. |
+
 ## Release gate
 
-Do not mark M00–M25 fully closed and do not begin implementation of M26–M32 until all rows above have evidence for their required real workflows. No authoritative definitions for M26–M32 were found in the current repository search, so their scope must be sourced from the accepted master roadmap rather than invented. In particular, a green build is necessary but insufficient; missing M11/M14 source and unrun database/authenticated runtime acceptance remain blockers.
+Do not mark M00–M25 fully closed and do not begin M26–M32 implementation until all M00–M25 rows have evidence for their required real workflows. The authoritative scope for M26–M32 is now recorded above, but their implementation remains gated. In particular, a green build is necessary but insufficient; the missing M11/M14 schema source or approved forward-recovery design, clean migration replay, pgTAP, and authenticated runtime acceptance remain blockers.
