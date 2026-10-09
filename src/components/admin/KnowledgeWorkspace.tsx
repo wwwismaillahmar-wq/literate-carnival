@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Article = {
   id: string;
@@ -24,17 +24,17 @@ export function KnowledgeWorkspace() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     const response = await fetch('/api/platform/knowledge', { cache: 'no-store' });
     const result = await response.json() as { articles?: Article[]; admin?: boolean; error?: string };
     if (!response.ok) throw new Error(result.error || 'تعذر تحميل المقالات.');
     if (!result.admin) throw new Error('لا تملك صلاحية إدارة قاعدة المعرفة.');
     setArticles(result.articles ?? []);
-  }
+  }, []);
 
   useEffect(() => {
     void load().catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل المقالات.')).finally(() => setLoading(false));
-  }, []);
+  }, [load]);
 
   async function createArticle(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
