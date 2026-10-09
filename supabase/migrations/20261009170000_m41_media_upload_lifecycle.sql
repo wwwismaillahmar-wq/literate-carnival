@@ -12,3 +12,8 @@ where upload_status = 'uploaded' and uploaded_at is null;
 create index if not exists media_assets_owner_upload_status_idx
   on public.media_assets(owner_id, upload_status, created_at desc);
 
+-- Restrictive read guard: non-owners cannot see an asset row until upload is confirmed.
+drop policy if exists media_upload_completion_guard on public.media_assets;
+create policy media_upload_completion_guard on public.media_assets
+  as restrictive for select to anon, authenticated
+  using (upload_status = 'uploaded' or owner_id = (select auth.uid()));
