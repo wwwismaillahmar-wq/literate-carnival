@@ -76,6 +76,10 @@ export async function PATCH(request: Request) {
     if (body.status !== undefined) {
       if (!['draft','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الاختبار غير صالحة.' }, { status: 400 });
       if (body.status === 'published') {
+        const { data: existing, error: existingError } = await db.from('academy_assessments').select('module_id').eq('id', id).maybeSingle();
+        if (existingError || !existing) return NextResponse.json({ error: 'الاختبار غير موجود.' }, { status: 404 });
+        const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('status').eq('id', existing.module_id).maybeSingle();
+        if (moduleError || moduleRow?.status !== 'published') return NextResponse.json({ error: 'انشر الوحدة المرتبطة أولًا قبل نشر الاختبار.' }, { status: 400 });
         const { count, error } = await db.from('academy_assessment_questions').select('id', { count: 'exact', head: true }).eq('assessment_id', id);
         if (error || !count) return NextResponse.json({ error: 'أضف سؤالًا واحدًا على الأقل قبل النشر.' }, { status: 400 });
       }
