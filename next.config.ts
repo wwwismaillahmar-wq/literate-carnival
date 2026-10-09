@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       // Vercel serverless request bodies are limited to about 4.5 MB; keep a safe margin.
-      bodySizeLimit: '2mb',
+      bodySizeLimit: '3mb',
     },
   },
   images: {
