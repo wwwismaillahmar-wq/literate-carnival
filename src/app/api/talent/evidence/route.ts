@@ -12,6 +12,18 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
   return { user, allowed: !error && data === true };
 }
 
+export async function GET() {
+  const db = await createClient();
+  const { user, allowed } = await admin(db);
+  if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
+  if (!allowed) return NextResponse.json({ error: 'مراجعة الأدلة المهنية للإدارة فقط.' }, { status: 403 });
+  const { data, error } = await db.from('talent_evidence')
+    .select('id,profile_id,owner_id,title,evidence_type,evidence_url,notes,verification_status,created_at,talent_profiles(headline,user_id)')
+    .order('created_at', { ascending: false }).limit(200);
+  if (error) return NextResponse.json({ error: 'تعذر تحميل الأدلة المهنية.' }, { status: 500 });
+  return NextResponse.json({ evidence: data ?? [] });
+}
+
 export async function POST(request: Request) {
   try {
     const db = await createClient();
