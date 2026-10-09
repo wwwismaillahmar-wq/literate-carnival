@@ -17,7 +17,11 @@ const areas = [
   { href: '/admin/fulfillment', title: 'التنفيذ والتسليم', eyebrow: 'FULFILLMENT', description: 'مهام التنفيذ وحالاتها ومراجع التتبع.' },
   { href: '/admin/payments', title: 'الفوترة والمدفوعات', eyebrow: 'BILLING / PAYMENTS', description: 'متابعة الفواتير والمدفوعات ضمن الوظائف المنفذة حاليًا.' },
   { href: '/admin/audit', title: 'سجل التدقيق', eyebrow: 'AUDIT / SECURITY', description: 'مراجعة العمليات الإدارية المسجلة.' },
-  { href: '/admin/access', title: 'المستخدمون والصلاحيات', eyebrow: 'IDENTITY / RBAC', description: 'إدارة الأدوار والصلاحيات وتعيينها للمستخدمين والتحكم في ملفاتهم.' },
+  { href: '/admin/users', title: 'دليل المستخدمين', eyebrow: 'IDENTITY / USERS', description: 'عرض ملفات المستخدمين والأدوار المسندة والعضويات المؤسسية من البيانات الحالية.' },
+  { href: '/admin/access', title: 'الأدوار والصلاحيات', eyebrow: 'IDENTITY / RBAC', description: 'إدارة الأدوار والصلاحيات وتعيينها للمستخدمين والتحكم في ملفاتهم.' },
+  { href: '/admin/reports', title: 'التقارير والمؤشرات', eyebrow: 'REPORTING', description: 'أعداد فعلية من الجداول الحالية مع إظهار الأخطاء بدل إخفائها كأصفار.' },
+  { href: '/admin/settings', title: 'إعدادات المنصة', eyebrow: 'SETTINGS', description: 'مدخل موحد لإعدادات الدفع والصلاحيات وسجل التدقيق الموجودة فعليًا.' },
+  { href: '/admin/applications', title: 'التطبيقات والوحدات', eyebrow: 'APPLICATION REGISTRY', description: 'سجل الوحدات الحالية والمستقبلية وحالة تفعيلها ومساراتها.' },
   { href: '/admin/organizations', title: 'المؤسسات والعضويات', eyebrow: 'ORGANIZATIONS', description: 'إنشاء المؤسسات وإدارة الأعضاء وأدوارهم داخل كل مؤسسة.' },
   { href: '/admin/payment-settings', title: 'إعدادات بوابات الدفع', eyebrow: 'PAYMENT CONFIGURATION', description: 'إدارة إعدادات التاجر ومفاتيح الدفع دون كشف الأسرار المخزنة.' },
 ];
