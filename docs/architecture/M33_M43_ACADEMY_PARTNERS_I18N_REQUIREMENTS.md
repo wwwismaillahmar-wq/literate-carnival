@@ -21,6 +21,22 @@ Requirements:
 6. Site/admin controls should permit publishing and maintaining translations, with a safe fallback to the primary/original locale when a translation is missing.
 7. Currency, locale and language are separate concepts: language selection must not silently change a course fee, payment currency, user identity or legal terms.
 
+## Translation quality and language isolation — mandatory acceptance rules
+
+The language system is **not accepted** by adding a selector or translating only the navigation. Mixed-language interfaces are a release-blocking defect.
+
+1. Each locale must have a complete, reviewed translation catalog for every supported UI string. No fallback to another language is allowed for ordinary UI labels, buttons, menus, form labels, validation, empty states, errors, success messages, dialogs, account pages, academy, partner portal, company pages, community, support and admin controls. If a translation is missing, use an explicitly approved fallback policy and flag the missing key in admin/development checks; do not silently mix languages within a screen.
+2. English, French, Spanish, German and Portuguese copy must be professionally written for that language, not word-for-word machine translation. Arabic must be natural, correct Modern Standard Arabic suitable for a professional company. Preserve ASLAN names, product terminology, course terms and legal/payment meaning consistently using an approved glossary.
+3. Use translation keys and locale-specific message catalogs (including pluralization, number/date formatting and interpolation), never inline conditional fragments that combine languages. A whole message must resolve from one locale catalog.
+4. Separate UI translation from editorial content. Course titles, lesson text, videos, exercises, partner documents and knowledge articles need an explicit per-locale version/status. Do not claim course content is translated unless a reviewed translation exists; retain the original-language label when appropriate.
+5. Add automated completeness checks: all six catalogs must contain the same required keys; reject empty values, accidental source-language copies where inappropriate, unresolved keys and malformed interpolation placeholders.
+6. Add UI integration tests for each locale covering homepage, navigation, product/service, academy admission and payment states, partner application, account/community, support and admin. Assert the correct `lang` and `dir`, and assert that no missing-key markers or unapproved foreign-language fallback strings appear.
+7. Require human linguistic review by a fluent/professional reviewer for all six locales before production release, including terminology, tone, grammar, regional appropriateness and consistency. Automated tests detect omissions; they cannot certify translation quality.
+8. Use locale-aware SEO metadata and language alternates only for pages that genuinely have a reviewed equivalent. Do not label untranslated pages as localized.
+9. Release criterion: **100% of required UI keys covered and reviewed in all six locales for the release scope, with zero known mixed-language UI defects.** If a locale is not complete, it must not be presented as fully supported; show an explicit availability state rather than a misleading language toggle.
+
+Current repository observation (2026-10-09): the root layout currently hard-codes `lang="ar"`, `dir="rtl"` and Arabic OpenGraph metadata, while the navigation labels are Arabic literals. Therefore six-language support is a requirement, **not yet a verified implemented feature**. The language selector and shared locale runtime must be built and tested before declaring support.
+
 ## Academy admission contract (M33–M34)
 Registration is a gated workflow, not a one-click direct enrollment:
 1. Public course page states prerequisites, level, language, price, schedule, expected outcomes, capacity and admission requirements.
