@@ -14,7 +14,7 @@ const settingRules: Record<string, { max: number; pattern?: RegExp }> = {
   contact_phone: { max: 30 },
   contact_email: { max: 254, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
   contact_address: { max: 300 },
-  brand_logo_path: { max: 500, pattern: /^[a-zA-Z0-9/_-]*$/ },
+  brand_logo_path: { max: 500, pattern: /^(?!.*\\.\\.)[a-zA-Z0-9/_.-]*$/ },
 };
 
 async function admin(db: Awaited<ReturnType<typeof createClient>>) {
@@ -26,11 +26,15 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
 
 export async function GET() {
   const db = await createClient();
-  const { data, error } = await db.from('site_settings')
-    .select('setting_key,setting_value,is_public,updated_at')
-    .eq('is_public', true).order('setting_key');
-  if (error) return NextResponse.json({ error: 'تعذر تحميل إعدادات الموقع العامة.' }, { status: 500 });
-  return NextResponse.json({ settings: Object.fromEntries((data ?? []).map(row => [row.setting_key, row.setting_value])) });
+  const { user, allowed } = await admin(db);
+  let query = db.from('site_settings').select('setting_key,setting_value,is_public,updated_at').order('setting_key');
+  if (!user || !allowed) query = query.eq('is_public', true);
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: 'تعذر تحميل إعدادات الموقع.' }, { status: 500 });
+  return NextResponse.json({
+    settings: Object.fromEntries((data ?? []).map(row => [row.setting_key, row.setting_value])),
+    admin: allowed,
+  });
 }
 
 export async function PATCH(request: Request) {
