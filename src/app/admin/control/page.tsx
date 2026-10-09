@@ -12,12 +12,14 @@ const areas = [
   { href: '/admin/services/catalog', title: 'كتالوج الخدمات', eyebrow: 'SERVICES / CATALOG', description: 'إنشاء الخدمات وتعديلها ونشرها وإيقافها.' },
   { href: '/admin/services', title: 'تشغيل الخدمات', eyebrow: 'SERVICES / WORKFLOW', description: 'طلبات الخدمات وعروض الأسعار والمواعيد وتغييرات الحالة.' },
   { href: '/admin/company', title: 'الشركة والمحتوى العام', eyebrow: 'COMPANY', description: 'إدارة محتوى عن الشركة والرؤية والرسالة والأنشطة والمشاريع والأخبار.' },
-  { href: '/admin/content', title: 'المحتوى والمجتمع', eyebrow: 'CONTENT / COMMUNITY', description: 'إدارة المحتوى المميز الحالي ومراجعة أدوات المحتوى الإضافية من المساحة الإدارية المتبقية.' },
+  { href: '/admin/content', title: 'المحتوى والمجتمع', eyebrow: 'CONTENT / COMMUNITY', description: 'إدارة حالة المنشورات والمساهمات وتمييز المحتوى ومتابعة ما يظهر في المجتمع.' },
   { href: '/admin/inventory', title: 'المخزون', eyebrow: 'INVENTORY', description: 'كميات المخزون والحركات والحجز.' },
   { href: '/admin/fulfillment', title: 'التنفيذ والتسليم', eyebrow: 'FULFILLMENT', description: 'مهام التنفيذ وحالاتها ومراجع التتبع.' },
   { href: '/admin/payments', title: 'الفوترة والمدفوعات', eyebrow: 'BILLING / PAYMENTS', description: 'متابعة الفواتير والمدفوعات ضمن الوظائف المنفذة حاليًا.' },
   { href: '/admin/audit', title: 'سجل التدقيق', eyebrow: 'AUDIT / SECURITY', description: 'مراجعة العمليات الإدارية المسجلة.' },
-  { href: '/admin/legacy', title: 'إدارة المستخدمين والصلاحيات والمؤسسات', eyebrow: 'IDENTITY / RBAC', description: 'الأدوار والصلاحيات والمستخدمون والمؤسسات والعضويات والعمليات الإدارية المتبقية التي لم تُنقل بعد إلى صفحات مستقلة.' },
+  { href: '/admin/access', title: 'المستخدمون والصلاحيات', eyebrow: 'IDENTITY / RBAC', description: 'إدارة الأدوار والصلاحيات وتعيينها للمستخدمين والتحكم في ملفاتهم.' },
+  { href: '/admin/organizations', title: 'المؤسسات والعضويات', eyebrow: 'ORGANIZATIONS', description: 'إنشاء المؤسسات وإدارة الأعضاء وأدوارهم داخل كل مؤسسة.' },
+  { href: '/admin/payment-settings', title: 'إعدادات بوابات الدفع', eyebrow: 'PAYMENT CONFIGURATION', description: 'إدارة إعدادات التاجر ومفاتيح الدفع دون كشف الأسرار المخزنة.' },
 ];
 
 export default async function AdminControl({ searchParams }: { searchParams?: Promise<{ success?: string; error?: string }> }) {
