@@ -1,5 +1,9 @@
 {
+  "ignoreCommand": "exit 0",
   "crons": [
-    { "path": "/api/cron/process-platform-events", "schedule": "0 3 * * *" }
+    {
+      "path": "/api/cron/process-platform-events",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

@@ -51,6 +51,25 @@ create table if not exists public.posts (
 create index if not exists posts_author_created_idx on public.posts(author_id, created_at desc);
 create index if not exists posts_public_feed_idx on public.posts(status, visibility, created_at desc);
 
+-- Fresh-replay recovery guard: the accepted architecture defines Contributions as a
+-- first-class content entity, but the original M11 base-table migration is absent from
+-- reachable Git history. Existing production installations are not modified by this
+-- CI-only clean replay path because this migration version is already applied there.
+-- This is an explicitly documented compatibility fallback, not a claim to restore the
+-- original historical SQL. Reconcile against an authoritative schema export before any
+-- production migration-history operation.
+create table if not exists public.contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  content text not null default '',
+  status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint contributions_title_length check (char_length(title) between 1 and 160),
+  constraint contributions_content_length check (char_length(content) <= 10000)
+);
+
 alter table public.contributions
   add column if not exists visibility public.content_visibility not null default 'private';
 

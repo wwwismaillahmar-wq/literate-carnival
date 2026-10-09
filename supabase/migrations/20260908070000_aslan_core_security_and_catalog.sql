@@ -1,10 +1,9 @@
 -- ASLAN production migration
--- This migration is additive and matches the existing production schema.
--- It does not recreate or destroy existing products/courses/orders tables.
+-- Backward-compatible with databases where the foundational catalog tables already exist,
+-- while allowing clean historical replay when those tables are created by a later migration.
+-- Do not rename/reorder this migration: its version may already be recorded in production.
 
 create schema if not exists private;
-
-alter table public.products add column if not exists features jsonb not null default '{}'::jsonb;
 
 create table if not exists public.work_gallery (
   id uuid primary key default gen_random_uuid(),
@@ -19,8 +18,6 @@ create table if not exists public.social_links (
   url text not null,
   created_at timestamptz not null default now()
 );
-
-alter table public.leads add column if not exists product_id bigint references public.products(id) on delete set null;
 
 create or replace function private.is_admin()
 returns boolean
@@ -38,24 +35,8 @@ $$;
 revoke all on function private.is_admin() from public;
 grant execute on function private.is_admin() to authenticated;
 
-alter table public.products enable row level security;
 alter table public.work_gallery enable row level security;
 alter table public.social_links enable row level security;
-alter table public.leads enable row level security;
-
-create policy "products_public_read" on public.products
-  for select to anon, authenticated
-  using (active = true);
-create policy "products_admin_insert" on public.products
-  for insert to authenticated
-  with check ((select private.is_admin()));
-create policy "products_admin_update" on public.products
-  for update to authenticated
-  using ((select private.is_admin()))
-  with check ((select private.is_admin()));
-create policy "products_admin_delete" on public.products
-  for delete to authenticated
-  using ((select private.is_admin()));
 
 create policy "gallery_public_read" on public.work_gallery
   for select to anon, authenticated using (true);
@@ -79,19 +60,51 @@ create policy "social_admin_update" on public.social_links
 create policy "social_admin_delete" on public.social_links
   for delete to authenticated using ((select private.is_admin()));
 
-create policy "leads_public_insert" on public.leads
-  for insert to anon, authenticated
-  with check (
-    type is not null and length(type) <= 50
-  );
-create policy "leads_admin_read" on public.leads
-  for select to authenticated using ((select private.is_admin()));
-create policy "leads_admin_update" on public.leads
-  for update to authenticated
-  using ((select private.is_admin()))
-  with check ((select private.is_admin()));
-create policy "leads_admin_delete" on public.leads
-  for delete to authenticated using ((select private.is_admin()));
+-- The canonical catalog migration currently follows this file chronologically.
+-- Apply catalog-specific changes only when the tables exist; the later canonical
+-- migration creates products/leads and installs their baseline RLS policies on a
+-- clean replay. On existing databases this preserves the prior additive behavior.
+do $migration$
+begin
+  if to_regclass('public.products') is not null then
+    alter table public.products add column if not exists features jsonb not null default '{}'::jsonb;
+    alter table public.products enable row level security;
+
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='products' and policyname='products_public_read') then
+      execute 'create policy "products_public_read" on public.products for select to anon, authenticated using (active = true)';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='products' and policyname='products_admin_insert') then
+      execute 'create policy "products_admin_insert" on public.products for insert to authenticated with check ((select private.is_admin()))';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='products' and policyname='products_admin_update') then
+      execute 'create policy "products_admin_update" on public.products for update to authenticated using ((select private.is_admin())) with check ((select private.is_admin()))';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='products' and policyname='products_admin_delete') then
+      execute 'create policy "products_admin_delete" on public.products for delete to authenticated using ((select private.is_admin()))';
+    end if;
+  end if;
+
+  if to_regclass('public.leads') is not null then
+    if to_regclass('public.products') is not null then
+      alter table public.leads add column if not exists product_id bigint references public.products(id) on delete set null;
+    end if;
+    alter table public.leads enable row level security;
+
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='leads' and policyname='leads_public_insert') then
+      execute 'create policy "leads_public_insert" on public.leads for insert to anon, authenticated with check (type is not null and length(type) <= 50)';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='leads' and policyname='leads_admin_read') then
+      execute 'create policy "leads_admin_read" on public.leads for select to authenticated using ((select private.is_admin()))';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='leads' and policyname='leads_admin_update') then
+      execute 'create policy "leads_admin_update" on public.leads for update to authenticated using ((select private.is_admin())) with check ((select private.is_admin()))';
+    end if;
+    if not exists (select 1 from pg_policies where schemaname='public' and tablename='leads' and policyname='leads_admin_delete') then
+      execute 'create policy "leads_admin_delete" on public.leads for delete to authenticated using ((select private.is_admin()))';
+    end if;
+  end if;
+end
+$migration$;
 
 insert into public.social_links (platform, url) values
   ('whatsapp', 'https://wa.me/213558265070'),
