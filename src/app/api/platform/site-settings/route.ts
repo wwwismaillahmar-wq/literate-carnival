@@ -14,7 +14,7 @@ const settingRules: Record<string, { max: number; pattern?: RegExp }> = {
   contact_phone: { max: 30 },
   contact_email: { max: 254, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
   contact_address: { max: 300 },
-  brand_logo_path: { max: 500, pattern: /^(?!.*\\.\\.)[a-zA-Z0-9/_.-]*$/ },
+  brand_logo_path: { max: 500, pattern: /^(?!.*\.\.)[a-zA-Z0-9/_.-]*$/ },
 };
 
 async function admin(db: Awaited<ReturnType<typeof createClient>>) {
