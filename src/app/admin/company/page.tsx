@@ -15,20 +15,22 @@ export default async function AdminCompanyPage({ searchParams }: { searchParams?
   if (!user) redirect('/admin/login');
   const { data: isSuperAdmin } = await db.rpc('has_role', { role_key: 'super_admin' });
   if (!isSuperAdmin) redirect('/');
-  const { data } = await db.from('company_content').select('id,content_type,slug,title,excerpt,body,sort_order,published').order('sort_order').order('updated_at',{ascending:false});
+  const { data, error: loadError } = await db.from('company_content').select('id,content_type,slug,title,excerpt,body,sort_order,published').order('sort_order').order('updated_at',{ascending:false});
   const items = (data ?? []) as CompanyContent[];
   return <main className="section"><div className="wrap">
     <Link href="/admin/control">← مركز التشغيل</Link>
     <span className="kicker" style={{display:'block',marginTop:24}}>M09 / COMPANY CONTENT</span>
     <h1>محتوى الشركة</h1>
     {params.success && <div className="card" style={{marginTop:16,border:"1px solid #2f855a"}}><strong>✓ {params.success}</strong></div>}
-    {params.error && <div className="card" style={{marginTop:16,border:"1px solid #c53030"}}><strong>✕ {params.error}</strong></div>}
+    {params.error && <div className="card" role="alert" style={{marginTop:16,border:"1px solid #c53030"}}><strong>✕ {params.error}</strong></div>}
+    {loadError && <div className="card" role="alert" style={{marginTop:16,border:"1px solid #c53030"}}><strong>تعذر تحميل محتوى الشركة؛ لم تُعتبر القائمة فارغة.</strong><p className="muted">{loadError.message}</p></div>}
     <p className="muted">كل عملية حفظ أو حذف تُظهر نتيجتها هنا بعد التحقق من قاعدة البيانات.</p>
     <p className="muted">إدارة مباشرة لمحتوى عن ASLAN والرؤية والرسالة والأنشطة والمشاريع والأخبار والأسئلة الشائعة.</p>
     <section className="card" style={{marginTop:24}}>
       <h2>إضافة محتوى</h2>
       <ContentForm />
     </section>
+    {!loadError && items.length === 0 && <div className="card" style={{marginTop:24}}><p>لا توجد سجلات محتوى بعد. يمكنك إنشاء أول سجل من النموذج أعلاه.</p></div>}
     <div className="grid" style={{marginTop:24}}>
       {items.map((item:CompanyContent)=><article className="card" key={item.id}>
         <span className="kicker">{item.content_type}</span><h2>{item.title}</h2>
