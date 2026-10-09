@@ -17,9 +17,11 @@ function textField(row: CourseRow, keys: string[], fallback = ''): string {
 function isPublished(row: CourseRow): boolean {
   if (typeof row.published === 'boolean') return row.published;
   if (typeof row.is_published === 'boolean') return row.is_published;
+  if (typeof row.is_active === 'boolean') return row.is_active;
+  if (typeof row.visibility === 'string') return ['published', 'public'].includes(row.visibility.toLowerCase());
   if (typeof row.active === 'boolean') return row.active;
   if (typeof row.status === 'string') return ['published', 'active', 'public'].includes(row.status.toLowerCase());
-  return true;
+  return false;
 }
 
 export default async function Academy() {
