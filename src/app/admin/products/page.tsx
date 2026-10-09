@@ -37,7 +37,7 @@ export default async function AdminProducts({ searchParams }: {
   const [productResult, categoryResult, mediaResult] = await Promise.all([
     db.from('products').select('id,name,slug,description,price_dzd,stock,active,category_id,ad_priority,home_featured').order('id', { ascending: false }),
     db.from('categories').select('id,name,slug').order('name'),
-    db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id', 'is', null).order('created_at', { ascending: false }),
+    db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id', 'is', null).eq('upload_status', 'uploaded').order('created_at', { ascending: false }),
   ]);
   const products = (productResult.data ?? []) as Product[];
   const categories = (categoryResult.data ?? []) as Category[];
