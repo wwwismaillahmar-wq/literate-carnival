@@ -202,6 +202,51 @@ export async function uploadProductMedia(formData: FormData) {
   revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/control');finish('تم رفع الوسيط وربطه بالمنتج.');
 }
 
+export async function registerProductMedia(input: {
+  productId: number;
+  objectPath: string;
+  mimeType: string;
+  fileSize: number;
+}) {
+  const { db, user } = await requireSuperAdmin();
+  const allowed = new Set([
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'video/mp4', 'video/webm', 'video/quicktime',
+  ]);
+  if (!Number.isInteger(input.productId) || input.productId <= 0) {
+    return { ok: false, error: 'معرّف المنتج غير صالح.' };
+  }
+  if (!allowed.has(input.mimeType)) {
+    return { ok: false, error: 'نوع الملف غير مدعوم.' };
+  }
+  if (!Number.isFinite(input.fileSize) || input.fileSize <= 0 || input.fileSize > 50 * 1024 * 1024) {
+    return { ok: false, error: 'يجب أن يكون حجم الملف بين 1 بايت و50 ميغابايت.' };
+  }
+  const expectedPrefix = user.id + '/products/' + input.productId + '/';
+  if (!input.objectPath.startsWith(expectedPrefix) || input.objectPath.includes('..')) {
+    return { ok: false, error: 'مسار الملف غير مطابق للمنتج أو المستخدم الحالي.' };
+  }
+  const { data: product, error: productError } = await db.from('products').select('id').eq('id', input.productId).maybeSingle();
+  if (productError || !product) {
+    return { ok: false, error: productError?.message ?? 'المنتج غير موجود.' };
+  }
+  const { error } = await db.from('media_assets').insert({
+    owner_id: user.id,
+    product_id: input.productId,
+    bucket_id: 'aslan-media',
+    object_path: input.objectPath,
+    media_type: input.mimeType.startsWith('video/') ? 'video' : 'image',
+    mime_type: input.mimeType,
+    file_size: input.fileSize,
+  });
+  if (error) return { ok: false, error: 'تم رفع الملف لكن تعذر ربطه بالمنتج: ' + error.message };
+  await audit(db, user.id, 'CREATE', 'product_media', input.objectPath, { productId: input.productId, mimeType: input.mimeType, fileSize: input.fileSize });
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  revalidatePath('/products/' + (await db.from('products').select('slug').eq('id', input.productId).single()).data?.slug);
+  return { ok: true as const };
+}
+
 export async function deleteProductMedia(formData: FormData) {
   const {db}=await requireSuperAdmin(); const returnTo=textValue(formData,'return_to')==='/admin/products'?'/admin/products':'/admin/control'; const id=textValue(formData,'id'); if(!id)throw new Error('معرّف الوسيط غير صالح.');
   const {data:media,error:readError}=await db.from('media_assets').select('bucket_id,object_path').eq('id',id).maybeSingle(); if(readError)dbError('تعذر قراءة الوسيط',readError, returnTo); if(!media)throw new Error('الوسيط غير موجود.');
