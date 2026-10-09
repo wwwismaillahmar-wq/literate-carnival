@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-type EventRow = { id: string; event_name: string; aggregate_type: string; aggregate_id: string | null; status: string; attempts: number; available_at: string; created_at: string; processed_at: string | null; last_error: string | null };
+type EventRow = { id: string; event_name: string; aggregate_type: string; aggregate_id: string | null; status: string; attempts: number; manual_retry_count: number; available_at: string; created_at: string; processed_at: string | null; last_error: string | null };
 type Summary = { pending: number; processing: number; failed: number };
 
 export function EventsWorkspace() {
@@ -10,6 +10,8 @@ export function EventsWorkspace() {
   const [summary, setSummary] = useState<Summary>({ pending: 0, processing: 0, failed: 0 });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,6 +30,23 @@ export function EventsWorkspace() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function retry(event: EventRow) {
+    const reason = (reasons[event.id] ?? '').trim();
+    if (reason.length < 5 || busyId) { setError('اكتب سببًا من 5 أحرف على الأقل قبل إعادة المحاولة.'); return; }
+    setBusyId(event.id); setError('');
+    try {
+      const response = await fetch('/api/platform/events', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: event.id, reason }),
+      });
+      const result = await response.json() as { event?: EventRow; error?: string };
+      if (!response.ok || !result.event) throw new Error(result.error || 'تعذرت إعادة جدولة الحدث.');
+      setReasons(current => ({ ...current, [event.id]: '' }));
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذرت إعادة المحاولة.'); }
+    finally { setBusyId(null); }
+  }
 
   return <section style={{ display: 'grid', gap: 16, marginTop: 20 }}>
     <div className="grid three">
@@ -49,6 +68,11 @@ export function EventsWorkspace() {
       <p className="muted">النوع: {event.aggregate_type} · المعرّف: {event.aggregate_id || '—'}</p>
       {event.last_error && <p role="alert">آخر خطأ: {event.last_error}</p>}
       <p className="muted">الموعد التالي: {new Date(event.available_at).toLocaleString('ar-DZ')}</p>
+      {event.status === 'failed' && <div style={{display:'grid',gap:8,marginTop:12}}>
+        <p className="muted">إعادات المحاولة اليدوية: {event.manual_retry_count}/3</p>
+        <label>سبب إعادة المحاولة<input minLength={5} maxLength={1000} value={reasons[event.id] ?? ''} onChange={e => setReasons(current => ({...current,[event.id]:e.target.value}))} placeholder="اذكر ما الذي تم إصلاحه" /></label>
+        <button type="button" className="btn primary" disabled={busyId !== null || event.manual_retry_count >= 3} onClick={() => void retry(event)}>{busyId === event.id ? 'جارٍ إعادة الجدولة...' : 'إعادة الجدولة مع تسجيل السبب'}</button>
+      </div>}
     </article>)}
   </section>;
 }
