@@ -453,45 +453,51 @@ export async function removeOrganizationMember(formData: FormData) {
 
 export async function saveCompanyContent(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/company';
   const id = textValue(formData,'id');
   const contentType = textValue(formData,'content_type');
   const slug = textValue(formData,'slug');
   const title = textValue(formData,'title');
   if (!['about','vision','mission','activity','project','portfolio','news','faq'].includes(contentType) || !slug || !title) {
-    throw new Error('بيانات محتوى الشركة غير صالحة.');
+    return redirect(returnTo + '?error=' + encodeURIComponent('بيانات محتوى الشركة غير صالحة.'));
   }
+  const rawSortOrder = textValue(formData, 'sort_order');
+  const sortOrder = rawSortOrder === '' ? 0 : Number(rawSortOrder);
+  if (!Number.isInteger(sortOrder) || sortOrder < 0) return redirect(returnTo + '?error=' + encodeURIComponent('ترتيب المحتوى يجب أن يكون عددًا صحيحًا غير سالب.'));
   const payload = {
     content_type: contentType,
     slug,
     title,
     excerpt: textValue(formData,'excerpt'),
     body: textValue(formData,'body'),
-    sort_order: Number(formData.get('sort_order') || 0),
+    sort_order: sortOrder,
     published: formData.get('published') === 'on',
     published_at: formData.get('published') === 'on' ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   };
   const result = id ? await db.from('company_content').update(payload).eq('id',id) : await db.from('company_content').insert(payload);
-  if (result.error) dbError('تعذر حفظ محتوى الشركة', result.error);
+  if (result.error) dbError('تعذر حفظ محتوى الشركة', result.error, returnTo);
   await audit(db,user.id,id?'UPDATE':'CREATE','company_content',id || slug,{contentType,slug});
   revalidatePath('/company');
   revalidatePath('/company/'+contentType);
+  revalidatePath('/admin/company');
   revalidatePath('/admin/control');
-  finish(id ? 'تم تحديث محتوى الشركة.' : 'تم إنشاء محتوى الشركة.');
+  finish(id ? 'تم تحديث محتوى الشركة.' : 'تم إنشاء محتوى الشركة.', returnTo);
 }
 
 export async function deleteCompanyContent(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/company';
   const id = textValue(formData,'id');
-  if (!id) throw new Error('معرّف المحتوى غير صالح.');
+  if (!id) return redirect(returnTo + '?error=' + encodeURIComponent('معرّف المحتوى غير صالح.'));
   const { error } = await db.from('company_content').delete().eq('id',id);
-  if (error) dbError('تعذر حذف محتوى الشركة', error);
+  if (error) dbError('تعذر حذف محتوى الشركة', error, returnTo);
   await audit(db,user.id,'DELETE','company_content',id);
   revalidatePath('/company');
+  revalidatePath('/admin/company');
   revalidatePath('/admin/control');
-  finish('تم حذف محتوى الشركة.');
+  finish('تم حذف محتوى الشركة.', returnTo);
 }
-
 
 export async function savePaymentProviderConfig(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
