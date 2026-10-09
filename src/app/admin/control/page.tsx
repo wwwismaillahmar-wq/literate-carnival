@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const areas = [
   { href: '/admin/products', title: 'المنتجات', eyebrow: 'MARKET / PRODUCTS', description: 'إنشاء المنتجات وتعديلها وحفظها ونشرها وإدارة صورها وفيديوهاتها.' },
+  { href: '/admin/categories', title: 'فئات السوق', eyebrow: 'MARKET / CATEGORIES', description: 'إنشاء الفئات وتعديلها وحذفها ومراجعة ارتباطها بالمنتجات.' },
   { href: '/admin/market', title: 'السوق والعملاء', eyebrow: 'MARKET / LEADS', description: 'متابعة طلبات الاهتمام والعملاء المحتملين وحالة التواصل ومؤشرات الكتالوج.' },
   { href: '/admin/services', title: 'تشغيل الخدمات', eyebrow: 'SERVICES / WORKFLOW', description: 'طلبات الخدمات وعروض الأسعار والمواعيد وتغييرات الحالة.' },
   { href: '/admin/company', title: 'الشركة والمحتوى العام', eyebrow: 'COMPANY', description: 'إدارة محتوى عن الشركة والرؤية والرسالة والأنشطة والمشاريع والأخبار.' },
