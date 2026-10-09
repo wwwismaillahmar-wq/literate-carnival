@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const q = (url.searchParams.get('q') ?? '').trim().slice(0, 120);
   const kind = (url.searchParams.get('type') ?? 'all').trim();
+  if (!['all','products','services','courses','content','knowledge'].includes(kind)) return NextResponse.json({ error: 'نوع البحث غير صالح.', results: [] }, { status: 400 });
   const page = Math.max(1, Math.min(1000, Number(url.searchParams.get('page') ?? 1) || 1));
   const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit') ?? 20) || 20));
   if (q.length < 2) return NextResponse.json({ error: 'أدخل حرفين على الأقل للبحث.', results: [], page, limit }, { status: 400 });
