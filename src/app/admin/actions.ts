@@ -181,7 +181,20 @@ export async function saveProduct(formData: FormData) {
       upsert: false,
     });
 
-    if (uploadError) dbError('تعذر رفع ' + file.name, uploadError, returnTo);
+    if (uploadError) {
+      if (!productIdInput) {
+        const { error: rollbackError } = await db.from('products').delete().eq('id', productId);
+        if (rollbackError) {
+          dbError(
+            'فشل رفع الصورة وفشل التراجع عن إنشاء المنتج',
+            { message: uploadError.message + ' | تعذر حذف المنتج الذي أُنشئ جزئيًا: ' + rollbackError.message },
+            returnTo,
+          );
+        }
+        dbError('أُلغي إنشاء المنتج لأن رفع الصورة فشل: ' + file.name, uploadError, returnTo);
+      }
+      dbError('حُفظت بيانات المنتج لكن تعذر رفع الوسيط ' + file.name, uploadError, returnTo);
+    }
 
     const { error: mediaError } = await db.from('media_assets').insert({
       owner_id: user.id,
@@ -194,8 +207,20 @@ export async function saveProduct(formData: FormData) {
     });
 
     if (mediaError) {
-      await db.storage.from('aslan-media').remove([objectPath]);
-      dbError('تعذر ربط الوسيط بالمنتج', mediaError, returnTo);
+      const { error: storageCleanupError } = await db.storage.from('aslan-media').remove([objectPath]);
+      if (!productIdInput) {
+        const { error: rollbackError } = await db.from('products').delete().eq('id', productId);
+        if (rollbackError) {
+          dbError(
+            'فشل ربط الصورة وفشل التراجع عن إنشاء المنتج',
+            { message: mediaError.message + ' | تعذر حذف المنتج الذي أُنشئ جزئيًا: ' + rollbackError.message },
+            returnTo,
+          );
+        }
+        dbError('أُلغي إنشاء المنتج لأن ربط الصورة فشل: ' + mediaError.message, null, returnTo);
+      }
+      const cleanupNote = storageCleanupError ? ' | تعذر تنظيف ملف التخزين: ' + storageCleanupError.message : '';
+      dbError('حُفظت بيانات المنتج لكن تعذر ربط الوسيط: ' + mediaError.message + cleanupNote, null, returnTo);
     }
   }
 
