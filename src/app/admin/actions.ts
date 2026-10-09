@@ -48,7 +48,7 @@ async function uniqueProductSlug(db: Awaited<ReturnType<typeof createClient>>, n
 }
 
 function dbError(action: string, error: { message?: string } | null | undefined, returnTo = '/admin/control'): never {
-  const safeReturnTo = returnTo === '/admin/products' ? returnTo : '/admin/control';
+  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog'].includes(returnTo) ? returnTo : '/admin/control';
   redirect(safeReturnTo + '?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
 }
 
@@ -341,15 +341,43 @@ export async function updateLeadStatus(formData: FormData) {
 }
 
 export async function updatePost(formData: FormData) {
-  const {db,user}=await requireSuperAdmin(); const id=textValue(formData,'id'),status=textValue(formData,'status'); if(!id||!['draft','pending','needs_revision','accepted','published','rejected','archived'].includes(status))throw new Error('بيانات المنشور غير صالحة.');
-  const featured=formData.get('featured')==='on'; const {error}=await db.from('posts').update({status,featured,featured_by:featured?user.id:null,featured_at:featured?new Date().toISOString():null}).eq('id',id); if(error)dbError('تعذر تحديث المنشور',error); await audit(db,user.id,'UPDATE','post',id,{status,featured});
-  revalidatePath('/');revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تحديث المنشور.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = textValue(formData, 'return_to') === '/admin/content' ? '/admin/content' : '/admin/control';
+  const id = textValue(formData, 'id');
+  const status = textValue(formData, 'status');
+  if (!id || !['draft','pending','needs_revision','accepted','published','rejected','archived'].includes(status)) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات المنشور غير صالحة.'));
+  const featured = formData.get('featured') === 'on';
+  const { error } = await db.from('posts').update({ status, featured, featured_by: featured ? user.id : null, featured_at: featured ? new Date().toISOString() : null }).eq('id', id);
+  if (error) dbError('تعذر تحديث المنشور', error, returnTo);
+  await audit(db, user.id, 'UPDATE', 'post', id, { status, featured });
+  revalidatePath('/');
+  revalidatePath('/community');
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+  revalidatePath('/admin/content');
+  finish('تم تحديث المنشور.', returnTo);
 }
 
 export async function updateContribution(formData: FormData) {
-  const {db,user}=await requireSuperAdmin(); const id=textValue(formData,'id'),status=textValue(formData,'status'); if(!id||!['pending','needs_revision','accepted','published','rejected'].includes(status))throw new Error('بيانات المساهمة غير صالحة.');
-  const featured=formData.get('featured')==='on'; const {error}=await db.from('contributions').update({status,featured,featured_by:featured?user.id:null,featured_at:featured?new Date().toISOString():null,published_at:status==='published'?new Date().toISOString():null}).eq('id',id); if(error)dbError('تعذر تحديث المساهمة',error); await audit(db,user.id,'UPDATE','contribution',id,{status,featured});
-  revalidatePath('/');revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تحديث المساهمة.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = textValue(formData, 'return_to') === '/admin/content' ? '/admin/content' : '/admin/control';
+  const id = textValue(formData, 'id');
+  const status = textValue(formData, 'status');
+  if (!id || !['pending','needs_revision','accepted','published','rejected'].includes(status)) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات المساهمة غير صالحة.'));
+  const featured = formData.get('featured') === 'on';
+  const { error } = await db.from('contributions').update({
+    status, featured, featured_by: featured ? user.id : null,
+    featured_at: featured ? new Date().toISOString() : null,
+    published_at: status === 'published' ? new Date().toISOString() : null,
+  }).eq('id', id);
+  if (error) dbError('تعذر تحديث المساهمة', error, returnTo);
+  await audit(db, user.id, 'UPDATE', 'contribution', id, { status, featured });
+  revalidatePath('/');
+  revalidatePath('/community');
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+  revalidatePath('/admin/content');
+  finish('تم تحديث المساهمة.', returnTo);
 }
 
 export async function saveRole(formData: FormData) {
