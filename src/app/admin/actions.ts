@@ -612,6 +612,7 @@ export async function deleteCompanyContent(formData: FormData) {
 
 export async function savePaymentProviderConfig(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/payment-settings';
   const id = textValue(formData,'id');
   const providerKey = textValue(formData,'provider_key');
   const displayName = textValue(formData,'display_name');
@@ -622,10 +623,10 @@ export async function savePaymentProviderConfig(formData: FormData) {
   const apiKey = nullableText(formData,'api_key');
   const secretKey = nullableText(formData,'secret_key');
   const instructions = nullableText(formData,'instructions');
-  if (!id || !providerKey || !displayName || !['sandbox','live'].includes(mode)) throw new Error('بيانات بوابة الدفع غير صالحة.');
+  if (!id || !providerKey || !displayName || !['sandbox','live'].includes(mode)) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات بوابة الدفع غير صالحة.'));
 
   const { data: current, error: readError } = await db.from('payment_provider_configs').select('config_data').eq('id',id).single();
-  if (readError) dbError('تعذر قراءة إعدادات بوابة الدفع', readError);
+  if (readError) dbError('تعذر قراءة إعدادات بوابة الدفع', readError, returnTo);
   const previous = (current?.config_data && typeof current.config_data === 'object' && !Array.isArray(current.config_data)) ? current.config_data as Record<string,unknown> : {};
   const config_data = {
     ...previous,
@@ -636,10 +637,11 @@ export async function savePaymentProviderConfig(formData: FormData) {
     ...(instructions ? { instructions } : {}),
   };
   const { error } = await db.from('payment_provider_configs').update({display_name:displayName,enabled,mode,config_data,updated_at:new Date().toISOString()}).eq('id',id);
-  if (error) dbError('تعذر حفظ إعدادات بوابة الدفع', error);
+  if (error) dbError('تعذر حفظ إعدادات بوابة الدفع', error, returnTo);
   await audit(db,user.id,'UPDATE','payment_provider_configs',id,{providerKey,enabled,mode});
+  revalidatePath('/admin/payment-settings');
   revalidatePath('/admin/control');
-  finish('تم حفظ إعدادات بوابة الدفع.');
+  finish('تم حفظ إعدادات بوابة الدفع.', returnTo);
 }
 
 export async function saveService(formData: FormData) {
