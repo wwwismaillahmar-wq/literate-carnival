@@ -143,7 +143,20 @@ function ArticleEditor({ article, disabled, onSave }: { article: Article; disabl
   const [sourceTitle, setSourceTitle] = useState(article.source_title ?? '');
   const [sourceUrl, setSourceUrl] = useState(article.source_url ?? '');
   const [status, setStatus] = useState<Article['status']>(article.status);
-  return <form onSubmit={event => { event.preventDefault(); onSave({ title, slug, excerpt, body, category, status, source_title: sourceTitle, source_url: sourceUrl }); }} style={{ display: 'grid', gap: 9, marginTop: 12 }}>
+  const [revisions, setRevisions] = useState<Array<{id:string;revision_number:number;created_at:string;snapshot:Record<string,unknown>}>>([]);
+  const [historyError, setHistoryError] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
+  async function loadHistory() {
+    setHistoryLoading(true); setHistoryError('');
+    try {
+      const response = await fetch('/api/platform/knowledge/revisions?articleId=' + encodeURIComponent(article.id), { cache: 'no-store' });
+      const result = await response.json() as { revisions?: typeof revisions; error?: string };
+      if (!response.ok) throw new Error(result.error || 'تعذر تحميل سجل المراجعات.');
+      setRevisions(result.revisions ?? []);
+    } catch (err) { setHistoryError(err instanceof Error ? err.message : 'تعذر تحميل سجل المراجعات.'); }
+    finally { setHistoryLoading(false); }
+  }
+  return <div style={{display:'grid',gap:10,marginTop:12}}><form onSubmit={event => { event.preventDefault(); onSave({ title, slug, excerpt, body, category, status, source_title: sourceTitle, source_url: sourceUrl }); }} style={{ display: 'grid', gap: 9 }}>
     <label>العنوان<input required minLength={3} maxLength={200} value={title} onChange={e => setTitle(e.target.value)} /></label>
     <label>الرابط<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" value={slug} onChange={e => setSlug(e.target.value)} /></label>
     <label>التصنيف<input required maxLength={80} value={category} onChange={e => setCategory(e.target.value)} /></label>
@@ -153,5 +166,12 @@ function ArticleEditor({ article, disabled, onSave }: { article: Article; disabl
     <label>رابط المصدر<input type="url" maxLength={2048} value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} /></label>
     <label>الحالة<select value={status} onChange={e => setStatus(e.target.value as Article['status'])}><option value="draft">مسودة</option><option value="published">منشور</option><option value="archived">مؤرشف</option></select></label>
     <button className="btn primary" type="submit" disabled={disabled}>حفظ التعديل</button>
-  </form>;
+  </form><section className="card"><button type="button" className="btn secondary" disabled={historyLoading} onClick={() => void loadHistory()}>{historyLoading ? 'جارٍ تحميل السجل...' : 'عرض سجل المراجعات'}</button>
+    {historyError && <p role="alert">{historyError}</p>}
+    {revisions.map(revision => <article key={revision.id} style={{borderTop:'1px solid var(--line)',paddingTop:10,marginTop:10}}>
+      <strong>الإصدار السابق #{revision.revision_number}</strong><p className="muted">{new Date(revision.created_at).toLocaleString('ar-DZ')}</p>
+      <p>{String(revision.snapshot.title ?? '')} · {String(revision.snapshot.status ?? '')}</p>
+    </article>)}
+    {!historyLoading && !historyError && revisions.length === 0 && <p className="muted">لا توجد مراجعات سابقة مسجلة لهذا المقال.</p>}
+  </section></div>;
 }
