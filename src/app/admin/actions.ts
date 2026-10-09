@@ -65,7 +65,7 @@ export async function saveProduct(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
   const id = textValue(formData, 'id');
   const name = textValue(formData, 'name');
-  const submittedSlug = textValue(formData, 'slug');
+  const submittedSlug = textValue(formData, 'slug').toLowerCase();
   const returnTo = textValue(formData, 'return_to') === '/admin/products' ? '/admin/products' : '/admin/control';
 
   if (!name) {
@@ -73,16 +73,27 @@ export async function saveProduct(formData: FormData) {
   }
 
   const productIdInput = id ? Number(id) : null;
+  if (id && (!Number.isInteger(productIdInput) || (productIdInput ?? 0) <= 0)) return redirect(returnTo + '?error=' + encodeURIComponent('معرّف المنتج غير صالح.'));
+  const rawPrice = textValue(formData, 'price_dzd');
+  const priceValue = rawPrice === '' ? null : Number(rawPrice);
+  const rawStock = textValue(formData, 'stock');
+  const stockValue = rawStock === '' ? 0 : Number(rawStock);
+  const rawCategory = textValue(formData, 'category_id');
+  const categoryValue = rawCategory === '' ? null : Number(rawCategory);
+  if (priceValue !== null && (!Number.isFinite(priceValue) || priceValue < 0)) return redirect(returnTo + '?error=' + encodeURIComponent('السعر يجب أن يكون رقمًا غير سالب.'));
+  if (!Number.isInteger(stockValue) || stockValue < 0) return redirect(returnTo + '?error=' + encodeURIComponent('المخزون يجب أن يكون عددًا صحيحًا غير سالب.'));
+  if (categoryValue !== null && (!Number.isInteger(categoryValue) || categoryValue <= 0)) return redirect(returnTo + '?error=' + encodeURIComponent('الفئة المحددة غير صالحة.'));
+  if (submittedSlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(submittedSlug)) return redirect(returnTo + '?error=' + encodeURIComponent('الرابط المختصر يجب أن يحتوي على حروف لاتينية صغيرة وأرقام وشرطات فقط.'));
   const slug = submittedSlug || await uniqueProductSlug(db, name, productIdInput ?? undefined);
 
   const payload = {
     name,
     slug,
     description: textValue(formData, 'description'),
-    price_dzd: Number(formData.get('price_dzd') || 0) || null,
-    stock: Math.max(0, Number(formData.get('stock') || 0)),
+    price_dzd: priceValue,
+    stock: stockValue,
     active: formData.get('active') === 'on',
-    category_id: nullableText(formData, 'category_id') ? Number(formData.get('category_id')) : null,
+    category_id: categoryValue,
     ad_priority: Math.min(100, Math.max(0, Number(formData.get('ad_priority') || 0) || 0)),
     home_featured: formData.get('home_featured') === 'on',
   };
