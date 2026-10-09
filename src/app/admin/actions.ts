@@ -61,7 +61,7 @@ async function uniqueProductSlug(db: Awaited<ReturnType<typeof createClient>>, n
 }
 
 function dbError(action: string, error: { message?: string } | null | undefined, returnTo = '/admin/control'): never {
-  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services'].includes(returnTo) ? returnTo : '/admin/control';
+  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services', '/admin/access', '/admin/organizations', '/admin/payment-settings'].includes(returnTo) ? returnTo : '/admin/control';
   redirect(safeReturnTo + '?error=' + encodeURIComponent(error?.message ? action + ': ' + error.message : action));
 }
 
@@ -70,7 +70,7 @@ async function audit(db: Awaited<ReturnType<typeof createClient>>, userId: strin
 }
 
 function finish(message: string, returnTo = '/admin/control'): never {
-  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services'].includes(returnTo) ? returnTo : '/admin/control';
+  const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services', '/admin/access', '/admin/organizations', '/admin/payment-settings'].includes(returnTo) ? returnTo : '/admin/control';
   redirect(safeReturnTo + '?success=' + encodeURIComponent(message));
 }
 
@@ -406,60 +406,159 @@ export async function updateContribution(formData: FormData) {
 }
 
 export async function saveRole(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=textValue(formData,'id'),key=textValue(formData,'key'),name=textValue(formData,'name'); if(!key||!name)throw new Error('مفتاح الدور واسمه مطلوبان.');
-  const payload={key,name,description:textValue(formData,'description')}; const result=id?await db.from('roles').update(payload).eq('id',id):await db.from('roles').insert(payload); if(result.error)dbError('تعذر حفظ الدور',result.error);
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish(id?'تم حفظ الدور.':'تم إنشاء الدور.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const id = textValue(formData, 'id');
+  const key = textValue(formData, 'key');
+  const name = textValue(formData, 'name');
+  if (!/^[a-z][a-z0-9_]*$/.test(key) || !name) return redirect(returnTo + '?error=' + encodeURIComponent('مفتاح الدور واسمه مطلوبان وبصيغة صحيحة.'));
+  const payload = { key, name, description: textValue(formData, 'description') };
+  const result = id ? await db.from('roles').update(payload).eq('id', id) : await db.from('roles').insert(payload);
+  if (result.error) dbError('تعذر حفظ الدور', result.error, returnTo);
+  await audit(db, user.id, id ? 'UPDATE' : 'CREATE', 'role', id || key, { key, name });
+  revalidatePath('/admin/access');
+  revalidatePath('/admin/control');
+  finish(id ? 'تم حفظ الدور.' : 'تم إنشاء الدور.', returnTo);
 }
 
 export async function savePermission(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const key=textValue(formData,'key'),name=textValue(formData,'name'); if(!key||!name)throw new Error('مفتاح الصلاحية واسمها مطلوبان.');
-  const {error}=await db.from('permissions').upsert({key,name,description:textValue(formData,'description')},{onConflict:'key'}); if(error)dbError('تعذر حفظ الصلاحية',error);
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم حفظ الصلاحية.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const key = textValue(formData, 'key');
+  const name = textValue(formData, 'name');
+  if (!/^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$/.test(key) || !name) return redirect(returnTo + '?error=' + encodeURIComponent('مفتاح الصلاحية يجب أن يكون بصيغة module.action مع اسم واضح.'));
+  const payload = { key, name, description: textValue(formData, 'description') };
+  const { error } = await db.from('permissions').upsert(payload, { onConflict: 'key' });
+  if (error) dbError('تعذر حفظ الصلاحية', error, returnTo);
+  await audit(db, user.id, 'CREATE', 'permission', key, { name });
+  revalidatePath('/admin/access');
+  revalidatePath('/admin/control');
+  finish('تم حفظ الصلاحية.', returnTo);
 }
 
 export async function assignUserRole(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const userId=textValue(formData,'user_id'),roleId=textValue(formData,'role_id'); if(!userId||!roleId)throw new Error('المستخدم والدور مطلوبان.');
-  const {error}=await db.from('user_roles').upsert({user_id:userId,role_id:roleId},{onConflict:'user_id,role_id'}); if(error)dbError('تعذر تعيين الدور للمستخدم',error); await audit(db,(await db.auth.getUser()).data.user!.id,'AUTHORIZE','user_role',userId,{roleId});
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم تعيين الدور للمستخدم.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const userId = textValue(formData, 'user_id');
+  const roleId = textValue(formData, 'role_id');
+  if (!userId || !roleId) return redirect(returnTo + '?error=' + encodeURIComponent('المستخدم والدور مطلوبان.'));
+  const { error } = await db.from('user_roles').upsert({ user_id: userId, role_id: roleId }, { onConflict: 'user_id,role_id' });
+  if (error) dbError('تعذر تعيين الدور للمستخدم', error, returnTo);
+  await audit(db, user.id, 'AUTHORIZE', 'user_role', userId, { roleId });
+  revalidatePath('/admin/access');
+  revalidatePath('/admin/control');
+  finish('تم تعيين الدور للمستخدم.', returnTo);
 }
 
 export async function removeUserRole(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const userId=textValue(formData,'user_id'),roleId=textValue(formData,'role_id'); if(!userId||!roleId)throw new Error('بيانات إزالة الدور غير صالحة.');
-  const {error}=await db.from('user_roles').delete().eq('user_id',userId).eq('role_id',roleId); if(error)dbError('تعذر إزالة الدور',error); revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تمت إزالة الدور.');
-}
-
-export async function saveOrganization(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=textValue(formData,'id'),name=textValue(formData,'name'),slug=textValue(formData,'slug'),type=textValue(formData,'type'),status=textValue(formData,'status')||'active'; if(!name||!slug||!['company','academy','partner','internal','community'].includes(type))throw new Error('بيانات المؤسسة غير صالحة.');
-  const payload={name,slug,type,status}; const result=id?await db.from('organizations').update(payload).eq('id',id):await db.from('organizations').insert(payload); if(result.error)dbError('تعذر حفظ المؤسسة',result.error);
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish(id?'تم حفظ المؤسسة.':'تم إنشاء المؤسسة.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const userId = textValue(formData, 'user_id');
+  const roleId = textValue(formData, 'role_id');
+  if (!userId || !roleId) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات إزالة الدور غير صالحة.'));
+  const { data: role, error: roleError } = await db.from('roles').select('key').eq('id', roleId).maybeSingle();
+  if (roleError) dbError('تعذر التحقق من الدور', roleError, returnTo);
+  if (role?.key === 'super_admin') {
+    const { count, error: countError } = await db.from('user_roles').select('user_id', { count: 'exact', head: true }).eq('role_id', roleId);
+    if (countError) dbError('تعذر التحقق من عدد مسؤولي النظام', countError, returnTo);
+    if ((count ?? 0) <= 1) return redirect(returnTo + '?error=' + encodeURIComponent('لا يمكن إزالة آخر صلاحية Super Admin؛ أضف مسؤولًا آخر أولًا.'));
+  }
+  const { error } = await db.from('user_roles').delete().eq('user_id', userId).eq('role_id', roleId);
+  if (error) dbError('تعذر إزالة الدور', error, returnTo);
+  await audit(db, user.id, 'REVOKE', 'user_role', userId, { roleId });
+  revalidatePath('/admin/access');
+  revalidatePath('/admin/control');
+  finish('تمت إزالة الدور.', returnTo);
 }
 
 export async function updateAdminProfile(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const id=textValue(formData,'id'); if(!id)throw new Error('معرّف المستخدم غير صالح.');
-  const {error}=await db.from('profiles').update({full_name:nullableText(formData,'full_name'),username:nullableText(formData,'username'),message_privacy:textValue(formData,'message_privacy')||'all_members'}).eq('id',id); if(error)dbError('تعذر حفظ بيانات المستخدم',error);
-  revalidatePath('/admin/dashboard');revalidatePath('/admin/control');finish('تم حفظ بيانات المستخدم.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const id = textValue(formData, 'id');
+  const fullName = nullableText(formData, 'full_name');
+  const username = nullableText(formData, 'username');
+  const messagePrivacy = textValue(formData, 'message_privacy');
+  if (!id || !['members_only','all_members','community','friends'].includes(messagePrivacy)) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات الملف الشخصي أو خصوصية الرسائل غير صالحة.'));
+  const { error } = await db.from('profiles').update({ full_name: fullName, username, message_privacy: messagePrivacy }).eq('id', id);
+  if (error) dbError('تعذر حفظ بيانات المستخدم', error, returnTo);
+  await audit(db, user.id, 'UPDATE', 'profile', id, { username, messagePrivacy });
+  revalidatePath('/admin/access');
+  revalidatePath('/admin/control');
+  finish('تم حفظ بيانات المستخدم.', returnTo);
 }
 
 export async function assignRolePermission(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const roleId=textValue(formData,'role_id'),permissionId=textValue(formData,'permission_id'); if(!roleId||!permissionId)throw new Error('الدور والصلاحية مطلوبان.');
-  const {error}=await db.from('role_permissions').upsert({role_id:roleId,permission_id:permissionId},{onConflict:'role_id,permission_id'}); if(error)dbError('تعذر ربط الصلاحية بالدور',error);
-  revalidatePath('/admin/control');finish('تم ربط الصلاحية بالدور.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const roleId = textValue(formData, 'role_id');
+  const permissionId = textValue(formData, 'permission_id');
+  if (!roleId || !permissionId) return redirect(returnTo + '?error=' + encodeURIComponent('الدور والصلاحية مطلوبان.'));
+  const { error } = await db.from('role_permissions').upsert({ role_id: roleId, permission_id: permissionId }, { onConflict: 'role_id,permission_id' });
+  if (error) dbError('تعذر ربط الصلاحية بالدور', error, returnTo);
+  await audit(db, user.id, 'AUTHORIZE', 'role_permission', roleId, { permissionId });
+  revalidatePath('/admin/access');
+  finish('تم ربط الصلاحية بالدور.', returnTo);
 }
 
 export async function removeRolePermission(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const roleId=textValue(formData,'role_id'),permissionId=textValue(formData,'permission_id'); if(!roleId||!permissionId)throw new Error('بيانات إزالة الصلاحية غير صالحة.');
-  const {error}=await db.from('role_permissions').delete().eq('role_id',roleId).eq('permission_id',permissionId); if(error)dbError('تعذر إزالة الصلاحية من الدور',error); revalidatePath('/admin/control');finish('تمت إزالة الصلاحية من الدور.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/access';
+  const roleId = textValue(formData, 'role_id');
+  const permissionId = textValue(formData, 'permission_id');
+  if (!roleId || !permissionId) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات إزالة الصلاحية غير صالحة.'));
+  const { error } = await db.from('role_permissions').delete().eq('role_id', roleId).eq('permission_id', permissionId);
+  if (error) dbError('تعذر إزالة الصلاحية من الدور', error, returnTo);
+  await audit(db, user.id, 'REVOKE', 'role_permission', roleId, { permissionId });
+  revalidatePath('/admin/access');
+  finish('تمت إزالة الصلاحية من الدور.', returnTo);
+}
+
+export async function saveOrganization(formData: FormData) {
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/organizations';
+  const id = textValue(formData, 'id');
+  const name = textValue(formData, 'name');
+  const slug = textValue(formData, 'slug').toLowerCase();
+  const type = textValue(formData, 'type');
+  const status = textValue(formData, 'status') || 'active';
+  if (!name || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !['company','academy','partner','internal','community'].includes(type) || !['active','suspended','archived'].includes(status)) {
+    return redirect(returnTo + '?error=' + encodeURIComponent('بيانات المؤسسة غير صالحة.'));
+  }
+  const payload = { name, slug, type, status };
+  const result = id ? await db.from('organizations').update(payload).eq('id', id) : await db.from('organizations').insert(payload);
+  if (result.error) dbError('تعذر حفظ المؤسسة', result.error, returnTo);
+  await audit(db, user.id, id ? 'UPDATE' : 'CREATE', 'organization', id || slug, { type, status });
+  revalidatePath('/admin/organizations');
+  revalidatePath('/admin/control');
+  finish(id ? 'تم حفظ المؤسسة.' : 'تم إنشاء المؤسسة.', returnTo);
 }
 
 export async function saveOrganizationMember(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const organizationId=textValue(formData,'organization_id'),userId=textValue(formData,'user_id'),roleId=textValue(formData,'role_id'),status=textValue(formData,'status')||'active'; if(!organizationId||!userId||!roleId||!['active','invited','suspended','removed'].includes(status))throw new Error('بيانات عضوية المؤسسة غير صالحة.');
-  const {error}=await db.from('organization_members').upsert({organization_id:organizationId,user_id:userId,role_id:roleId,status},{onConflict:'organization_id,user_id'}); if(error)dbError('تعذر حفظ عضوية المؤسسة',error);
-  revalidatePath('/admin/control');finish('تم حفظ عضوية المؤسسة.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/organizations';
+  const organizationId = textValue(formData, 'organization_id');
+  const userId = textValue(formData, 'user_id');
+  const roleId = textValue(formData, 'role_id');
+  const status = textValue(formData, 'status') || 'active';
+  if (!organizationId || !userId || !roleId || !['active','invited','suspended','removed'].includes(status)) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات عضوية المؤسسة غير صالحة.'));
+  const { error } = await db.from('organization_members').upsert({ organization_id: organizationId, user_id: userId, role_id: roleId, status }, { onConflict: 'organization_id,user_id' });
+  if (error) dbError('تعذر حفظ عضوية المؤسسة', error, returnTo);
+  await audit(db, user.id, 'UPDATE', 'organization_member', organizationId, { userId, roleId, status });
+  revalidatePath('/admin/organizations');
+  finish('تم حفظ عضوية المؤسسة.', returnTo);
 }
 
 export async function removeOrganizationMember(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const organizationId=textValue(formData,'organization_id'),userId=textValue(formData,'user_id'); if(!organizationId||!userId)throw new Error('بيانات إزالة العضوية غير صالحة.');
-  const {error}=await db.from('organization_members').delete().eq('organization_id',organizationId).eq('user_id',userId); if(error)dbError('تعذر إزالة عضوية المؤسسة',error); revalidatePath('/admin/control');finish('تمت إزالة عضوية المؤسسة.');
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = '/admin/organizations';
+  const organizationId = textValue(formData, 'organization_id');
+  const userId = textValue(formData, 'user_id');
+  if (!organizationId || !userId) return redirect(returnTo + '?error=' + encodeURIComponent('بيانات إزالة العضوية غير صالحة.'));
+  const { error } = await db.from('organization_members').delete().eq('organization_id', organizationId).eq('user_id', userId);
+  if (error) dbError('تعذر إزالة عضوية المؤسسة', error, returnTo);
+  await audit(db, user.id, 'DELETE', 'organization_member', organizationId, { userId });
+  revalidatePath('/admin/organizations');
+  finish('تمت إزالة عضوية المؤسسة.', returnTo);
 }
 
 
