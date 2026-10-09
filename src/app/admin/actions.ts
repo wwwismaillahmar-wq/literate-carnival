@@ -256,9 +256,36 @@ export async function deleteProductMedia(formData: FormData) {
 }
 
 export async function deleteProduct(formData: FormData) {
-  const {db}=await requireSuperAdmin(); const returnTo=textValue(formData,'return_to')==='/admin/products'?'/admin/products':'/admin/control'; const id=Number(formData.get('id')); if(!id)throw new Error('معرّف المنتج غير صالح.');
-  const {error}=await db.from('products').delete().eq('id',id); if(error)dbError('تعذر حذف المنتج',error, returnTo); await audit(db,(await db.auth.getUser()).data.user!.id,'DELETE','product',String(id));
-  revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/dashboard');revalidatePath('/admin/control'); revalidatePath('/admin/products');finish('تم حذف المنتج.', returnTo);
+  const { db, user } = await requireSuperAdmin();
+  const returnTo = textValue(formData, 'return_to') === '/admin/products' ? '/admin/products' : '/admin/control';
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id) || id <= 0) return redirect(returnTo + '?error=' + encodeURIComponent('معرّف المنتج غير صالح.'));
+
+  const { data: media, error: mediaReadError } = await db
+    .from('media_assets')
+    .select('id,bucket_id,object_path')
+    .eq('product_id', id);
+  if (mediaReadError) dbError('تعذر قراءة وسائط المنتج قبل الحذف', mediaReadError, returnTo);
+
+  for (const item of media ?? []) {
+    const { error: storageError } = await db.storage.from(item.bucket_id || 'aslan-media').remove([item.object_path]);
+    if (storageError) dbError('تعذر حذف ملف الوسائط ' + item.object_path, storageError, returnTo);
+  }
+
+  if (media?.length) {
+    const { error: mediaDeleteError } = await db.from('media_assets').delete().eq('product_id', id);
+    if (mediaDeleteError) dbError('حُذفت الملفات من التخزين لكن تعذر حذف سجلات الوسائط', mediaDeleteError, returnTo);
+  }
+
+  const { error } = await db.from('products').delete().eq('id', id);
+  if (error) dbError('تعذر حذف المنتج', error, returnTo);
+  await audit(db, user.id, 'DELETE', 'product', String(id), { mediaCount: media?.length ?? 0 });
+  revalidatePath('/');
+  revalidatePath('/products');
+  revalidatePath('/admin/dashboard');
+  revalidatePath('/admin/control');
+  revalidatePath('/admin/products');
+  finish('تم حذف المنتج ووسائطه المرتبطة.', returnTo);
 }
 
 export async function saveCategory(formData: FormData) {
