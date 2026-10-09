@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const bucket = 'aslan-media';
-  const objectPath = 'brand/' + crypto.randomUUID() + '.' + allowed.get(file.type);
+  const objectPath = user.id + '/brand/' + crypto.randomUUID() + '.' + allowed.get(file.type);
   const { data: previous } = await db.from('site_settings').select('setting_value').eq('setting_key','brand_logo_path').maybeSingle();
   const oldPath = previous?.setting_value ?? '';
   const { error: uploadError } = await db.storage.from(bucket).upload(objectPath, file, { contentType: file.type, upsert: false });
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   let oldAssetCleanupWarning = false;
-  if (oldPath && oldPath !== objectPath && oldPath.startsWith('brand/')) {
+  if (oldPath && oldPath !== objectPath && (oldPath.startsWith('brand/') || oldPath.includes('/brand/'))) {
     const { error } = await db.storage.from(bucket).remove([oldPath]);
     oldAssetCleanupWarning = Boolean(error);
   }
