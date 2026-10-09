@@ -27,12 +27,15 @@ This log is an implementation record, not an acceptance certificate.
 
 ### M35–M39 — Talent, partners, knowledge, CRM and branding
 - Existing branch code contains profile/evidence submission and admin review, partner application workflow, published knowledge browsing, CRM lead activities, and editable site settings.
+- Added article source metadata and revision snapshots on editorial changes, with an admin-only history API/UI.
+- Added a public navbar logo/brand-color read from the saved public settings.
 - Connected configured logo path and brand color to the public navbar, and configured tagline/footer text to public footer.
 - Gaps remain: partner organization portal, knowledge versioning/source references, complete CRM assignment/status audit, and safe logo upload/replacement lifecycle.
 - Status: **PARTIAL / RUNTIME UNVERIFIED**.
 
 ### M40 — Billing
 - Existing checkout/payment migrations and provider settings are present.
+- Added an authorized database transaction that locks and settles the payment and invoice together, verifies payer/amount/currency consistency, and preserves an audit-warning path.
 - Cross-domain invoice/reference consistency and verified provider callback acceptance have not been proven.
 - Status: **PARTIAL / RUNTIME UNVERIFIED**.
 
@@ -43,7 +46,8 @@ This log is an implementation record, not an acceptance certificate.
 
 ### M42 — Event recovery
 - Added a super-admin-only event queue API and an admin workspace displaying pending, processing and failed events with attempt count and last error.
-- The UI intentionally does not claim that the worker is running and does not perform an unsafe manual retry.
+- Added bounded manual retry (maximum three) through an admin-checked database transaction that records the actor, reason and prior attempt count.
+- The UI does not claim that the worker is running; a queued retry still depends on the worker being operational.
 - Status: **OBSERVABILITY CODE PRESENT / RUNTIME UNVERIFIED**.
 
 ### M43 — Cross-domain acceptance
@@ -59,3 +63,8 @@ This log is an implementation record, not an acceptance certificate.
 4. Strengthen billing callback/idempotency contracts without trusting client payment status.
 5. Add admin recovery actions only with audit trail, retry ceilings and explicit terminal states.
 6. Expand M43 tests and run them when repository verification permissions are available.
+
+
+## Commit handling
+
+The work is isolated on `feat/m33-m43-domain-completion`; the main branch has not been moved by this workstream. Before release, the branch changes can be consolidated into one reviewable commit on top of its recorded base, then subjected to the requested single verification/release window when permissions are available. Do not deploy from this branch during implementation.
