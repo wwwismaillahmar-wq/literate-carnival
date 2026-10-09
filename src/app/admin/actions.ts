@@ -796,8 +796,8 @@ export async function markPaymentPaid(formData: FormData) {
   if (error) dbError('تعذر تأكيد الدفع والفاتورة ذريًا', error, '/admin/control');
   const result = Array.isArray(data) ? data[0] : data;
   if (!result?.payment_id || !result?.invoice_id || result.status !== 'paid') dbError('لم تُرجع قاعدة البيانات تأكيدًا صالحًا للدفع', null, '/admin/control');
-  await audit(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:result.invoice_id,atomic:true});
+  const warning = await auditWithWarning(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:result.invoice_id,atomic:true});
   revalidatePath('/admin/payments');
   revalidatePath('/invoices');
-  finish('تم تأكيد الدفع وتحديث الفاتورة.');
+  finish('تم تأكيد الدفع وتحديث الفاتورة.', '/admin/control', warning);
 }
