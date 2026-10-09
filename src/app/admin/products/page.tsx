@@ -74,7 +74,8 @@ export default async function AdminProducts({ searchParams }: {
                 </div>
                 <ProductForm product={product} categories={categories} />
                 <div style={{marginTop:18,paddingTop:14,borderTop:'1px solid rgba(255,255,255,.12)'}}>
-                  <h4>الصور والفيديوهات ({productMedia.length})</h4>\n                  <ProductMediaUploader productId={product.id} />
+                  <h4>الصور والفيديوهات ({productMedia.length})</h4>
+                  <ProductMediaUploader productId={product.id} />
                   <div className="grid three" style={{marginTop:12}}>
                     {productMedia.map((item) => <div className="card" key={item.id}>
                       {item.url && item.media_type === 'image' ? <img src={item.url} alt={product.name} style={{width:'100%',height:180,objectFit:'contain',borderRadius:8}} /> : null}
