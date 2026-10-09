@@ -29,7 +29,7 @@ export default async function HomePage(){
   async function enrichContent(item:{id:string;author_id:string;title:string;content:string;visibility:string;status:string;created_at:string;published_at:string|null;featured:boolean;featured_order:number}, mediaColumn:'post_id'|'contribution_id'){
     const author=authorMap.get(item.author_id); let avatar_url=null;
     if(author?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(author.avatar_path,3600); avatar_url=s.data?.signedUrl??null;}
-    const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq(mediaColumn,item.id).order('created_at',{ascending:true}).limit(8);
+    const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq(mediaColumn,item.id).eq('upload_status','uploaded').order('created_at',{ascending:true}).limit(8);
     const rendered=[]; for(const mediaItem of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(mediaItem.object_path,3600); rendered.push({...mediaItem,signed_url:s.data?.signedUrl??null});}
     return {...item,author,avatar_url,media:rendered,viewerIsOwner:false,viewerAuthenticated:!!user};
   }
