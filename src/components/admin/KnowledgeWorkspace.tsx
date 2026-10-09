@@ -10,11 +10,13 @@ type Article = {
   body: string;
   category: string;
   status: 'draft' | 'published' | 'archived';
+  source_title?: string;
+  source_url?: string;
   published_at?: string | null;
 };
 
-type ArticleDraft = { slug: string; title: string; excerpt: string; body: string; category: string; status: Article['status'] };
-const emptyArticle: ArticleDraft = { slug: '', title: '', excerpt: '', body: '', category: 'general', status: 'draft' };
+type ArticleDraft = { slug: string; title: string; excerpt: string; body: string; category: string; status: Article['status']; sourceTitle: string; sourceUrl: string };
+const emptyArticle: ArticleDraft = { slug: '', title: '', excerpt: '', body: '', category: 'general', status: 'draft', sourceTitle: '', sourceUrl: '' };
 
 export function KnowledgeWorkspace() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -110,6 +112,8 @@ export function KnowledgeWorkspace() {
       <label>التصنيف<input required minLength={1} maxLength={80} value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })} /></label>
       <label>ملخص<input maxLength={500} value={draft.excerpt} onChange={e => setDraft({ ...draft, excerpt: e.target.value })} /></label>
       <label>المحتوى<textarea required minLength={1} maxLength={50000} rows={8} value={draft.body} onChange={e => setDraft({ ...draft, body: e.target.value })} /></label>
+      <label>عنوان المصدر / المرجع<input maxLength={300} value={draft.sourceTitle} onChange={e => setDraft({ ...draft, sourceTitle: e.target.value })} /></label>
+      <label>رابط المصدر (HTTP/HTTPS)<input type="url" maxLength={2048} value={draft.sourceUrl} onChange={e => setDraft({ ...draft, sourceUrl: e.target.value })} /></label>
       <label>الحالة<select value={draft.status} onChange={e => setDraft({ ...draft, status: e.target.value as Article['status'] })}><option value="draft">مسودة</option><option value="published">منشور</option></select></label>
       <button className="btn primary" type="submit" disabled={busy}>{busy ? 'جارٍ الحفظ...' : 'إنشاء المقال'}</button>
     </form>
@@ -136,13 +140,17 @@ function ArticleEditor({ article, disabled, onSave }: { article: Article; disabl
   const [excerpt, setExcerpt] = useState(article.excerpt);
   const [body, setBody] = useState(article.body);
   const [category, setCategory] = useState(article.category);
+  const [sourceTitle, setSourceTitle] = useState(article.source_title ?? '');
+  const [sourceUrl, setSourceUrl] = useState(article.source_url ?? '');
   const [status, setStatus] = useState<Article['status']>(article.status);
-  return <form onSubmit={event => { event.preventDefault(); onSave({ title, slug, excerpt, body, category, status }); }} style={{ display: 'grid', gap: 9, marginTop: 12 }}>
+  return <form onSubmit={event => { event.preventDefault(); onSave({ title, slug, excerpt, body, category, status, source_title: sourceTitle, source_url: sourceUrl }); }} style={{ display: 'grid', gap: 9, marginTop: 12 }}>
     <label>العنوان<input required minLength={3} maxLength={200} value={title} onChange={e => setTitle(e.target.value)} /></label>
     <label>الرابط<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" value={slug} onChange={e => setSlug(e.target.value)} /></label>
     <label>التصنيف<input required maxLength={80} value={category} onChange={e => setCategory(e.target.value)} /></label>
     <label>الملخص<input maxLength={500} value={excerpt} onChange={e => setExcerpt(e.target.value)} /></label>
     <label>المحتوى<textarea required maxLength={50000} rows={7} value={body} onChange={e => setBody(e.target.value)} /></label>
+    <label>عنوان المصدر<input maxLength={300} value={sourceTitle} onChange={e => setSourceTitle(e.target.value)} /></label>
+    <label>رابط المصدر<input type="url" maxLength={2048} value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} /></label>
     <label>الحالة<select value={status} onChange={e => setStatus(e.target.value as Article['status'])}><option value="draft">مسودة</option><option value="published">منشور</option><option value="archived">مؤرشف</option></select></label>
     <button className="btn primary" type="submit" disabled={disabled}>حفظ التعديل</button>
   </form>;

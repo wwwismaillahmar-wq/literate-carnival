@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const category = url.searchParams.get('category')?.trim();
   const slug = url.searchParams.get('slug')?.trim();
-  let query = db.from('knowledge_articles').select('id,slug,title,excerpt,body,category,status,author_id,published_at,created_at,updated_at').order('updated_at', { ascending: false }).limit(100);
+  let query = db.from('knowledge_articles').select('id,slug,title,excerpt,body,category,status,source_title,source_url,author_id,published_at,created_at,updated_at').order('updated_at', { ascending: false }).limit(100);
   if (!allowed) query = query.eq('status', 'published');
   if (category) query = query.eq('category', category);
   if (slug) query = query.eq('slug', slug).limit(1);
@@ -38,14 +38,17 @@ export async function POST(request: Request) {
     const excerpt = typeof body.excerpt === 'string' ? body.excerpt.trim() : '';
     const category = typeof body.category === 'string' ? body.category.trim() : 'general';
     const status = ['draft', 'published', 'archived'].includes(body.status) ? body.status : 'draft';
+    const sourceTitle = typeof body.sourceTitle === 'string' ? body.sourceTitle.trim() : '';
+    const sourceUrl = typeof body.sourceUrl === 'string' ? body.sourceUrl.trim() : '';
+    if (sourceTitle.length > 300 || sourceUrl.length > 2048 || (sourceUrl && !/^https?:\\/\\//i.test(sourceUrl))) return NextResponse.json({ error: 'بيانات المصدر غير صالحة.' }, { status: 400 });
     if (!slugPattern.test(slug) || title.length < 3 || title.length > 200 || !bodyText || bodyText.length > 50000 || excerpt.length > 500 || category.length < 1 || category.length > 80) {
       return NextResponse.json({ error: 'تحقق من العنوان والرابط والمحتوى والتصنيف.' }, { status: 400 });
     }
     const now = new Date().toISOString();
     const { data, error } = await db.from('knowledge_articles').insert({
-      slug, title, body: bodyText, excerpt, category, status, author_id: user.id,
+      slug, title, body: bodyText, excerpt, category, status, source_title: sourceTitle, source_url: sourceUrl, author_id: user.id,
       published_at: status === 'published' ? now : null, updated_at: now,
-    }).select('id,slug,title,excerpt,body,category,status,published_at,created_at,updated_at').single();
+    }).select('id,slug,title,excerpt,body,category,status,source_title,source_url,published_at,created_at,updated_at').single();
     if (error) return NextResponse.json({ error: error.code === '23505' ? 'الرابط مستخدم بالفعل.' : 'تعذر حفظ المقال.' }, { status: error.code === '23505' ? 409 : 500 });
     return NextResponse.json({ article: data }, { status: 201 });
   } catch {
@@ -75,12 +78,20 @@ export async function PATCH(request: Request) {
       if (typeof body.slug !== 'string' || !slugPattern.test(body.slug.trim())) return NextResponse.json({ error: 'الرابط غير صالح.' }, { status: 400 });
       patch.slug = body.slug.trim();
     }
+    if (body.sourceTitle !== undefined) {
+      if (typeof body.sourceTitle !== 'string' || body.sourceTitle.trim().length > 300) return NextResponse.json({ error: 'عنوان المصدر غير صالح.' }, { status: 400 });
+      patch.source_title = body.sourceTitle.trim();
+    }
+    if (body.sourceUrl !== undefined) {
+      if (typeof body.sourceUrl !== 'string' || body.sourceUrl.trim().length > 2048 || (body.sourceUrl.trim() && !/^https?:\\/\\//i.test(body.sourceUrl.trim()))) return NextResponse.json({ error: 'رابط المصدر غير صالح.' }, { status: 400 });
+      patch.source_url = body.sourceUrl.trim();
+    }
     if (body.status !== undefined) {
       if (!['draft', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة المقال غير صالحة.' }, { status: 400 });
       patch.status = body.status;
       patch.published_at = body.status === 'published' ? new Date().toISOString() : null;
     }
-    const { data, error } = await db.from('knowledge_articles').update(patch).eq('id', id).select('id,slug,title,excerpt,body,category,status,published_at,updated_at').maybeSingle();
+    const { data, error } = await db.from('knowledge_articles').update(patch).eq('id', id).select('id,slug,title,excerpt,body,category,status,source_title,source_url,published_at,updated_at').maybeSingle();
     if (error) return NextResponse.json({ error: 'تعذر تحديث المقال.' }, { status: 500 });
     if (!data) return NextResponse.json({ error: 'المقال غير موجود.' }, { status: 404 });
     return NextResponse.json({ article: data });
