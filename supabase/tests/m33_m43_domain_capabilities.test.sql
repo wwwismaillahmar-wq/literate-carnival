@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(34);
 
 select has_table('public', 'academy_modules', 'Academy modules have a persisted content model');
 select has_table('public', 'academy_lessons', 'Academy lessons have a persisted content model');
@@ -33,6 +33,11 @@ select has_policy('public', 'talent_evidence', 'talent_evidence_admin_update', '
 select has_policy('public', 'partner_applications', 'partner_applications_public_insert', 'Partner application intake is validated and starts as submitted');
 select has_policy('public', 'partner_applications', 'partner_applications_admin_update', 'Partner application status updates are admin controlled');
 select has_policy('public', 'crm_lead_activities', 'crm_lead_activities_admin_all', 'CRM activity records are admin controlled');
+
+select has_column('public', 'media_assets', 'upload_status', 'Media records distinguish pending from completed uploads');
+select has_column('public', 'media_assets', 'uploaded_at', 'Completed uploads record a confirmation timestamp');
+select has_policy('public', 'media_assets', 'media_upload_completion_guard', 'Pending media is not visible to non-owners');
+select has_index('public', 'media_assets', 'media_assets_owner_upload_status_idx', 'Media cleanup and owner lookup are indexed');
 
 select * from finish();
 rollback;
