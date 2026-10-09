@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Application = {
   id: string;
@@ -32,7 +32,7 @@ export function PartnerApplicationsWorkspace() {
   const [saving, setSaving] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/partners/applications', { cache: 'no-store' });
@@ -47,9 +47,9 @@ export function PartnerApplicationsWorkspace() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
   async function update(item: Application, status: string) {
     setSaving(item.id);
