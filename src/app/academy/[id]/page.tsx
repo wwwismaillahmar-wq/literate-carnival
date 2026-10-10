@@ -34,6 +34,26 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
   const { data: course, error: courseError } = await db.from('courses').select('*').eq('id', id).maybeSingle();
   if (courseError || !course || !isPublished(course as CourseRow)) notFound();
 
+  const { data: offeringRows, error: offeringsError } = await db.from('academy_course_offerings')
+    .select('id,school_id,branch_id,language,capacity')
+    .eq('course_id', String(course.id)).eq('status', 'published')
+    .order('created_at', { ascending: true });
+  const schoolIds = [...new Set((offeringRows ?? []).map(row => row.school_id))];
+  const branchIds = [...new Set((offeringRows ?? []).map(row => row.branch_id).filter((id): id is string => Boolean(id)))];
+  const [{ data: schools, error: schoolsError }, { data: branches, error: branchesError }] = await Promise.all([
+    schoolIds.length ? db.from('academy_schools').select('id,name').in('id', schoolIds) : Promise.resolve({ data: [], error: null }),
+    branchIds.length ? db.from('academy_branches').select('id,name').in('id', branchIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  const offeringLookupError = offeringsError || schoolsError || branchesError;
+  const schoolNames = new Map((schools ?? []).map(row => [row.id, row.name]));
+  const branchNames = new Map((branches ?? []).map(row => [row.id, row.name]));
+  const offerings = (offeringRows ?? []).map(row => ({
+    id: row.id,
+    label: (schoolNames.get(row.school_id) || 'المدرسة') + (row.branch_id ? ' / ' + (branchNames.get(row.branch_id) || 'الفرع') : ' / جميع الفروع'),
+    language: row.language,
+    capacity: row.capacity,
+  }));
+
   const { data: modules, error: moduleError } = await db.from('academy_modules')
     .select('id,title,description,sort_order')
     .eq('course_id', String(course.id))
@@ -91,7 +111,8 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
         {(assessmentGroups.get(academyModule.id) ?? []).map(assessment => <p key={assessment.id}><Link href={'/academy/assessments/' + assessment.id}>اختبار: {assessment.title} · النجاح {assessment.pass_score}% ↗</Link></p>)}
       </article>)}
     </section>
-    <CourseLearningActions courseId={String(course.id)} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />
-    <AcademyAdmissionForm courseId={String(course.id)} />
+    {offeringLookupError && <div className="card" role="alert">تعذر التحقق من المدارس والفروع المتاحة. تم تعطيل التسجيل والقبول حتى يكتمل التحقق.</div>}
+    {!offeringLookupError && <CourseLearningActions courseId={String(course.id)} offerings={offerings} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />}
+    {!offeringLookupError && <AcademyAdmissionForm courseId={String(course.id)} offerings={offerings} />}
   </div></main>;
 }
