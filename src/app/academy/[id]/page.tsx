@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { CourseLearningActions } from '@/components/academy/CourseLearningActions';
+import { AcademyAdmissionForm } from '@/components/academy/AcademyAdmissionForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,5 +92,6 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
       </article>)}
     </section>
     <CourseLearningActions courseId={String(course.id)} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />
+    <AcademyAdmissionForm courseId={String(course.id)} />
   </div></main>;
 }
