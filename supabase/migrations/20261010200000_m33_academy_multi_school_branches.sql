@@ -93,7 +93,7 @@ as $function$
       );
 $function$;
 revoke all on function private.can_manage_academy_school(uuid,uuid) from public, anon;
-grant execute on function private.can_manage_academy_school(uuid,uuid) to authenticated;
+grant execute on function private.can_manage_academy_school(uuid,uuid) to anon, authenticated;
 
 alter table public.academy_schools enable row level security;
 alter table public.academy_branches enable row level security;
@@ -143,7 +143,8 @@ create policy academy_course_offerings_public_read on public.academy_course_offe
     and exists (select 1 from public.academy_schools s where s.id = school_id and s.status = 'active')
     and (branch_id is null or exists (
       select 1 from public.academy_branches b
-      where b.id = branch_id and b.school_id = school_id and b.status = 'active'
+      where b.id = academy_course_offerings.branch_id
+        and b.school_id = academy_course_offerings.school_id and b.status = 'active'
     ))
   );
 drop policy if exists academy_course_offerings_manager_write on public.academy_course_offerings;
