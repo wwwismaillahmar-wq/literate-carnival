@@ -1,7 +1,7 @@
 -- M40 behavioral acceptance: authorization, amount consistency, atomic persistence and replay safety.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 create temporary table m40_ids (
   admin_id uuid not null,
@@ -46,6 +46,10 @@ union all
 select mismatch_payment_id,mismatch_invoice_id,customer_id,'test-provider',1199,'DZD','pending','m40-mismatch-'||mismatch_payment_id::text
 from m40_ids;
 
+insert into public.payment_provider_configs(provider_key,display_name,enabled,mode,config_data)
+values ('test-provider','M40 Test Provider',true,'live','{}'::jsonb)
+on conflict (provider_key) do update set enabled=true,mode='live';
+
 grant select on m40_ids to authenticated;
 
 select set_config('request.jwt.claim.sub',(select customer_id::text from m40_ids),true);
@@ -65,8 +69,17 @@ select is((select status from public.payments where id=(select mismatch_payment_
 select is((select status from public.invoices where id=(select mismatch_invoice_id from m40_ids)),'issued',
   'rejected settlement leaves the invoice issued');
 
-select is((select status from public.admin_mark_payment_paid((select payment_id from m40_ids))),'paid',
-  'authorized settlement returns paid status');
+select set_config('request.jwt.claim.sub',(select admin_id::text from m40_ids),true);
+set local role authenticated;
+select throws_ok($q$select * from public.admin_mark_payment_paid((select payment_id from m40_ids))$q$,
+  'P0001','PAYMENT_REFERENCE_REQUIRED','live provider settlement requires a transaction reference');
+reset role;
+select is((select status from public.payments where id=(select payment_id from m40_ids)),'pending',
+  'missing provider reference leaves payment pending');
+
+set local role authenticated;
+select is((select status from public.admin_mark_payment_paid((select payment_id from m40_ids),'M40-REF-123')),'paid',
+  'authorized settlement with provider reference returns paid status');
 reset role;
 
 select is((select status from public.payments where id=(select payment_id from m40_ids)),'paid',
