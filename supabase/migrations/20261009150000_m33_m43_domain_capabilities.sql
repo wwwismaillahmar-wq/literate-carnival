@@ -1,6 +1,6 @@
 -- M33-M43 additive domain foundations.
 -- This migration intentionally uses independent domain records and auth.users only.
--- Course IDs remain text until the authoritative historical courses schema is restored.
+-- Course IDs remain text so academy modules stay compatible with existing catalog identifiers.
 
 create table if not exists public.academy_modules (
   id uuid primary key default gen_random_uuid(),
