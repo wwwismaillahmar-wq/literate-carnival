@@ -80,3 +80,22 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 
 - Current work remains isolated on the feature branch. Recent commits add M34 assessment authoring/grading/certificates, M36 approval-to-organization flow, M38 lead assignment/history, M39 actual logo upload, M40 atomic payment settlement, M41 media-parent correction, and M42 bounded audited event retry.
 - No build, migration replay, pgTAP suite, authenticated browser test, or end-to-end acceptance has run for the current head. These are code additions, not a claim of verified completion.
+
+## Continuation — 2026-10-10
+
+### M33 — Pre-registration admission screening added
+- Added course-specific screening questions with active/inactive state, response types, options, ordering and admin-only authoring/update APIs.
+- Added public course admission form for name, email, phone, screening answers and explicit consent. The submitted application stores a snapshot of the question set used at submission.
+- Added an admission application API with input validation, duplicate active-application conflict handling, admin decision transitions and owner/admin read access.
+- Added an additive migration and pgTAP contract assertions for admission question/application schema and RLS policies.
+- Connected the course detail page to the pre-registration form.
+- Tightened the enrollment API: direct enrollment now requires a reviewed admission and a trusted paid state; an accepted application without verified payment is not enough to unlock enrollment.
+- Important limit: no trusted payment callback currently advances an application to paid, so final enrollment is intentionally blocked until the existing billing/payment provider path is wired and verified. This prevents a client from bypassing admission or claiming payment success.
+- Security/verification limit: anonymous application intake is permitted by the RLS policy and has no CAPTCHA/rate-limit integration in this increment. Add abuse protection before public production use. Anonymous applications are admin-visible but cannot be owner-read until a secure account-linking workflow is implemented.
+- Status: CODE PRESENT / DATABASE AND RUNTIME UNVERIFIED.
+
+### Verification status (unchanged)
+- This branch has no GitHub Actions runs registered because the quality workflow is triggered by pull requests and pushes to main; feature-branch commits alone do not run it.
+- No PR has been opened for this continuation, specifically to avoid triggering the deployment integration before the agreed release window.
+- No Vercel dashboard, configuration, deployment, or production database operation was performed.
+- The historical M00–M25 clean migration replay issue remains unresolved; these new database tests have not been executed.
