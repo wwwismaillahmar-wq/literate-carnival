@@ -1,7 +1,7 @@
 -- M40 behavioral acceptance: authorization, amount consistency, atomic persistence and replay safety.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 create temporary table m40_ids (
   admin_id uuid not null,
@@ -84,6 +84,8 @@ reset role;
 
 select is((select status from public.payments where id=(select payment_id from m40_ids)),'paid',
   'successful settlement persists payment status');
+select is((select provider_reference from public.payments where id=(select payment_id from m40_ids)),
+          'M40-REF-123','successful settlement persists the provider reference for read-back');
 select is((select status from public.invoices where id=(select invoice_id from m40_ids)),'paid',
   'successful settlement persists invoice status atomically');
 select ok((select paid_at is not null from public.payments where id=(select payment_id from m40_ids)),
