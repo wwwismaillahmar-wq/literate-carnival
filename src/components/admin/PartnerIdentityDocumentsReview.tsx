@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 type ReviewDocument = {
   id: string;
+  identity_profile_id: string;
+  identity_profile: { id: string; legal_name: string; country_code: string; review_status: string } | null;
   owner_id: string;
   document_type: string;
   review_status: string;
@@ -58,6 +60,27 @@ export function PartnerIdentityDocumentsReview() {
     }
   }
 
+  async function reviewProfile(profileId: string, reviewStatus: string, busyKey: string) {
+    setBusyId(busyKey);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch('/api/partners/identity-documents', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reviewType: 'profile', profileId, reviewStatus, reviewNote: notes[busyKey] ?? '' }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'تعذر حفظ قرار ملف الهوية.');
+      setMessage('تم حفظ قرار ملف الهوية في قاعدة البيانات.');
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر حفظ قرار ملف الهوية.');
+    } finally {
+      setBusyId('');
+    }
+  }
+
   return <section className="card" style={{ marginTop: 28 }}>
     <span className="kicker">PARTNER DUE DILIGENCE / M36</span>
     <h2>مراجعة وثائق هوية الشركاء</h2>
@@ -69,7 +92,19 @@ export function PartnerIdentityDocumentsReview() {
         {documents.map((document) => <article className="card" key={document.id}>
           <h3>{document.document_type}</h3>
           <p className="muted">صاحب الوثيقة: {document.owner_id}</p>
-          <p className="muted">الرفع: {document.upload_status} · المراجعة: {document.review_status}</p>
+          <p className="muted">الرفع: {document.upload_status} · مراجعة الوثيقة: {document.review_status}</p>
+          {document.identity_profile ? <div className="card">
+            <strong>ملف الهوية: {document.identity_profile.legal_name} ({document.identity_profile.country_code})</strong>
+            <p className="muted">حالة ملف الهوية: {document.identity_profile.review_status}</p>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button className="btn primary" type="button" disabled={busyId === document.id || document.review_status !== 'verified' || document.identity_profile.review_status === 'verified'}
+                onClick={() => void reviewProfile(document.identity_profile!.id, 'verified', document.id)}>اعتماد ملف الهوية</button>
+              <button className="btn" type="button" disabled={busyId === document.id}
+                onClick={() => void reviewProfile(document.identity_profile!.id, 'needs_information', document.id)}>طلب استكمال الهوية</button>
+              <button className="btn" type="button" disabled={busyId === document.id}
+                onClick={() => void reviewProfile(document.identity_profile!.id, 'rejected', document.id)}>رفض ملف الهوية</button>
+            </div>
+          </div> : null}
           <p className="muted">أُنشئت: {new Date(document.created_at).toLocaleString('ar-DZ')}</p>
           {document.signed_url ? <p><a href={document.signed_url} target="_blank" rel="noreferrer">فتح الوثيقة الخاصة (رابط مؤقت)</a></p> : <p className="muted">لا يوجد ملف مرفوع ومؤكد يمكن مراجعته.</p>}
           <label>ملاحظة المراجعة
