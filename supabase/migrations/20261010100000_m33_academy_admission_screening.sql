@@ -57,6 +57,14 @@ create policy academy_admission_questions_admin_all on public.academy_admission_
 drop policy if exists academy_admission_applications_read_owner_admin on public.academy_admission_applications;
 create policy academy_admission_applications_read_owner_admin on public.academy_admission_applications
   for select to authenticated using (user_id = (select auth.uid()) or (select private.is_super_admin()));
+drop policy if exists academy_admission_applications_public_submit on public.academy_admission_applications;
+create policy academy_admission_applications_public_submit on public.academy_admission_applications
+  for insert to anon, authenticated with check (
+    status = 'submitted' and reviewer_id is null and reviewed_at is null
+    and review_note = '' and payment_reference is null
+    and consent_at <= now() and consent_at >= now() - interval '10 minutes'
+    and (user_id is null or user_id = (select auth.uid()))
+  );
 drop policy if exists academy_admission_applications_admin_update on public.academy_admission_applications;
 create policy academy_admission_applications_admin_update on public.academy_admission_applications
   for update to authenticated using ((select private.is_super_admin()))
