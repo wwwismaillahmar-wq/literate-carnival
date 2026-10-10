@@ -99,7 +99,7 @@ begin
 
   insert into public.academy_enrollments(user_id, course_id, offering_id, status, completed_at)
   values (v_user, p_course_id, p_offering_id, 'enrolled', null)
-  on conflict (user_id, course_id) do nothing
+  on conflict on constraint academy_enrollments_user_id_course_id_key do nothing
   returning * into v_enrollment;
 
   if not found then
