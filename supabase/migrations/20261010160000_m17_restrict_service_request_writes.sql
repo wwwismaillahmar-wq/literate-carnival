@@ -1,11 +1,9 @@
--- M17 security closure: service requests must enter through the validated RPC and
--- change lifecycle only through transition_service_request / transactional quote APIs.
--- The customer-facing UI already uses create_service_request; admin transitions use RPC.
-revoke insert, update, delete on public.service_requests from anon, authenticated;
-
+-- M17 security closure: service requests must enter through the validated RPC.
+-- The customer-facing UI already uses create_service_request; direct inserts could
+-- otherwise forge initial lifecycle state because the old insert policy checked only owner.
+revoke insert on public.service_requests from anon, authenticated;
 drop policy if exists service_requests_owner_insert on public.service_requests;
-drop policy if exists service_requests_admin_update on public.service_requests;
 
--- Keep row visibility isolated; write operations are performed by SECURITY DEFINER
--- transactions that validate ownership, service availability and lifecycle transitions.
+-- Keep the existing admin-update policy and the state-machine RPC operational.
+-- Customer UPDATE statements remain blocked by RLS; server actions use the validated RPC.
 grant select on public.service_requests to authenticated;
