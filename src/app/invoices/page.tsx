@@ -23,9 +23,12 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: Pr
   const rows = (await listMyInvoices()) as InvoiceRow[];
   const params = searchParams ? await searchParams : {};
   const db = await createClient();
+  const { data: { user } } = await db.auth.getUser();
   const [{ data: providers }, { data: payments }] = await Promise.all([
     db.from('payment_provider_configs').select('provider_key,display_name,enabled,mode,config_data').eq('enabled',true).order('sort_order').order('display_name'),
-    db.from('payments').select('id,invoice_id,provider,amount,currency,status').order('created_at',{ascending:false}),
+    user
+      ? db.from('payments').select('id,invoice_id,provider,amount,currency,status').eq('payer_id', user.id).order('created_at',{ascending:false})
+      : Promise.resolve({ data: [], error: null }),
   ]);
   const activeProviders = (providers ?? []) as ProviderRow[];
   const myPayments = (payments ?? []) as PaymentRow[];
