@@ -51,6 +51,21 @@ create table if not exists public.posts (
 create index if not exists posts_author_created_idx on public.posts(author_id, created_at desc);
 create index if not exists posts_public_feed_idx on public.posts(status, visibility, created_at desc);
 
+-- Historical source for public.contributions was not present in any current
+-- repository branch. Reconstruct its minimal contract from the existing
+-- account/API consumers and downstream M03 policies; this is additive and a
+-- no-op where the table already exists in an established environment.
+create table if not exists public.contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null default 'post',
+  title text not null,
+  content text not null default '',
+  status public.content_status not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.contributions
   add column if not exists visibility public.content_visibility not null default 'private';
 
