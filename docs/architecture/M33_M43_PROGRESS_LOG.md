@@ -99,3 +99,11 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 - No PR has been opened for this continuation, specifically to avoid triggering the deployment integration before the agreed release window.
 - No Vercel dashboard, configuration, deployment, or production database operation was performed.
 - The historical M00–M25 clean migration replay issue remains unresolved; these new database tests have not been executed.
+
+### M36 — Private identity due-diligence schema added
+- Added separate individual/organization identity profiles and private document metadata, with explicit consent, review states, expiry fields, and owner/organization/admin RLS.
+- Organization data includes legal form, registration/tax identifiers, registered address, and authorized representative details; individual records include identity document metadata.
+- Added pgTAP assertions for table/column/policy contracts.
+- Not complete: secure upload/signing/scanning/retention APIs and admin review UI are not implemented by this schema-only increment. The private storage bucket must be provisioned and verified before document upload is enabled; no public document URL is generated.
+- Not complete: the maximum-three-active-agents rule still requires a transaction/constraint implementation and concurrent acceptance test.
+- Status: SCHEMA CODE PRESENT / MIGRATION AND RUNTIME UNVERIFIED.
