@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 
 type PartnerDocument = {
   id: string;
@@ -85,28 +84,22 @@ export function IdentityDocumentsWorkspace() {
     try {
       if (!file) throw new Error('اختر ملف الهوية أولًا.');
       if (!consent) throw new Error('يجب الموافقة على معالجة بيانات الهوية لأغراض التحقق.');
+      const form = new FormData();
+      form.set('file', file);
+      form.set('legalName', legalName);
+      form.set('countryCode', countryCode);
+      form.set('documentType', documentType);
+      form.set('issuingCountry', issuingCountry);
+      form.set('expiresAt', expiresAt);
+      form.set('consent', String(consent));
+
       const response = await fetch('/api/partners/identity-documents', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          legalName, countryCode, documentType, mimeType: file.type, fileSize: file.size,
-          issuingCountry, expiresAt: expiresAt || null, consent,
-        }),
+        body: form,
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'تعذر إنشاء طلب رفع الوثيقة.');
-      const db = createClient();
-      const { error: uploadError } = await db.storage.from('aslan-private-documents')
-        .uploadToSignedUrl(body.upload.path, body.upload.token, file, { contentType: file.type, upsert: false });
-      if (uploadError) throw new Error('تم تسجيل طلب الوثيقة لكن فشل رفع الملف: ' + uploadError.message);
-      const completeResponse = await fetch('/api/partners/identity-documents', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ documentId: body.document.id }),
-      });
-      const completeBody = await completeResponse.json();
-      if (!completeResponse.ok) throw new Error(completeBody.error || 'رُفع الملف لكن تعذر تثبيت حالة اكتماله.');
-      setMessage('تم رفع الوثيقة والتحقق من وجودها. ستظل خاصة إلى أن تنتهي مراجعتها.');
+      if (!response.ok) throw new Error(body.error || 'تعذر رفع وثيقة الهوية وحفظها.');
+      setMessage('تم رفع الوثيقة والتحقق من نوع الملف وحفظ حالتها في قاعدة البيانات. ستظل خاصة إلى أن تنتهي مراجعتها.');
       setFile(null);
       setConsent(false);
       const fileInput = document.getElementById('partner-identity-file') as HTMLInputElement | null;
@@ -146,7 +139,7 @@ export function IdentityDocumentsWorkspace() {
           <input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
         </label>
       </div>
-      <label>ملف الوثيقة (PDF أو JPEG أو PNG أو WebP، حتى 10MB)
+      <label>ملف الوثيقة (PDF أو JPEG أو PNG أو WebP، حتى 10 MiB)
         <input id="partner-identity-file" required type="file" accept="application/pdf,image/jpeg,image/png,image/webp"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
       </label>
@@ -154,7 +147,7 @@ export function IdentityDocumentsWorkspace() {
         <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
         أوافق على معالجة بيانات الوثيقة وحفظها بشكل خاص لمراجعة الهوية وأهلية الشراكة.
       </label>
-      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'جارٍ حفظ الوثيقة والتحقق من رفعها…' : 'رفع وثيقة التحقق'}</button>
+      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'جارٍ التحقق من الملف وحفظه…' : 'رفع وثيقة التحقق'}</button>
     </form>
     {error ? <p role="alert" style={{ color: 'var(--danger, #b42318)', marginTop: 12 }}>{error}</p> : null}
     {message ? <p role="status" style={{ marginTop: 12 }}>{message}</p> : null}
