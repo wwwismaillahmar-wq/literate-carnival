@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const status = ['draft', 'published', 'archived'].includes(body.status) ? body.status : 'draft';
     const sourceTitle = typeof body.sourceTitle === 'string' ? body.sourceTitle.trim() : '';
     const sourceUrl = typeof body.sourceUrl === 'string' ? body.sourceUrl.trim() : '';
-    if (sourceTitle.length > 300 || sourceUrl.length > 2048 || (sourceUrl && !/^https?:\\/\\//i.test(sourceUrl))) return NextResponse.json({ error: 'بيانات المصدر غير صالحة.' }, { status: 400 });
+    if (sourceTitle.length > 300 || sourceUrl.length > 2048 || (sourceUrl && !/^https?:\/\//i.test(sourceUrl))) return NextResponse.json({ error: 'بيانات المصدر غير صالحة.' }, { status: 400 });
     if (!slugPattern.test(slug) || title.length < 3 || title.length > 200 || !bodyText || bodyText.length > 50000 || excerpt.length > 500 || category.length < 1 || category.length > 80) {
       return NextResponse.json({ error: 'تحقق من العنوان والرابط والمحتوى والتصنيف.' }, { status: 400 });
     }
@@ -83,7 +83,7 @@ export async function PATCH(request: Request) {
       patch.source_title = body.sourceTitle.trim();
     }
     if (body.sourceUrl !== undefined) {
-      if (typeof body.sourceUrl !== 'string' || body.sourceUrl.trim().length > 2048 || (body.sourceUrl.trim() && !/^https?:\\/\\//i.test(body.sourceUrl.trim()))) return NextResponse.json({ error: 'رابط المصدر غير صالح.' }, { status: 400 });
+      if (typeof body.sourceUrl !== 'string' || body.sourceUrl.trim().length > 2048 || (body.sourceUrl.trim() && !/^https?:\/\//i.test(body.sourceUrl.trim()))) return NextResponse.json({ error: 'رابط المصدر غير صالح.' }, { status: 400 });
       patch.source_url = body.sourceUrl.trim();
     }
     if (body.status !== undefined) {
