@@ -70,4 +70,14 @@ create trigger academy_enrollments_offering_guard
 before insert or update of offering_id, course_id on public.academy_enrollments
 for each row execute function private.validate_academy_offering_course_link();
 
+drop index if exists public.academy_admission_applications_pending_identity_unique;
+create unique index if not exists academy_admission_applications_pending_legacy_unique
+  on public.academy_admission_applications(course_id, applicant_email)
+  where offering_id is null
+    and status in ('submitted','under_review','accepted','needs_information','payment_pending','paid','enrolled');
+create unique index if not exists academy_admission_applications_pending_offering_unique
+  on public.academy_admission_applications(offering_id, applicant_email)
+  where offering_id is not null
+    and status in ('submitted','under_review','accepted','needs_information','payment_pending','paid','enrolled');
+
 -- Public and owner/admin queries can now scope each lifecycle to a specific offering.
