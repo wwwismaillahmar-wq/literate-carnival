@@ -182,7 +182,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    const table = kind === 'school' ? 'academy_schools' : kind === 'branch' ? 'academy_branches' : 'academy_course_offerings';
+    const table: 'academy_schools' | 'academy_branches' | 'academy_course_offerings' = kind === 'school' ? 'academy_schools' : kind === 'branch' ? 'academy_branches' : 'academy_course_offerings';
     const { data, error } = await db.from(table).update({ status, updated_at: new Date().toISOString() })
       .eq('id', id).select('id,status').maybeSingle();
     if (error || !data) return NextResponse.json({ error: 'تعذر تحديث الحالة أو أن السجل غير قابل للتعديل.' }, { status: 409 });
