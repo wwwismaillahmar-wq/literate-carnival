@@ -18,7 +18,7 @@ from m13_cart_price_ids;
 
 insert into public.products(name,slug,description,price_dzd,stock,active)
 values ('M13 Price Test Product','m13-price-test-product','Cart price integrity test',100,10,true)
-returning id;
+;
 
 update m13_cart_price_ids
 set product_id=(select id from public.products where slug='m13-price-test-product');
@@ -45,8 +45,10 @@ select is((select ci.unit_price from public.cart_items ci
   'saved cart item price can be read back');
 
 reset role;
-update public.products set price_dzd=150
-where id=(select product_id from m13_cart_price_ids);
+select lives_ok($q$
+  update public.products set price_dzd=150
+  where id=(select product_id from m13_cart_price_ids)
+$q$,'catalog price update succeeds');
 select is((select ci.unit_price from public.cart_items ci
   where ci.cart_id=(select cart_id from m13_cart_price_ids)),150::numeric,
   'catalog price change synchronizes active cart snapshots');
