@@ -2,6 +2,10 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(23);
+select has_table('public','partner_contracts','versioned partner contracts are persisted');
+select has_table('public','partner_contract_versions','contract revisions are immutable version records');
+select has_table('public','partner_payout_profiles','verified payout destinations are persisted');
+select has_table('public','partner_revenue_ledger','partner earnings and debits are recorded in a ledger');
 
 create temporary table m36_flow_ids (
   admin_id uuid not null,
