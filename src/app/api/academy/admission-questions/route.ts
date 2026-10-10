@@ -29,9 +29,13 @@ function validQuestion(body: Record<string, unknown>) {
 export async function GET(request: Request) {
   const db = await createClient();
   const { user, allowed } = await admin(db);
-  const courseId = new URL(request.url).searchParams.get('courseId')?.trim() ?? '';
-  if (!courseId || courseId.length > 120) return NextResponse.json({ error: 'معرّف الدورة غير صالح.' }, { status: 400 });
-  let query = db.from('academy_admission_questions').select('id,course_id,prompt,question_type,options,required,sort_order,active,created_at,updated_at').eq('course_id', courseId).order('sort_order');
+  const params = new URL(request.url).searchParams;
+  const courseId = params.get('courseId')?.trim() ?? '';
+  const offeringId = params.get('offeringId')?.trim() ?? '';
+  if (!courseId || courseId.length > 120 || (offeringId && !uuid.test(offeringId))) return NextResponse.json({ error: 'معرّف الدورة أو العرض غير صالح.' }, { status: 400 });
+  let query = db.from('academy_admission_questions').select('id,course_id,offering_id,prompt,question_type,options,required,sort_order,active,created_at,updated_at').eq('course_id', courseId);
+  query = offeringId ? query.or(`offering_id.is.null,offering_id.eq.${offeringId}`) : query.is('offering_id', null);
+  query = query.order('sort_order');
   if (!user || !allowed) query = query.eq('active', true);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'تعذر تحميل أسئلة التأهيل.' }, { status: 500 });
@@ -46,10 +50,19 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ error: 'إدارة أسئلة التأهيل للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : '';
+    const offeringId = typeof body.offeringId === 'string' && body.offeringId.trim() ? body.offeringId.trim() : null;
     const question = validQuestion(body);
-    if (!courseId || courseId.length > 120 || !question) return NextResponse.json({ error: 'بيانات سؤال التأهيل غير صالحة.' }, { status: 400 });
-    const { data, error } = await db.from('academy_admission_questions').insert({ course_id: courseId, ...question, created_by: user.id })
-      .select('id,course_id,prompt,question_type,options,required,sort_order,active,created_at,updated_at').single();
+    if (!courseId || courseId.length > 120 || (offeringId && !uuid.test(offeringId)) || !question) return NextResponse.json({ error: 'بيانات سؤال التأهيل غير صالحة.' }, { status: 400 });
+    if (offeringId) {
+      const { data: offering, error: offeringError } = await db.from('academy_course_offerings')
+        .select('id,course_id').eq('id', offeringId).maybeSingle();
+      if (offeringError || !offering || offering.course_id !== courseId) {
+        return NextResponse.json({ error: 'العرض المحدد لا يتبع الدورة.' }, { status: 400 });
+      }
+    }
+    const { data, error } = await db.from('academy_admission_questions').insert({
+      course_id: courseId, offering_id: offeringId, ...question, created_by: user.id,
+    }).select('id,course_id,offering_id,prompt,question_type,options,required,sort_order,active,created_at,updated_at').single();
     if (error) return NextResponse.json({ error: 'تعذر حفظ سؤال التأهيل.' }, { status: 500 });
     return NextResponse.json({ question: data }, { status: 201 });
   } catch { return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 }); }
@@ -84,7 +97,7 @@ export async function PATCH(request: Request) {
       Object.assign(patch, merged);
     }
     const { data, error } = await db.from('academy_admission_questions').update(patch).eq('id', id)
-      .select('id,course_id,prompt,question_type,options,required,sort_order,active,updated_at').maybeSingle();
+      .select('id,course_id,offering_id,prompt,question_type,options,required,sort_order,active,updated_at').maybeSingle();
     if (error) return NextResponse.json({ error: 'تعذر تحديث السؤال.' }, { status: 500 });
     if (!data) return NextResponse.json({ error: 'السؤال غير موجود.' }, { status: 404 });
     return NextResponse.json({ question: data });
