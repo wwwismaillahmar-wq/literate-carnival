@@ -25,18 +25,45 @@ select has_column('public', 'partner_applications', 'partnership_type', 'Partner
 select has_column('public', 'crm_lead_activities', 'lead_id', 'CRM activities link to an existing lead');
 select has_column('public', 'crm_lead_activities', 'follow_up_at', 'CRM follow-up dates are persisted');
 
-select has_policy('public', 'academy_modules', 'academy_modules_admin_all', 'Only super admins manage academy modules');
-select has_policy('public', 'academy_lessons', 'academy_lessons_admin_all', 'Only super admins manage academy lessons');
-select has_policy('public', 'talent_profiles', 'talent_profiles_update_own', 'Talent owners can only update unverified profile states');
-select has_policy('public', 'talent_evidence', 'talent_evidence_insert_own', 'Talent owners submit unverified evidence only');
-select has_policy('public', 'talent_evidence', 'talent_evidence_admin_update', 'Evidence verification is admin controlled');
-select has_policy('public', 'partner_applications', 'partner_applications_public_insert', 'Partner application intake is validated and starts as submitted');
-select has_policy('public', 'partner_applications', 'partner_applications_admin_update', 'Partner application status updates are admin controlled');
-select has_policy('public', 'crm_lead_activities', 'crm_lead_activities_admin_all', 'CRM activity records are admin controlled');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'academy_modules' and policyname = 'academy_modules_admin_all'
+), 'Only super admins manage academy modules');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'academy_lessons' and policyname = 'academy_lessons_admin_all'
+), 'Only super admins manage academy lessons');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'talent_profiles' and policyname = 'talent_profiles_update_own'
+), 'Talent owners can only update unverified profile states');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'talent_evidence' and policyname = 'talent_evidence_insert_own'
+), 'Talent owners submit unverified evidence only');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'talent_evidence' and policyname = 'talent_evidence_admin_update'
+), 'Evidence verification is admin controlled');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'partner_applications' and policyname = 'partner_applications_public_insert'
+), 'Partner application intake is validated and starts as submitted');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'partner_applications' and policyname = 'partner_applications_admin_update'
+), 'Partner application status updates are admin controlled');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'crm_lead_activities' and policyname = 'crm_lead_activities_admin_all'
+), 'CRM activity records are admin controlled');
 
 select has_column('public', 'media_assets', 'upload_status', 'Media records distinguish pending from completed uploads');
 select has_column('public', 'media_assets', 'uploaded_at', 'Completed uploads record a confirmation timestamp');
-select has_policy('public', 'media_assets', 'media_upload_completion_guard', 'Pending media is not visible to non-owners');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'media_assets' and policyname = 'media_upload_completion_guard'
+), 'Pending media is not visible to non-owners');
 select has_index('public', 'media_assets', 'media_assets_owner_upload_status_idx', 'Media cleanup and owner lookup are indexed');
 
 select * from finish();

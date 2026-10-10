@@ -4,7 +4,10 @@ select has_table('public', 'academy_assessments', 'Assessment definitions are pe
 select has_table('public', 'academy_assessment_questions', 'Assessment questions are persisted separately');
 select has_table('public', 'academy_assessment_attempts', 'Graded attempts are persisted');
 select has_column('public', 'academy_assessment_questions', 'correct_option', 'Correct answers remain in the protected database table');
-select has_policy('public', 'academy_questions_admin_all', 'Only super admins can read or edit question answer keys');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'academy_assessment_questions' and policyname = 'academy_questions_admin_all'
+), 'Only super admins can read or edit question answer keys');
 select has_function('public', 'get_published_academy_assessment', ARRAY['uuid'], 'Public assessment retrieval omits answer keys');
 select has_function('public', 'submit_academy_assessment', ARRAY['uuid','jsonb'], 'Assessment grading runs server-side and persists attempts');
 select * from finish();

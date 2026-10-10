@@ -9,7 +9,10 @@ select has_table('public', 'platform_search_events', 'M26 privacy-preserving sea
 
 select has_column('public', 'notifications', 'recipient_id', 'Notifications are scoped to a recipient');
 select has_column('public', 'notifications', 'read_at', 'Notification read state is persisted');
-select has_policy('public', 'notifications', 'platform_notifications_admin_insert', 'Only admins can dispatch notifications through the platform API');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'notifications' and policyname = 'platform_notifications_admin_insert'
+), 'Only admins can dispatch notifications through the platform API');
 select has_column('public', 'knowledge_articles', 'status', 'Knowledge articles have a publication state');
 select has_column('public', 'knowledge_articles', 'published_at', 'Knowledge publication time is persisted');
 select has_column('public', 'platform_ai_requests', 'input_hash', 'AI logs store a hash instead of raw input');

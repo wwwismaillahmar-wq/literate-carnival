@@ -8,9 +8,18 @@ select has_column('public', 'academy_admission_questions', 'active', 'Screening 
 select has_column('public', 'academy_admission_applications', 'screening_version', 'Applications preserve the screening version used');
 select has_column('public', 'academy_admission_applications', 'consent_at', 'Applications record explicit consent time');
 select has_column('public', 'academy_admission_applications', 'reviewer_id', 'Admission decisions record the reviewer');
-select has_policy('public', 'academy_admission_questions', 'academy_admission_questions_public_active', 'Only active questions are public');
-select has_policy('public', 'academy_admission_applications', 'academy_admission_applications_public_submit', 'Public intake can only create a fresh submitted application');
-select has_policy('public', 'academy_admission_applications', 'academy_admission_applications_admin_update', 'Only super admins can update admission decisions');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'academy_admission_questions' and policyname = 'academy_admission_questions_public_active'
+), 'Only active questions are public');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'academy_admission_applications' and policyname = 'academy_admission_applications_public_submit'
+), 'Public intake can only create a fresh submitted application');
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'public' and tablename = 'academy_admission_applications' and policyname = 'academy_admission_applications_admin_update'
+), 'Only super admins can update admission decisions');
 
 select * from finish();
 rollback;
