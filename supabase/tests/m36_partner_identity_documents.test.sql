@@ -1,7 +1,7 @@
 -- M36 behavioral acceptance: private bucket, owner isolation, upload confirmation and admin-only review.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(12);
 
 select ok(exists (
   select 1 from storage.buckets
@@ -16,6 +16,8 @@ select has_function('public', 'complete_partner_identity_document', ARRAY['uuid'
   'upload completion checks for a real storage object');
 select has_function('public', 'admin_review_partner_identity_document', ARRAY['uuid','text','text'],
   'document review is an explicit authorized transition');
+select has_function('public', 'admin_review_partner_identity_profile', ARRAY['uuid','text','text'],
+  'identity profile review is an explicit authorized transition');
 
 select ok(exists (
   select 1 from pg_policies
@@ -64,6 +66,15 @@ select throws_ok(
   $q$select * from public.admin_review_partner_identity_document((select document_id from m36_document_test_ids),'verified','')$q$,
   'P0001','FORBIDDEN',
   'ordinary document owner cannot approve their own identity evidence');
+
+select throws_ok(
+  $q$select * from public.admin_review_partner_identity_profile((select profile_id from m36_document_test_ids),'verified','')$q$,
+  'P0001','FORBIDDEN',
+  'identity owner cannot approve their own identity profile');
+select is(
+  (select review_status from public.partner_identity_profiles where id=(select profile_id from m36_document_test_ids)),
+  'pending',
+  'unauthorized profile review leaves identity status unchanged');
 
 reset role;
 select * from finish();
