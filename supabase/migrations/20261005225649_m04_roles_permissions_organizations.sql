@@ -205,6 +205,7 @@ grant usage on schema private to authenticated;
 grant execute on function private.is_super_admin(uuid) to authenticated;
 grant execute on function private.has_role(uuid,text,uuid) to authenticated;
 grant execute on function private.has_permission(uuid,text,uuid) to authenticated;
+grant execute on function private.is_super_admin_role(uuid) to authenticated;
 revoke all on function public.authorize(text,uuid) from public,anon;
 revoke all on function public.has_role(text,uuid) from public,anon;
 revoke all on function public.authorization_context() from public,anon;
