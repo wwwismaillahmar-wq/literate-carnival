@@ -18,7 +18,7 @@ export async function GET() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
   const { data, error } = await db.from('academy_enrollments')
-    .select('id,course_id,status,enrolled_at,completed_at')
+    .select('id,course_id,offering_id,status,enrolled_at,completed_at')
     .eq('user_id', user.id).order('enrolled_at', { ascending: false });
   if (error) return NextResponse.json({ error: 'تعذر تحميل تسجيلاتك.' }, { status: 500 });
   return NextResponse.json({ enrollments: data ?? [] });
@@ -33,13 +33,27 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'سجّل الدخول قبل التسجيل في دورة.' }, { status: 401 });
     const body = await request.json();
     const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : '';
-    if (!courseId || courseId.length > 120) return NextResponse.json({ error: 'معرّف الدورة غير صالح.' }, { status: 400 });
+    const offeringId = typeof body.offeringId === 'string' && body.offeringId.trim() ? body.offeringId.trim() : null;
+    if (!courseId || courseId.length > 120 || (offeringId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(offeringId))) return NextResponse.json({ error: 'معرّف الدورة أو العرض غير صالح.' }, { status: 400 });
     const { data: course, error: courseError } = await db.from('courses').select('*').eq('id', courseId).maybeSingle();
     if (courseError) return NextResponse.json({ error: 'تعذر التحقق من الدورة.' }, { status: 500 });
     if (!course || !published(course as Record<string, unknown>)) return NextResponse.json({ error: 'الدورة غير منشورة أو غير موجودة.' }, { status: 404 });
-    const { data: admission, error: admissionError } = await db.from('academy_admission_applications')
-      .select('id,status').eq('user_id', user.id).eq('course_id', courseId)
-      .in('status', ['accepted','payment_pending','paid','enrolled'])
+    if (offeringId) {
+      const { data: offering, error: offeringError } = await db.from('academy_course_offerings')
+        .select('id,course_id,status').eq('id', offeringId).maybeSingle();
+      if (offeringError) return NextResponse.json({ error: 'تعذر التحقق من العرض التعليمي.' }, { status: 500 });
+      if (!offering || offering.course_id !== courseId) return NextResponse.json({ error: 'العرض لا يتبع هذه الدورة.' }, { status: 400 });
+    } else {
+      const { data: availableOfferings, error: offeringsError } = await db.from('academy_course_offerings')
+        .select('id').eq('course_id', courseId).eq('status', 'published').limit(1);
+      if (offeringsError) return NextResponse.json({ error: 'تعذر التحقق من عروض الدورة.' }, { status: 500 });
+      if (availableOfferings?.length) return NextResponse.json({ error: 'اختر المدرسة أو الفرع الذي تم قبولك فيه.' }, { status: 400 });
+    }
+    let admissionQuery = db.from('academy_admission_applications')
+      .select('id,status,offering_id').eq('user_id', user.id).eq('course_id', courseId)
+      .in('status', ['accepted','payment_pending','paid','enrolled']);
+    admissionQuery = offeringId ? admissionQuery.eq('offering_id', offeringId) : admissionQuery.is('offering_id', null);
+    const { data: admission, error: admissionError } = await admissionQuery
       .order('submitted_at', { ascending: false }).limit(1).maybeSingle();
     if (admissionError) return NextResponse.json({ error: 'تعذر التحقق من قرار القبول.' }, { status: 500 });
     if (!admission) return NextResponse.json({ error: 'يجب إرسال طلب القبول واجتياز المراجعة قبل التسجيل النهائي.' }, { status: 403 });
@@ -49,13 +63,13 @@ export async function POST(request: Request) {
         : 'طلب القبول غير جاهز للتسجيل النهائي.' }, { status: 409 });
     }
     const { data, error } = await db.from('academy_enrollments').upsert({
-      user_id: user.id, course_id: courseId, status: 'enrolled', completed_at: null,
+      user_id: user.id, course_id: courseId, offering_id: offeringId, status: 'enrolled', completed_at: null,
     }, { onConflict: 'user_id,course_id', ignoreDuplicates: true })
       .select('id,course_id,status,enrolled_at,completed_at').maybeSingle();
     if (error) return NextResponse.json({ error: 'تعذر حفظ التسجيل.' }, { status: 500 });
     if (data) return NextResponse.json({ enrollment: data }, { status: 201 });
     const { data: existing, error: readError } = await db.from('academy_enrollments')
-      .select('id,course_id,status,enrolled_at,completed_at').eq('user_id', user.id).eq('course_id', courseId).single();
+      .select('id,course_id,offering_id,status,enrolled_at,completed_at').eq('user_id', user.id).eq('course_id', courseId).single();
     if (readError || !existing) return NextResponse.json({ error: 'تعذر تأكيد التسجيل المحفوظ.' }, { status: 500 });
     return NextResponse.json({ enrollment: existing, alreadyEnrolled: true });
   } catch {
