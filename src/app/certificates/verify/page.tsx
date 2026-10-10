@@ -3,10 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type CertificateVerification = { valid?: boolean; certificateCode?: string; issuedAt?: string; assessmentTitle?: string };
+
 export default async function VerifyCertificatePage({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const params = await searchParams;
   const code = typeof params.code === 'string' ? params.code.trim().toUpperCase() : '';
-  let result: { valid?: boolean; certificateCode?: string; issuedAt?: string; assessmentTitle?: string } | null = null;
+  let result: CertificateVerification | null = null;
   let error = '';
   if (code) {
     if (!/^ASL-[A-F0-9]{16}$/.test(code)) error = 'صيغة رمز الشهادة غير صحيحة.';
@@ -15,7 +17,7 @@ export default async function VerifyCertificatePage({ searchParams }: { searchPa
       const { data, error: lookupError } = await db.rpc('verify_academy_certificate', { p_certificate_code: code });
       if (lookupError) error = 'تعذر التحقق من الشهادة حاليًا.';
       else if (!data) error = 'لم نعثر على شهادة بهذا الرمز.';
-      else result = data as typeof result;
+      else result = data as unknown as CertificateVerification;
     }
   }
   return <main className="section"><div className="wrap">
