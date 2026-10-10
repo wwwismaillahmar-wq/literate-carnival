@@ -318,7 +318,7 @@ begin
       and s.accepted_terms_hash = v.terms_hash
   ) then raise exception 'PARTNER_SIGNATURE_REQUIRED'; end if;
 
-  update public.partner_contracts set status = 'active', effective_at = coalesce(effective_at,now()), updated_at = now()
+  update public.partner_contracts set status = 'active', effective_at = coalesce(v_contract.effective_at,now()), updated_at = now()
    where id = v_contract.id returning * into v_contract;
   return query select v_contract.id,v_contract.status,v_contract.effective_at;
 end;
