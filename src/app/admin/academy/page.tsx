@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AcademyAuthoringWorkspace } from '@/components/admin/AcademyAuthoringWorkspace';
 import { AcademyAdmissionReviewWorkspace } from '@/components/admin/AcademyAdmissionReviewWorkspace';
+import { AcademyStructureWorkspace } from '@/components/admin/AcademyStructureWorkspace';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export default async function AdminAcademyPage() {
     <h1>إدارة محتوى الأكاديمية</h1>
     <p className="muted">إدارة وحدات الدورات والدروس في قاعدة البيانات. لا تُنشأ دورة مكررة؛ تختار دورة موجودة من جدول courses. الوصول للطلاب والتقدم والاختبارات والشهادات تحتاج مراحل قبول مستقلة قبل إعلان اكتمال LMS.</p>
     <AcademyAuthoringWorkspace />
+    <AcademyStructureWorkspace />
     <section style={{ marginTop: 40 }}>
       <h2>طلبات القبول والتأهيل</h2>
       <p className="muted">مراجعة إجابات المتقدمين وتوثيق قرار القبول. القبول لا يثبت الدفع ولا يفتح المحتوى المدفوع تلقائيًا.</p>
