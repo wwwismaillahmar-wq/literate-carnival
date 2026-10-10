@@ -88,16 +88,17 @@ select throws_ok($q$
      set review_status='verified', reviewer_id=(select user_one from m43_ids), reviewed_at=now()
    where id=(select identity_profile_id from m43_ids)
 $q$,'42501',null,'identity owner cannot approve their own due diligence');
-select is((with changed as (
-  update public.partner_applications set status='approved'
-  where id=(select application_id from m43_ids) returning id
-) select count(*)::int from changed),0,
-  'partner application owner cannot approve their own application');
-select is((with changed as (
-  update public.academy_enrollments set status='completed'
-  where id=(select enrollment_id from m43_ids) returning id
-) select count(*)::int from changed),0,
-  'learner cannot directly change enrollment lifecycle state');
+update public.partner_applications
+   set status='approved'
+ where id=(select application_id from m43_ids);
+select is((select status from public.partner_applications where id=(select application_id from m43_ids)),
+          'submitted','partner application owner cannot approve their own application');
+
+update public.academy_enrollments
+   set status='completed'
+ where id=(select enrollment_id from m43_ids);
+select is((select status from public.academy_enrollments where id=(select enrollment_id from m43_ids)),
+          'enrolled','learner cannot directly change enrollment lifecycle state');
 
 reset role;
 select * from finish();
