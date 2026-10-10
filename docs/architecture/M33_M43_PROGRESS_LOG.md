@@ -107,3 +107,10 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 - Not complete: secure upload/signing/scanning/retention APIs and admin review UI are not implemented by this schema-only increment. The private storage bucket must be provisioned and verified before document upload is enabled; no public document URL is generated.
 - Not complete: the maximum-three-active-agents rule still requires a transaction/constraint implementation and concurrent acceptance test.
 - Status: SCHEMA CODE PRESENT / MIGRATION AND RUNTIME UNVERIFIED.
+
+### M36 — Organization representative cap
+- Added a dedicated organization representative model with invitation/verification/active/suspended/revoked states, explicit authority scopes and affiliation-evidence reference.
+- Added a transaction-level advisory lock plus database trigger to reject a fourth active representative for the same organization under concurrent writes.
+- Added RLS for organization-scoped reads and super-admin-only writes, plus pgTAP contract checks.
+- Runtime concurrency test has not run; invitation acceptance, affiliation-document review and revocation effects still require API/UI wiring and acceptance tests.
+- Status: SCHEMA CODE PRESENT / MIGRATION AND CONCURRENCY UNVERIFIED.
