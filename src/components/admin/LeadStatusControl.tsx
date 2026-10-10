@@ -7,7 +7,6 @@ type LeadControl = { id: number; status: string; assigned_to: string | null; upd
 const statuses = [{value:'new',label:'جديد'},{value:'contacted',label:'تم التواصل'},{value:'qualified',label:'مؤهل'},{value:'closed',label:'مغلق'}];
 
 export function LeadStatusControl({ lead: initialLead, users }: { lead: LeadControl; users: UserOption[] }) {
-  const [lead,setLead]=useState<LeadControl>(initialLead);
   const [status,setStatus]=useState(initialLead.status);
   const [assignee,setAssignee]=useState(initialLead.assigned_to??'');
   const [error,setError]=useState('');
@@ -20,7 +19,7 @@ export function LeadStatusControl({ lead: initialLead, users }: { lead: LeadCont
       const response=await fetch('/api/crm/leads',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({leadId,status,assignedTo:assignee||null})});
       const result=await response.json() as {lead?:LeadControl;error?:string};
       if(!response.ok||!result.lead)throw new Error(result.error||'تعذر حفظ حالة العميل.');
-      setLead(result.lead);setStatus(result.lead.status);setAssignee(result.lead.assigned_to??'');setNotice('تم حفظ الحالة والتعيين مع تسجيل التغيير.');
+      setStatus(result.lead.status);setAssignee(result.lead.assigned_to??'');setNotice('تم حفظ الحالة والتعيين مع تسجيل التغيير.');
     }catch(e){setError(e instanceof Error?e.message:'تعذر حفظ التحديث.');}finally{setBusy(false);}
   }
 
