@@ -114,3 +114,11 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 - Added RLS for organization-scoped reads and super-admin-only writes, plus pgTAP contract checks.
 - Runtime concurrency test has not run; invitation acceptance, affiliation-document review and revocation effects still require API/UI wiring and acceptance tests.
 - Status: SCHEMA CODE PRESENT / MIGRATION AND CONCURRENCY UNVERIFIED.
+
+### M41 — Dedicated marketplace checkout surface
+- Added a /checkout page with required delivery recipient, phone, wilaya, address and optional delivery notes.
+- Added a server action that calls the existing atomic checkout_active_cart(text, jsonb) database transaction; price and stock are revalidated and inventory reservation/order/invoice creation remain inside the existing transaction.
+- Connected the cart to checkout and added an order reference confirmation that explicitly does not claim payment success.
+- Existing service-request flow remains a separate service domain and uses its own validated create_service_request transaction/state-machine actions; it is not merged into product checkout.
+- Not complete: product-media/admin workflows, customer order detail/cancel/return flows, verified payment initiation/callback settlement, delivery status management and end-to-end checkout tests remain to be validated.
+- Status: UI/server integration CODE PRESENT / RUNTIME UNVERIFIED.
