@@ -30,7 +30,7 @@ jobs:
           version: latest
 
       - name: Start isolated local database services
-        run: supabase start -x studio,inbucket,edge-runtime,logflare,vector,imgproxy
+        run: supabase start -x studio,mailpit,edge-runtime,logflare,vector,imgproxy,postgres-meta,supavisor
 
       - name: Replay complete migration history from an empty database
         run: supabase db reset
