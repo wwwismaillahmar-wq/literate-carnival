@@ -62,6 +62,9 @@ select has_table('public','academy_school_memberships','school membership and ro
 select has_table('public','academy_course_offerings','courses can be offered by school, branch and language');
 select has_column('public','academy_schools','supported_languages','each school declares supported languages');
 select has_column('public','academy_course_offerings','branch_id','course offerings can be scoped to a branch');
+select is((select cardinality(supported_languages) from public.academy_schools
+  where id=(select active_school_id from m33_school_ids)),6,
+  'school configuration supports the six declared interface languages');
 
 set local role anon;
 select is((select count(*)::int from public.academy_course_offerings
