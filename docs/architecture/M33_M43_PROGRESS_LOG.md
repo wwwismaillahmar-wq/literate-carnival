@@ -57,10 +57,11 @@ This log is an implementation record, not an acceptance certificate.
 - Status: **OBSERVABILITY CODE PRESENT / RUNTIME UNVERIFIED**.
 
 ### M43 — Cross-domain acceptance
-- Added database contract assertions for the M33–M34 schema/policies.
-- Tests have not run. Clean migration replay remains blocked by the known M00–M25 historical migration-order/source issue; this branch currently has no fresh GitHub Actions evidence.
-- End-to-end acceptance across market, services, academy, talent, partners, billing, media and admin remains open.
-- Status: **PARTIAL / BLOCKED ON VERIFICATION**.
+- Added database contract assertions for M33–M43 schema, policy, function, index, billing, media and recovery contracts.
+- **Verified on 2026-10-10:** GitHub Actions run [#38088043808](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/38088043808) completed successfully on commit `14449f44f6401ae7c2615545e3f05da00f13ae65`.
+- Full clean replay applied every migration from an empty database; pgTAP completed **15 files / 129 assertions — PASS**. ESLint, migration filename/timestamp validation, TypeScript, and the production build also passed.
+- End-to-end authenticated-browser acceptance across market, services, academy, talent, partners, billing, media and admin has not been performed in this gate.
+- Status: **DATABASE CONTRACTS VERIFIED / END-TO-END ACCEPTANCE STILL OPEN**.
 
 ## Next implementation targets
 1. Complete learner assessment/scoring and certificate issuance.
@@ -78,8 +79,9 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 
 ## Latest continuation note
 
-- Current work remains isolated on the feature branch. Recent commits add M34 assessment authoring/grading/certificates, M36 approval-to-organization flow, M38 lead assignment/history, M39 actual logo upload, M40 atomic payment settlement, M41 media-parent correction, and M42 bounded audited event retry.
-- No build, migration replay, pgTAP suite, authenticated browser test, or end-to-end acceptance has run for the current head. These are code additions, not a claim of verified completion.
+- Current work remains isolated on `feat/m33-m43-domain-completion`.
+- Commit `14449f44f6401ae7c2615545e3f05da00f13ae65` passed the complete GitHub Actions quality gate on 2026-10-10: frontend checks/build PASS; clean migration replay PASS; pgTAP PASS (15 files, 129 assertions).
+- The run verified the clean migration lineage and SQL contract tests. Authenticated-browser testing, real payment-provider callbacks, storage upload lifecycle testing, and cross-domain E2E remain separate release checks. No Vercel deployment was performed.
 
 ## Continuation — 2026-10-10
 
@@ -94,11 +96,11 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 - Security/verification limit: anonymous application intake is permitted by the RLS policy and has no CAPTCHA/rate-limit integration in this increment. Add abuse protection before public production use. Anonymous applications are admin-visible but cannot be owner-read until a secure account-linking workflow is implemented.
 - Status: CODE PRESENT / DATABASE AND RUNTIME UNVERIFIED.
 
-### Verification status (unchanged)
-- This branch has no GitHub Actions runs registered because the quality workflow is triggered by pull requests and pushes to main; feature-branch commits alone do not run it.
-- No PR has been opened for this continuation, specifically to avoid triggering the deployment integration before the agreed release window.
-- No Vercel dashboard, configuration, deployment, or production database operation was performed.
-- The historical M00–M25 clean migration replay issue remains unresolved; these new database tests have not been executed.
+### Verification status — updated 2026-10-10
+- Feature-branch CI is enabled and the latest completed run is [#38088043808](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/38088043808) on commit `14449f44f6401ae7c2615545e3f05da00f13ae65`.
+- Result: **SUCCESS** — ESLint, migration filename/timestamp validation, TypeScript, production build, full clean migration replay, and pgTAP (15 files / 129 assertions) all passed.
+- No PR has been opened and the main branch has not been moved by this workstream. No Vercel dashboard, configuration, deployment, or production database operation was performed.
+- The CI result verifies clean-schema database contracts; it does not replace authenticated-browser or full end-to-end acceptance of every product domain.
 
 ### M36 — Private identity due-diligence schema added
 - Added separate individual/organization identity profiles and private document metadata, with explicit consent, review states, expiry fields, and owner/organization/admin RLS.
@@ -129,4 +131,5 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 - The original clean-replay history has no recoverable public.contributions table-creation migration on the current branch or inspected historical branches. The migration failed first on a duplicate named constraint, then on public.products missing before the foundational migration, then on public.contributions missing before M03 social-content policies.
 - Applied additive, replay-safe bootstrap definitions for the foundational catalog/security tables and the minimal contributions contract required by existing app consumers/downstream migrations. This is a documented reconstruction, not a claim that the original migration source was recovered. Production data is not touched by CI; established tables are guarded with CREATE TABLE IF NOT EXISTS, and duplicate constraints are guarded by catalog checks.
 - Quality workflow now runs on feat/**, executes ESLint, TypeScript, production build, migration filename/timestamp validation, a clean isolated Supabase migration replay, and pgTAP tests. Unused Supabase containers were excluded to reduce unnecessary image pulls.
-- Latest observed verification: ESLint PASS and TypeScript PASS on the feature branch. Production build and full clean database replay/pgTAP remain pending/failing investigation until a current run completes; do not mark the phase closed before both pass.
+- Latest observed verification: run [#38088043808](https://github.com/wwwismaillahmar-wq/literate-carnival/actions/runs/38088043808) completed with **SUCCESS** on `14449f44f6401ae7c2615545e3f05da00f13ae65`: ESLint PASS, migration ordering PASS, TypeScript PASS, production build PASS, clean database replay PASS, and pgTAP PASS (15 files / 129 assertions).
+- Remediation included a replay-safe academy course catalog foundation and corrections to pgTAP assertions that previously called unavailable helper functions. No deployment was performed. Mark database/quality gate as verified; keep authenticated-browser and domain-level end-to-end acceptance open.
