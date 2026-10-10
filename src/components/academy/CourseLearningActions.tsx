@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 
-type Enrollment = { id: string; course_id: string; status: string };
+type Enrollment = { id: string; course_id: string; offering_id?: string | null; status: string };
+type Offering = { id: string; label: string; language: string; capacity: number | null };
 type Progress = { lesson_id: string; completed: boolean };
 
-export function CourseLearningActions({ courseId, lessons }: { courseId: string; lessons: { id: string; title: string }[] }) {
+export function CourseLearningActions({ courseId, lessons, offerings = [] }: { courseId: string; lessons: { id: string; title: string }[]; offerings?: Offering[] }) {
   const [enrolled, setEnrolled] = useState(false);
+  const [offeringId, setOfferingId] = useState(offerings[0]?.id || '');
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export function CourseLearningActions({ courseId, lessons }: { courseId: string;
     try {
       const response = await fetch('/api/academy/enrollments', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId }),
+        body: JSON.stringify({ courseId, offeringId: offeringId || null }),
       });
       const result = await response.json() as { enrollment?: Enrollment; alreadyEnrolled?: boolean; error?: string };
       if (!response.ok || !result.enrollment) throw new Error(result.error || 'تعذر التسجيل في الدورة.');
@@ -84,7 +86,14 @@ export function CourseLearningActions({ courseId, lessons }: { courseId: string;
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     {signedIn === false ? <p>سجّل الدخول لتسجيل نفسك وحفظ تقدمك الدراسي. <Link href="/login">تسجيل الدخول</Link></p>
-      : !enrolled ? <><p className="muted">التسجيل متاح للدورات المنشورة. لا يُعد هذا تسجيلًا مدفوعًا ولا يؤكد أي عملية دفع.</p><button className="btn primary" type="button" disabled={busy} onClick={() => void enroll()}>{busy ? 'جارٍ التسجيل...' : 'التسجيل في الدورة'}</button></>
+      : !enrolled ? <><p className="muted">التسجيل النهائي يتطلب قبولًا موثقًا وتأكيد الدفع من جهة موثوقة. اختر نفس العرض الذي قدمت طلب القبول له.</p>
+        {offerings.length > 0 && <label>المدرسة أو الفرع
+          <select required value={offeringId} onChange={e => setOfferingId(e.target.value)}>
+            <option value="">اختر العرض التعليمي</option>
+            {offerings.map(offering => <option key={offering.id} value={offering.id}>{offering.label} — {offering.language.toUpperCase()}</option>)}
+          </select>
+        </label>}
+        <button className="btn primary" type="button" disabled={busy || (offerings.length > 0 && !offeringId)} onClick={() => void enroll()}>{busy ? 'جارٍ التسجيل...' : 'التسجيل في الدورة'}</button></>
       : <><strong>أنت مسجل في هذه الدورة</strong><p className="muted">علّم الدروس التي أكملتها لحفظ تقدمك.</p>
         {lessons.map(lesson => <label key={lesson.id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <input type="checkbox" checked={completed[lesson.id] === true} disabled={busy} onChange={event => void toggleLesson(lesson.id, event.target.checked)} />
