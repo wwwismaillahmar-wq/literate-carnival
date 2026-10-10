@@ -37,6 +37,17 @@ export async function POST(request: Request) {
     const { data: course, error: courseError } = await db.from('courses').select('*').eq('id', courseId).maybeSingle();
     if (courseError) return NextResponse.json({ error: 'تعذر التحقق من الدورة.' }, { status: 500 });
     if (!course || !published(course as Record<string, unknown>)) return NextResponse.json({ error: 'الدورة غير منشورة أو غير موجودة.' }, { status: 404 });
+    const { data: admission, error: admissionError } = await db.from('academy_admission_applications')
+      .select('id,status').eq('user_id', user.id).eq('course_id', courseId)
+      .in('status', ['accepted','payment_pending','paid','enrolled'])
+      .order('submitted_at', { ascending: false }).limit(1).maybeSingle();
+    if (admissionError) return NextResponse.json({ error: 'تعذر التحقق من قرار القبول.' }, { status: 500 });
+    if (!admission) return NextResponse.json({ error: 'يجب إرسال طلب القبول واجتياز المراجعة قبل التسجيل النهائي.' }, { status: 403 });
+    if (admission.status !== 'paid' && admission.status !== 'enrolled') {
+      return NextResponse.json({ error: admission.status === 'accepted' || admission.status === 'payment_pending'
+        ? 'تم قبول الطلب مبدئيًا، لكن التسجيل ينتظر تأكيد الدفع من جهة الدفع الموثوقة.'
+        : 'طلب القبول غير جاهز للتسجيل النهائي.' }, { status: 409 });
+    }
     const { data, error } = await db.from('academy_enrollments').upsert({
       user_id: user.id, course_id: courseId, status: 'enrolled', completed_at: null,
     }, { onConflict: 'user_id,course_id', ignoreDuplicates: true })
