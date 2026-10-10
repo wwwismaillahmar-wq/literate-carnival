@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { PartnerApplicationsWorkspace } from '@/components/admin/PartnerApplicationsWorkspace';
+import { PartnerIdentityDocumentsReview } from '@/components/admin/PartnerIdentityDocumentsReview';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,7 @@ export default async function AdminPartnersPage() {
         <h1>طلبات الشراكة</h1>
         <p className="muted">طلبات محفوظة في قاعدة البيانات. تغيير الحالة والملاحظات يمر عبر API محمي ويتطلب صلاحية super_admin.</p>
         <PartnerApplicationsWorkspace />
+        <PartnerIdentityDocumentsReview />
       </div>
     </main>
   );
