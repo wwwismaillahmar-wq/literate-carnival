@@ -47,10 +47,11 @@ select is((select status from public.service_requests
   where request_number='M17-VALID-'||(select substr(user_id::text,1,8) from m17_service_write_ids)),
   'submitted','RPC persists the initial status and the row can be read back');
 
-select throws_ok($q$
-  update public.service_requests set status='completed'
-  where request_number='M17-VALID-'||(select substr(user_id::text,1,8) from m17_service_write_ids)
-$q$,'42501',null,'customers cannot directly update request lifecycle state');
+update public.service_requests set status='completed'
+where request_number='M17-VALID-'||(select substr(user_id::text,1,8) from m17_service_write_ids);
+select is((select status from public.service_requests
+  where request_number='M17-VALID-'||(select substr(user_id::text,1,8) from m17_service_write_ids)),
+  'submitted','RLS prevents customers from directly changing request lifecycle state');
 
 select throws_ok($q$
   select public.transition_service_request(
