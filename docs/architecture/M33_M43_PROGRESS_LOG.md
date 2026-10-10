@@ -122,3 +122,11 @@ The work is isolated on `feat/m33-m43-domain-completion`; the main branch has no
 - Existing service-request flow remains a separate service domain and uses its own validated create_service_request transaction/state-machine actions; it is not merged into product checkout.
 - Not complete: product-media/admin workflows, customer order detail/cancel/return flows, verified payment initiation/callback settlement, delivery status management and end-to-end checkout tests remain to be validated.
 - Status: UI/server integration CODE PRESENT / RUNTIME UNVERIFIED.
+
+### Build / migration gate recovery — 2026-10-10
+- Retrieved actual GitHub Actions logs rather than inferring from deployment status.
+- Fixed four ESLint blockers and the TypeScript errors in certificate verification, partner organization relation typing, CRM lead update payload, and site-settings field validation.
+- The original clean-replay history has no recoverable public.contributions table-creation migration on the current branch or inspected historical branches. The migration failed first on a duplicate named constraint, then on public.products missing before the foundational migration, then on public.contributions missing before M03 social-content policies.
+- Applied additive, replay-safe bootstrap definitions for the foundational catalog/security tables and the minimal contributions contract required by existing app consumers/downstream migrations. This is a documented reconstruction, not a claim that the original migration source was recovered. Production data is not touched by CI; established tables are guarded with CREATE TABLE IF NOT EXISTS, and duplicate constraints are guarded by catalog checks.
+- Quality workflow now runs on feat/**, executes ESLint, TypeScript, production build, migration filename/timestamp validation, a clean isolated Supabase migration replay, and pgTAP tests. Unused Supabase containers were excluded to reduce unnecessary image pulls.
+- Latest observed verification: ESLint PASS and TypeScript PASS on the feature branch. Production build and full clean database replay/pgTAP remain pending/failing investigation until a current run completes; do not mark the phase closed before both pass.
