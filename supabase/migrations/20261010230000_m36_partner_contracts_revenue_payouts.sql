@@ -536,7 +536,7 @@ begin
   end if;
 
   update public.partner_payouts set status=p_status,
-    provider_reference=case when p_status='paid' then btrim(p_provider_reference) else provider_reference end,
+    provider_reference=case when p_status='paid' then btrim(p_provider_reference) else v_payout.provider_reference end,
     review_note=coalesce(p_review_note,''), reviewer_id=v_user, reviewed_at=v_now,
     paid_at=case when p_status='paid' then coalesce(paid_at,v_now) else paid_at end, updated_at=v_now
    where id=v_payout.id returning * into v_payout;
