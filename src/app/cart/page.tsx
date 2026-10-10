@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getActiveCart } from '@/domains/commerce/cart';
 
 type CartItemRow = {
@@ -29,6 +30,7 @@ export default async function CartPage() {
               </article>
             ))}
             {!cart.cart_items.length && <article className="card"><p>السلة فارغة.</p></article>}
+            {!!cart.cart_items.length && <article className="card"><h2>الانتقال إلى الشراء</h2><p className="muted">راجع عنوان التسليم قبل إنشاء الطلب.</p><Link className="btn primary" href="/checkout">إتمام الطلب</Link></article>}
           </div>
         )}
       </div>
