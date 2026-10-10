@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     if (assessmentError || !assessment) return NextResponse.json({ error: 'الاختبار غير موجود.' }, { status: 404 });
     if (assessment.status !== 'draft') return NextResponse.json({ error: 'لا يمكن تعديل أسئلة اختبار منشور أو مؤرشف؛ أنشئ نسخة جديدة.' }, { status: 409 });
     const { data, error } = await db.from('academy_assessment_questions').insert({
-      assessment_id: assessmentId, prompt, options: options.map((option: {key:string;label:string}, index:number) => ({ key: option.key.trim(), label: option.label.trim() })), correct_option: correctOption, sort_order: Number.isInteger(body.sortOrder) && body.sortOrder >= 0 ? body.sortOrder : 0,
+      assessment_id: assessmentId, prompt, options: options.map((option: {key:string;label:string}) => ({ key: option.key.trim(), label: option.label.trim() })), correct_option: correctOption, sort_order: Number.isInteger(body.sortOrder) && body.sortOrder >= 0 ? body.sortOrder : 0,
     }).select('id,assessment_id,prompt,options,correct_option,sort_order,created_at').single();
     if (error) return NextResponse.json({ error: 'تعذر حفظ السؤال.' }, { status: 500 });
     return NextResponse.json({ question: data }, { status: 201 });
