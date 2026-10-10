@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { PartnerApplicationForm } from '@/components/PartnerApplicationForm';
 
 export default function Partners() {
@@ -6,6 +7,7 @@ export default function Partners() {
       <div className="wrap">
         <span className="kicker">PARTNERS / M36</span>
         <h1>الشراكات</h1>
+        <p><Link className="btn" href="/partners/portal">فضاء الشركاء ومتابعة الطلبات ↗</Link></p>
         <div className="grid two" style={{ marginTop: 24, alignItems: 'start' }}>
           <section className="card">
             <h2>ابنِ شراكة مع ASLAN</h2>
