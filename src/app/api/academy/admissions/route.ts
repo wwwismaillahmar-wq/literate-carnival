@@ -99,7 +99,7 @@ export async function PATCH(request: Request) {
     const allowedTransitions: Record<string, string[]> = {
       submitted: ['under_review','accepted','rejected','needs_information','cancelled','expired'],
       under_review: ['accepted','rejected','needs_information','cancelled','expired'],
-      needs_information: ['submitted','under_review','rejected','cancelled','expired'],
+      needs_information: ['submitted','under_review','accepted','rejected','cancelled','expired'],
       accepted: ['expired','cancelled'],
       rejected: [],
       payment_pending: ['expired','cancelled'],
