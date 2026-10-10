@@ -16,6 +16,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  database-integrity:
+    name: Replay migrations and run pgTAP acceptance tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start isolated local database services
+        run: supabase start -x studio,inbucket,edge-runtime,logflare,vector,imgproxy
+
+      - name: Replay complete migration history from an empty database
+        run: supabase db reset
+
+      - name: Run pgTAP database acceptance tests
+        run: supabase test db
+
   verify:
     name: Lint, TypeScript, and production build
     runs-on: ubuntu-latest
