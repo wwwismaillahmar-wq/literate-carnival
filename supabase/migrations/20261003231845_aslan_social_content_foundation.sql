@@ -72,31 +72,20 @@ alter table public.contributions
 alter table public.contributions
   add column if not exists published_at timestamptz;
 
--- This historical migration must replay against both the legacy schema and
--- schemas where equivalent contribution constraints already exist. PostgreSQL
--- has no ADD CONSTRAINT IF NOT EXISTS, so guard by constraint name explicitly.
-do $
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.contributions'::regclass
-      and conname = 'contributions_title_length'
-  ) then
-    alter table public.contributions
-      add constraint contributions_title_length
-      check (char_length(title) between 1 and 160);
-  end if;
+-- Normalize these constraints explicitly instead of a DO block: the
+-- Supabase migration runner splits SQL statements before sending them to
+-- PostgreSQL, and this keeps the migration replayable by that runner.
+alter table public.contributions
+  drop constraint if exists contributions_title_length;
+alter table public.contributions
+  add constraint contributions_title_length
+  check (char_length(title) between 1 and 160);
 
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.contributions'::regclass
-      and conname = 'contributions_content_length'
-  ) then
-    alter table public.contributions
-      add constraint contributions_content_length
-      check (char_length(content) <= 10000);
-  end if;
-end $;
+alter table public.contributions
+  drop constraint if exists contributions_content_length;
+alter table public.contributions
+  add constraint contributions_content_length
+  check (char_length(content) <= 10000);
 
 create index if not exists contributions_visibility_idx
 on public.contributions(status, visibility, created_at desc);
