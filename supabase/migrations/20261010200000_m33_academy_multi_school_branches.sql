@@ -115,7 +115,7 @@ create policy academy_branches_public_read on public.academy_branches
   for select to anon, authenticated using (
     (status = 'active' and exists (
       select 1 from public.academy_schools s where s.id = school_id and s.status = 'active'
-    )) or (select private.can_manage_academy_school(school_id, branch_id))
+    )) or (select private.can_manage_academy_school(school_id, id))
   );
 drop policy if exists academy_branches_manager_write on public.academy_branches;
 create policy academy_branches_manager_write on public.academy_branches
