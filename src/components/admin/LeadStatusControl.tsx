@@ -16,7 +16,7 @@ export function LeadStatusControl({ lead: initialLead, users }: { lead: LeadCont
   async function save(){
     if(busy)return;setBusy(true);setError('');setNotice('');
     try{
-      const response=await fetch('/api/crm/leads',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({leadId,status,assignedTo:assignee||null})});
+      const response=await fetch('/api/crm/leads',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({leadId:initialLead.id,status,assignedTo:assignee||null})});
       const result=await response.json() as {lead?:LeadControl;error?:string};
       if(!response.ok||!result.lead)throw new Error(result.error||'تعذر حفظ حالة العميل.');
       setStatus(result.lead.status);setAssignee(result.lead.assigned_to??'');setNotice('تم حفظ الحالة والتعيين مع تسجيل التغيير.');
