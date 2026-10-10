@@ -277,8 +277,8 @@ begin
     raise exception 'CONTRACT_HASH_MISMATCH';
   end if;
 
-  select * into v_signature from public.partner_contract_signatures
-   where version_id = v_version.id and signer_id = v_user;
+  select s.* into v_signature from public.partner_contract_signatures s
+   where s.version_id = v_version.id and s.signer_id = v_user;
   if found then
     return query select v_contract.id,v_version.id,v_contract.status,v_signature.signed_at,v_signature.accepted_terms_hash;
     return;
@@ -404,7 +404,7 @@ begin
     or length(coalesce(p_idempotency_key,'')) not between 8 and 240 then
     raise exception 'INVALID_PARTNER_EARNING';
   end if;
-  select * into v_contract from public.partner_contracts where id=p_contract_id and status='active' for update;
+  select c.* into v_contract from public.partner_contracts c where c.id=p_contract_id and c.status='active' for update;
   if not found then raise exception 'ACTIVE_CONTRACT_REQUIRED'; end if;
 
   insert into public.partner_revenue_ledger(owner_id,organization_id,contract_id,source_type,source_id,direction,
@@ -473,10 +473,10 @@ begin
   if found then
     if v_payout.amount is distinct from p_amount or v_payout.currency is distinct from p_currency
       or v_payout.payout_profile_id is distinct from p_payout_profile_id then raise exception 'PAYOUT_IDEMPOTENCY_CONFLICT'; end if;
-    select coalesce(sum(case when direction='credit' then amount else -amount end),0) into v_available
-      from public.partner_revenue_ledger where owner_id=v_user and currency=p_currency and status in ('approved','paid');
-    select coalesce(sum(amount),0) into v_reserved from public.partner_payouts
-      where owner_id=v_user and currency=p_currency and status in ('requested','approved','processing');
+    select coalesce(sum(case when l.direction='credit' then l.amount else -l.amount end),0) into v_available
+      from public.partner_revenue_ledger l where l.owner_id=v_user and l.currency=p_currency and l.status in ('approved','paid');
+    select coalesce(sum(p.amount),0) into v_reserved from public.partner_payouts p
+      where p.owner_id=v_user and p.currency=p_currency and p.status in ('requested','approved','processing');
     return query select v_payout.id,v_payout.status,v_payout.amount,v_payout.currency,v_available-v_reserved,true;
     return;
   end if;
@@ -485,12 +485,12 @@ begin
    where id=p_payout_profile_id and owner_id=v_user and status='verified';
   if not found then raise exception 'VERIFIED_PAYOUT_PROFILE_REQUIRED'; end if;
 
-  select coalesce(sum(amount),0) into v_earned from public.partner_revenue_ledger
-   where owner_id=v_user and currency=p_currency and direction='credit' and status in ('approved','paid');
-  select coalesce(sum(amount),0) into v_debited from public.partner_revenue_ledger
-   where owner_id=v_user and currency=p_currency and direction='debit' and status in ('approved','paid');
-  select coalesce(sum(amount),0) into v_reserved from public.partner_payouts
-   where owner_id=v_user and currency=p_currency and status in ('requested','approved','processing');
+  select coalesce(sum(l.amount),0) into v_earned from public.partner_revenue_ledger l
+   where l.owner_id=v_user and l.currency=p_currency and l.direction='credit' and l.status in ('approved','paid');
+  select coalesce(sum(l.amount),0) into v_debited from public.partner_revenue_ledger l
+   where l.owner_id=v_user and l.currency=p_currency and l.direction='debit' and l.status in ('approved','paid');
+  select coalesce(sum(p.amount),0) into v_reserved from public.partner_payouts p
+   where p.owner_id=v_user and p.currency=p_currency and p.status in ('requested','approved','processing');
   v_available := v_earned - v_debited - v_reserved;
   if p_amount > v_available then raise exception 'INSUFFICIENT_PARTNER_BALANCE'; end if;
 
