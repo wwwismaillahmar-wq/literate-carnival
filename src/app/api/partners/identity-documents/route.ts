@@ -28,10 +28,17 @@ export async function GET() {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'تعذر تحميل وثائق التحقق.' }, { status: 500 });
 
+  const profileIds = [...new Set((data ?? []).map((document) => document.identity_profile_id))];
+  const { data: profiles, error: profileError } = profileIds.length
+    ? await db.from('partner_identity_profiles').select('id,legal_name,country_code,review_status').in('id', profileIds)
+    : { data: [], error: null };
+  if (profileError) return NextResponse.json({ error: 'تعذر تحميل حالة ملفات الهوية.' }, { status: 500 });
+  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
   const documents = await Promise.all((data ?? []).map(async (document) => {
-    if (document.upload_status !== 'uploaded') return { ...document, signed_url: null, object_path: undefined };
+    const identityProfile = profileById.get(document.identity_profile_id) ?? null;
+    if (document.upload_status !== 'uploaded') return { ...document, identity_profile: identityProfile, signed_url: null, object_path: undefined };
     const signed = await db.storage.from(bucket).createSignedUrl(document.object_path, 60);
-    return { ...document, signed_url: signed.data?.signedUrl ?? null, object_path: undefined };
+    return { ...document, identity_profile: identityProfile, signed_url: signed.data?.signedUrl ?? null, object_path: undefined };
   }));
   return NextResponse.json({ documents });
 }
@@ -115,6 +122,27 @@ export async function PATCH(request: Request) {
     const { user, admin } = await currentAccess(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
+
+    if (body.reviewType === 'profile') {
+      if (!admin) return NextResponse.json({ error: 'مراجعة ملفات الهوية للإدارة فقط.' }, { status: 403 });
+      const profileId = typeof body.profileId === 'string' ? body.profileId.trim() : '';
+      const status = typeof body.reviewStatus === 'string' ? body.reviewStatus : '';
+      const reviewNote = typeof body.reviewNote === 'string' ? body.reviewNote.trim() : '';
+      if (!uuid.test(profileId) || !allowedReviews.has(status) || reviewNote.length > 2000) {
+        return NextResponse.json({ error: 'قرار مراجعة ملف الهوية غير صالح.' }, { status: 400 });
+      }
+      const { data, error } = await db.rpc('admin_review_partner_identity_profile', {
+        p_profile_id: profileId, p_status: status, p_review_note: reviewNote,
+      });
+      if (error) {
+        const message = error.message.includes('IDENTITY_EVIDENCE_NOT_VERIFIED')
+          ? 'لا يمكن اعتماد ملف الهوية قبل اعتماد وثيقة مرفوعة ومتحقق منها.'
+          : error.message.includes('IDENTITY_PROFILE_NOT_FOUND') ? 'ملف الهوية غير موجود.' : 'تعذر حفظ قرار ملف الهوية.';
+        return NextResponse.json({ error: message }, { status: error.message.includes('IDENTITY_EVIDENCE_NOT_VERIFIED') ? 409 : 500 });
+      }
+      return NextResponse.json({ profile: Array.isArray(data) ? data[0] : data });
+    }
+
     const documentId = typeof body.documentId === 'string' ? body.documentId.trim() : '';
     if (!uuid.test(documentId)) return NextResponse.json({ error: 'معرّف الوثيقة غير صالح.' }, { status: 400 });
 
