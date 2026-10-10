@@ -24,7 +24,7 @@ grant select on m17_service_write_ids to authenticated;
 select set_config('request.jwt.claim.sub',(select user_id::text from m17_service_write_ids),true);
 set local role authenticated;
 
-select ok(has_function('public','create_service_request',array['text','uuid','text','timestamp with time zone']),
+select has_function('public','create_service_request',array['text','uuid','text','timestamp with time zone'],
   'request creation remains available through the validated RPC');
 
 select throws_ok($q$
