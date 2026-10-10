@@ -8,9 +8,9 @@ select has_column('public', 'partner_identity_profiles', 'review_status', 'Ident
 select has_column('public', 'partner_identity_profiles', 'consent_at', 'Identity collection records consent');
 select has_column('public', 'partner_identity_documents', 'storage_bucket', 'Identity evidence is scoped to private storage');
 select has_column('public', 'partner_identity_documents', 'file_size_bytes', 'Identity document size is constrained');
-select has_policy('public', 'partner_identity_profiles', 'partner_identity_profiles_owner_select', 'Identity profiles are owner or organization scoped');
+select has_policy('public', 'partner_identity_profiles', 'partner_identity_profiles_owner_select', 'Identity profiles are owner or super-admin scoped');
 select has_policy('public', 'partner_identity_profiles', 'partner_identity_profiles_admin_update', 'Identity verification decisions are admin controlled');
-select has_policy('public', 'partner_identity_documents', 'partner_identity_documents_owner_select', 'Identity documents are private to authorized subjects');
+select has_policy('public', 'partner_identity_documents', 'partner_identity_documents_owner_select', 'Identity documents are private to uploader or super-admin');
 select has_policy('public', 'partner_identity_documents', 'partner_identity_documents_admin_update', 'Identity document review is admin controlled');
 select * from finish();
 rollback;
