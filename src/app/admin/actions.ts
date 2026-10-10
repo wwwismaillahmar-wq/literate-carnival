@@ -803,8 +803,10 @@ export async function markPaymentPaid(formData: FormData) {
   if (error) {
     const message = error.message.includes('PAYMENT_REFERENCE_REQUIRED')
       ? 'مرجع عملية الدفع مطلوب قبل تأكيد بوابة تعمل في الوضع الفعلي.'
-      : 'تعذر تأكيد الدفع والفاتورة ذريًا';
-    dbError(message, error, '/admin/control');
+      : error.message.includes('PAYMENT_INVOICE_MISMATCH')
+        ? 'رفضت قاعدة البيانات التأكيد لأن المبلغ أو العملة أو صاحب الدفع لا يطابق الفاتورة.'
+        : 'تعذر تأكيد الدفع والفاتورة ذريًا';
+    return redirect('/admin/payments?error=' + encodeURIComponent(message));
   }
   const result = Array.isArray(data) ? data[0] : data;
   if (!result?.payment_id || !result?.invoice_id || result.status !== 'paid') dbError('لم تُرجع قاعدة البيانات تأكيدًا صالحًا للدفع', null, '/admin/control');
