@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - 'feat/**'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +19,7 @@ jobs:
   verify:
     name: Lint, TypeScript, and production build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
@@ -38,6 +39,30 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: Verify migration file ordering and duplicate timestamps
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, sys
+          files = sorted(Path('supabase/migrations').glob('*.sql'))
+          errors = []
+          seen = {}
+          for path in files:
+              match = re.match(r'^(\d{14})_', path.name)
+              if not match:
+                  errors.append(f'{path}: migration filename must start with a 14-digit timestamp and underscore')
+                  continue
+              stamp = match.group(1)
+              if stamp in seen:
+                  errors.append(f'duplicate migration timestamp {stamp}: {seen[stamp]} and {path}')
+              seen[stamp] = path
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print(f'Validated naming/order uniqueness for {len(files)} migration files.')
+          PY
 
       - name: TypeScript check
         run: npx tsc --noEmit
