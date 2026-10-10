@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول لعرض طلبات القبول.' }, { status: 401 });
   const params = new URL(request.url).searchParams;
   const id = params.get('id')?.trim();
-  let query = db.from('academy_admission_applications').select('id,course_id,user_id,applicant_name,applicant_email,applicant_phone,answers,screening_version,status,reviewer_id,reviewed_at,review_note,submitted_at,updated_at').order('submitted_at', { ascending: false }).limit(200);
+  let query = db.from('academy_admission_applications').select('id,course_id,offering_id,user_id,applicant_name,applicant_email,applicant_phone,answers,screening_version,status,reviewer_id,reviewed_at,review_note,submitted_at,updated_at').order('submitted_at', { ascending: false }).limit(200);
   if (id) {
     if (!uuid.test(id)) return NextResponse.json({ error: 'معرّف الطلب غير صالح.' }, { status: 400 });
     query = query.eq('id', id);
@@ -46,12 +46,13 @@ export async function POST(request: Request) {
     const { data: { user } } = await db.auth.getUser();
     const body = await request.json();
     const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : '';
+    const offeringId = typeof body.offeringId === 'string' && body.offeringId.trim() ? body.offeringId.trim() : null;
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
     const consent = body.consent === true;
     const answers = body.answers && typeof body.answers === 'object' && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : null;
-    if (!courseId || courseId.length > 120 || name.length < 2 || name.length > 160 ||
+    if (!courseId || courseId.length > 120 || (offeringId && !uuid.test(offeringId)) || name.length < 2 || name.length > 160 ||
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || phone.length < 6 || phone.length > 30 ||
         !consent || !answers || Object.keys(answers).length > 100) {
       return NextResponse.json({ error: 'أكمل بيانات المتقدم والأسئلة والموافقة قبل إرسال الطلب.' }, { status: 400 });
@@ -59,7 +60,31 @@ export async function POST(request: Request) {
     const { data: course, error: courseError } = await db.from('courses').select('*').eq('id', courseId).maybeSingle();
     if (courseError) return NextResponse.json({ error: 'تعذر التحقق من الدورة.' }, { status: 500 });
     if (!course || !published(course as Course)) return NextResponse.json({ error: 'الدورة غير منشورة أو غير متاحة للقبول.' }, { status: 404 });
-    const { data: questions, error: questionError } = await db.from('academy_admission_questions').select('id,prompt,question_type,options,required,active').eq('course_id', courseId).eq('active', true).order('sort_order');
+    if (offeringId) {
+      const { data: offering, error: offeringError } = await db.from('academy_course_offerings')
+        .select('id,course_id,school_id,branch_id,status').eq('id', offeringId).maybeSingle();
+      if (offeringError) return NextResponse.json({ error: 'تعذر التحقق من عرض المدرسة.' }, { status: 500 });
+      if (!offering || offering.course_id !== courseId || offering.status !== 'published') {
+        return NextResponse.json({ error: 'عرض الدورة غير متاح للقبول.' }, { status: 404 });
+      }
+      const { data: school } = await db.from('academy_schools').select('status').eq('id', offering.school_id).maybeSingle();
+      if (!school || school.status !== 'active') return NextResponse.json({ error: 'المدرسة غير متاحة حاليًا.' }, { status: 409 });
+      if (offering.branch_id) {
+        const { data: branch } = await db.from('academy_branches').select('status').eq('id', offering.branch_id).maybeSingle();
+        if (!branch || branch.status !== 'active') return NextResponse.json({ error: 'الفرع غير متاح حاليًا.' }, { status: 409 });
+      }
+    } else {
+      const { data: availableOfferings, error: offeringsError } = await db.from('academy_course_offerings')
+        .select('id').eq('course_id', courseId).eq('status', 'published').limit(1);
+      if (offeringsError) return NextResponse.json({ error: 'تعذر التحقق من عروض الدورة.' }, { status: 500 });
+      if (availableOfferings?.length) return NextResponse.json({ error: 'اختر المدرسة أو الفرع قبل إرسال طلب القبول.' }, { status: 400 });
+    }
+    let questionQuery = db.from('academy_admission_questions').select('id,prompt,question_type,options,required,active')
+      .eq('course_id', courseId).eq('active', true);
+    questionQuery = offeringId
+      ? questionQuery.or(`offering_id.is.null,offering_id.eq.${offeringId}`)
+      : questionQuery.is('offering_id', null);
+    const { data: questions, error: questionError } = await questionQuery.order('sort_order');
     if (questionError) return NextResponse.json({ error: 'تعذر التحقق من أسئلة القبول.' }, { status: 500 });
     const questionIds = new Set((questions ?? []).map(q => q.id));
     if (Object.keys(answers).some(key => !questionIds.has(key))) return NextResponse.json({ error: 'تحتوي الإجابات على سؤال غير معتمد لهذه الدورة.' }, { status: 400 });
@@ -73,9 +98,9 @@ export async function POST(request: Request) {
     }
     const screeningVersion = { submittedAt: new Date().toISOString(), questions: (questions ?? []).map(q => ({ id: q.id, prompt: q.prompt, question_type: q.question_type, options: q.options, required: q.required })) };
     const { data, error } = await db.from('academy_admission_applications').insert({
-      course_id: courseId, user_id: user?.id ?? null, applicant_name: name, applicant_email: email, applicant_phone: phone,
+      course_id: courseId, offering_id: offeringId, user_id: user?.id ?? null, applicant_name: name, applicant_email: email, applicant_phone: phone,
       answers, screening_version: screeningVersion, consent_at: new Date().toISOString(), status: 'submitted',
-    }).select('id,course_id,status,submitted_at').single();
+    }).select('id,course_id,offering_id,status,submitted_at').single();
     if (error?.code === '23505') return NextResponse.json({ error: 'يوجد طلب قائم بهذا البريد لهذه الدورة.' }, { status: 409 });
     if (error) return NextResponse.json({ error: 'تعذر حفظ طلب القبول.' }, { status: 500 });
     return NextResponse.json({ application: data, message: 'تم إرسال طلب القبول للمراجعة. لا يتم التسجيل النهائي أو الدفع قبل صدور قرار القبول.' }, { status: 201 });
