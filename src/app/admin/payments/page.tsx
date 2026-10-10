@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 
 type Payment = { id:string; invoice_id:string; payer_id:string; provider:string; provider_reference:string|null; amount:number; currency:string; status:string; created_at:string; };
 
-export default async function AdminPayments() {
+export default async function AdminPayments({ searchParams }: { searchParams?: Promise<{ error?: string }> }) {
+  const params = searchParams ? await searchParams : {};
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
@@ -19,6 +20,7 @@ export default async function AdminPayments() {
     <Link href="/admin/dashboard">← لوحة التحكم</Link>
     <span className="kicker" style={{display:'block',marginTop:24}}>M15 / PAYMENTS</span>
     <h1>تشغيل المدفوعات</h1>
+    {params.error && <article className="card" role="alert" style={{marginTop:16}}>{params.error}</article>}
     <p className="muted">طلبات الدفع الواردة من طرق الدفع المفعلة. قبل التأكيد، راجع التحويل أو إيصال بوابة الدفع وأدخل مرجع العملية؛ تحفظ قاعدة البيانات مرجع العملية والدفع والفاتورة في معاملة واحدة.</p>
     <div className="grid" style={{marginTop:24}}>
       {rows.map(p=><article className="card" key={p.id}>
