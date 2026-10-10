@@ -2,7 +2,7 @@
 -- Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(13);
 
 create temporary table m43_ids (
   user_one uuid not null,
