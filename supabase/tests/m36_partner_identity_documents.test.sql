@@ -1,7 +1,7 @@
 -- M36 behavioral acceptance: private bucket, owner isolation, upload confirmation and admin-only review.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(15);
 
 select ok(exists (
   select 1 from storage.buckets
@@ -24,6 +24,24 @@ select ok(exists (
   where schemaname = 'storage' and tablename = 'objects'
     and policyname = 'partner_private_documents_owner_insert'
 ), 'private object upload policy is installed');
+
+select ok((
+  select allowed_mime_types @> array['application/pdf','image/jpeg','image/png','image/webp']::text[]
+     and array['application/pdf','image/jpeg','image/png','image/webp']::text[] @> allowed_mime_types
+  from storage.buckets where id = 'aslan-private-documents'
+), 'private document bucket allows only the four verified document MIME types');
+
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'storage' and tablename = 'objects'
+    and policyname = 'partner_private_documents_owner_select'
+), 'private document reads are restricted to the owner or super admin');
+
+select ok(exists (
+  select 1 from pg_policies
+  where schemaname = 'storage' and tablename = 'objects'
+    and policyname = 'partner_private_documents_owner_delete'
+), 'private document deletion is restricted to the owner or super admin');
 
 create temporary table m36_document_test_ids (
   owner_id uuid not null,
