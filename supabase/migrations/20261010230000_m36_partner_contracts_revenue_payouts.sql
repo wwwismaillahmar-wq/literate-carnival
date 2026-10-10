@@ -481,8 +481,8 @@ begin
     return;
   end if;
 
-  select * into v_profile from public.partner_payout_profiles
-   where id=p_payout_profile_id and owner_id=v_user and status='verified';
+  select pp.* into v_profile from public.partner_payout_profiles pp
+   where pp.id=p_payout_profile_id and pp.owner_id=v_user and pp.status='verified';
   if not found then raise exception 'VERIFIED_PAYOUT_PROFILE_REQUIRED'; end if;
 
   select coalesce(sum(l.amount),0) into v_earned from public.partner_revenue_ledger l
