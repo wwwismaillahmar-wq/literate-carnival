@@ -4,6 +4,15 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type PartnerMembershipRow = {
+  organization_id: string;
+  role_id: string | null;
+  status: string;
+  created_at: string;
+  organizations: { id: string; name: string; slug: string; type: string; status: string } | { id: string; name: string; slug: string; type: string; status: string }[] | null;
+  roles: { key: string; name: string } | { key: string; name: string }[] | null;
+};
+
 export default async function PartnerPortalPage() {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
@@ -11,7 +20,7 @@ export default async function PartnerPortalPage() {
   const { data: memberships, error } = await db.from('organization_members')
     .select('organization_id,role_id,status,created_at,organizations(id,name,slug,type,status),roles(key,name)')
     .eq('user_id', user.id).eq('status', 'active').order('created_at', { ascending: false });
-  const partnerMemberships = (memberships ?? []).filter(item => {
+  const partnerMemberships = ((memberships ?? []) as unknown as PartnerMembershipRow[]).filter(item => {
     const org = Array.isArray(item.organizations) ? item.organizations[0] : item.organizations;
     return org?.type === 'partner';
   });
