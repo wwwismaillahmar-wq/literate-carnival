@@ -16,6 +16,14 @@ async function currentAccess(db: Awaited<ReturnType<typeof createClient>>) {
   return { user, admin: !error && data === true };
 }
 
+function actualMime(bytes: Buffer): string | null {
+  if (bytes.length >= 5 && bytes.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  return null;
+}
+
 export async function GET() {
   const db = await createClient();
   const { user, admin } = await currentAccess(db);
@@ -53,24 +61,37 @@ export async function POST(request: Request) {
     }
   }
 
+  let uploadedPath: string | null = null;
+  let db: Awaited<ReturnType<typeof createClient>> | null = null;
   try {
-    const db = await createClient();
+    db = await createClient();
     const { user } = await currentAccess(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    const body = await request.json();
-    const legalName = typeof body.legalName === 'string' ? body.legalName.trim() : '';
-    const countryCode = typeof body.countryCode === 'string' ? body.countryCode.trim().toUpperCase() : '';
-    const documentType = typeof body.documentType === 'string' ? body.documentType.trim() : '';
-    const mimeType = typeof body.mimeType === 'string' ? body.mimeType.trim().toLowerCase() : '';
-    const fileSize = typeof body.fileSize === 'number' ? body.fileSize : 0;
-    const issuingCountry = typeof body.issuingCountry === 'string' ? body.issuingCountry.trim() : countryCode;
-    const expiresAt = typeof body.expiresAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.expiresAt) ? body.expiresAt : null;
 
-    if (body.consent !== true || legalName.length < 2 || legalName.length > 220 ||
+    const form = await request.formData();
+    const fileValue = form.get('file');
+    if (!(fileValue instanceof File)) return NextResponse.json({ error: 'اختر ملف الوثيقة أولًا.' }, { status: 400 });
+    if (fileValue.size < 1 || fileValue.size > maxFileSize) return NextResponse.json({ error: 'حجم الوثيقة يجب ألا يتجاوز 10 MiB.' }, { status: 413 });
+
+    const bytes = Buffer.from(await fileValue.arrayBuffer());
+    const detectedMime = actualMime(bytes);
+    const declaredMime = fileValue.type.trim().toLowerCase();
+    if (!detectedMime || !allowedMime.has(declaredMime) || detectedMime !== declaredMime) {
+      return NextResponse.json({ error: 'نوع الملف الفعلي لا يطابق PDF أو JPEG أو PNG أو WebP المسموح.' }, { status: 415 });
+    }
+
+    const legalName = String(form.get('legalName') ?? '').trim();
+    const countryCode = String(form.get('countryCode') ?? '').trim().toUpperCase();
+    const documentType = String(form.get('documentType') ?? '').trim();
+    const issuingCountry = String(form.get('issuingCountry') ?? countryCode).trim();
+    const expiresRaw = String(form.get('expiresAt') ?? '').trim();
+    const expiresAt = /^\d{4}-\d{2}-\d{2}$/.test(expiresRaw) ? expiresRaw : null;
+    const consent = form.get('consent') === 'true';
+
+    if (!consent || legalName.length < 2 || legalName.length > 220 ||
         !/^[A-Z]{2,3}$/.test(countryCode) || documentType.length < 2 || documentType.length > 100 ||
-        !allowedMime.has(mimeType) || !Number.isInteger(fileSize) || fileSize < 1 || fileSize > maxFileSize ||
-        issuingCountry.length > 100 || (body.expiresAt && !expiresAt)) {
-      return NextResponse.json({ error: 'تحقق من الاسم القانوني والبلد ونوع الوثيقة والملف والموافقة.' }, { status: 400 });
+        issuingCountry.length > 100 || (expiresRaw && !expiresAt)) {
+      return NextResponse.json({ error: 'تحقق من الاسم القانوني والبلد ونوع الوثيقة والموافقة.' }, { status: 400 });
     }
 
     const { data: existing, error: existingError } = await db.from('partner_identity_profiles')
@@ -78,6 +99,18 @@ export async function POST(request: Request) {
     if (existingError) return NextResponse.json({ error: 'تعذر التحقق من ملف الهوية.' }, { status: 500 });
     if (existing && !['pending', 'needs_information', 'rejected'].includes(existing.review_status)) {
       return NextResponse.json({ error: 'ملف الهوية في حالة لا تسمح بتعديله؛ تواصل مع الإدارة عند الحاجة إلى تحديث رسمي.' }, { status: 409 });
+    }
+
+    const documentId = crypto.randomUUID();
+    const extension = detectedMime === 'application/pdf' ? 'pdf' : detectedMime === 'image/jpeg' ? 'jpg' : detectedMime === 'image/png' ? 'png' : 'webp';
+    uploadedPath = user.id + '/' + documentId + '/original.' + extension;
+    const { error: uploadError } = await db.storage.from(bucket).upload(uploadedPath, bytes, {
+      contentType: detectedMime,
+      upsert: false,
+    });
+    if (uploadError) {
+      uploadedPath = null;
+      return NextResponse.json({ error: 'تعذر رفع الوثيقة إلى المخزن الخاص.' }, { status: 503 });
     }
 
     let profileId: string;
@@ -88,7 +121,7 @@ export async function POST(request: Request) {
         review_status: 'pending', reviewer_id: null, reviewed_at: null, review_note: '',
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id).select('id').single();
-      if (error || !profile) return NextResponse.json({ error: 'تعذر تحديث ملف الهوية.' }, { status: 500 });
+      if (error || !profile) throw new Error('تعذر تحديث ملف الهوية.');
       profileId = profile.id;
     } else {
       const { data: profile, error } = await db.from('partner_identity_profiles').insert({
@@ -96,25 +129,30 @@ export async function POST(request: Request) {
         contact_email: (user.email ?? '').toLowerCase(), identity_document_type: documentType,
         consent_at: new Date().toISOString(), review_status: 'pending',
       }).select('id').single();
-      if (error || !profile) return NextResponse.json({ error: 'تعذر إنشاء ملف الهوية.' }, { status: 500 });
+      if (error || !profile) throw new Error('تعذر إنشاء ملف الهوية.');
       profileId = profile.id;
     }
 
-    const documentId = crypto.randomUUID();
-    const objectPath = user.id + '/' + documentId + '/original';
-    const { data: signedUpload, error: uploadError } = await db.storage.from(bucket).createSignedUploadUrl(objectPath);
-    if (uploadError || !signedUpload) return NextResponse.json({ error: 'تعذر إنشاء رابط رفع خاص. تحقق من إعداد التخزين.' }, { status: 503 });
-
     const { data: document, error: insertError } = await db.from('partner_identity_documents').insert({
       id: documentId, identity_profile_id: profileId, owner_id: user.id, document_type: documentType,
-      storage_bucket: bucket, object_path: objectPath, mime_type: mimeType, file_size_bytes: fileSize,
+      storage_bucket: bucket, object_path: uploadedPath, mime_type: detectedMime, file_size_bytes: bytes.byteLength,
       issuing_country: issuingCountry, expires_at: expiresAt, review_status: 'pending', upload_status: 'pending',
-    }).select('id,identity_profile_id,document_type,mime_type,file_size_bytes,issuing_country,expires_at,review_status,upload_status,created_at').single();
+    }).select('id').single();
+    if (insertError || !document) throw new Error('تعذر تسجيل الوثيقة في قاعدة البيانات.');
 
-    if (insertError || !document) return NextResponse.json({ error: 'تعذر تسجيل الوثيقة في قاعدة البيانات.' }, { status: 500 });
-    return NextResponse.json({ document, upload: { path: signedUpload.path, token: signedUpload.token } }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
+    const { data: completed, error: completionError } = await db.rpc('complete_partner_identity_document', { p_document_id: documentId });
+    if (completionError || !completed) {
+      return NextResponse.json({ error: 'حُفظ الملف والوثيقة، لكن تعذر تأكيد اكتمال الرفع. أعد المحاولة من قائمة الوثائق.' }, { status: 503 });
+    }
+
+    uploadedPath = null;
+    return NextResponse.json({ document: { id: documentId, upload_status: 'uploaded', mime_type: detectedMime, file_size_bytes: bytes.byteLength } }, { status: 201 });
+  } catch (cause) {
+    if (uploadedPath && db) {
+      await db.storage.from(bucket).remove([uploadedPath]);
+    }
+    const message = cause instanceof Error ? cause.message : 'تعذر حفظ وثيقة الهوية.';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
