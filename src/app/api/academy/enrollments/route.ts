@@ -62,16 +62,31 @@ export async function POST(request: Request) {
         ? 'تم قبول الطلب مبدئيًا، لكن التسجيل ينتظر تأكيد الدفع من جهة الدفع الموثوقة.'
         : 'طلب القبول غير جاهز للتسجيل النهائي.' }, { status: 409 });
     }
-    const { data, error } = await db.from('academy_enrollments').upsert({
-      user_id: user.id, course_id: courseId, offering_id: offeringId, status: 'enrolled', completed_at: null,
-    }, { onConflict: 'user_id,course_id', ignoreDuplicates: true })
-      .select('id,course_id,status,enrolled_at,completed_at').maybeSingle();
-    if (error) return NextResponse.json({ error: 'تعذر حفظ التسجيل.' }, { status: 500 });
-    if (data) return NextResponse.json({ enrollment: data }, { status: 201 });
-    const { data: existing, error: readError } = await db.from('academy_enrollments')
-      .select('id,course_id,offering_id,status,enrolled_at,completed_at').eq('user_id', user.id).eq('course_id', courseId).single();
-    if (readError || !existing) return NextResponse.json({ error: 'تعذر تأكيد التسجيل المحفوظ.' }, { status: 500 });
-    return NextResponse.json({ enrollment: existing, alreadyEnrolled: true });
+    const { data, error } = await db.rpc('enroll_academy_learner', {
+      p_course_id: courseId,
+      p_offering_id: offeringId,
+    });
+    if (error) {
+      if (error.message.includes('PAID_ADMISSION_REQUIRED')) {
+        return NextResponse.json({ error: 'التسجيل النهائي يتطلب قبولًا مؤكدًا ودفعًا موثقًا.' }, { status: 409 });
+      }
+      if (error.message.includes('OFFERING_REQUIRED')) {
+        return NextResponse.json({ error: 'اختر المدرسة أو الفرع قبل التسجيل.' }, { status: 400 });
+      }
+      if (error.message.includes('OFFERING_NOT_AVAILABLE') || error.message.includes('OFFERING_COURSE_MISMATCH')) {
+        return NextResponse.json({ error: 'عرض الدورة غير متاح أو لا يتبع هذه الدورة.' }, { status: 409 });
+      }
+      return NextResponse.json({ error: 'تعذر تأكيد التسجيل في قاعدة البيانات.' }, { status: 500 });
+    }
+    const saved = Array.isArray(data) ? data[0] : data;
+    if (!saved?.enrollment_id) return NextResponse.json({ error: 'تعذر تأكيد التسجيل المحفوظ.' }, { status: 500 });
+    const enrollment = {
+      id: saved.enrollment_id, course_id: saved.course_id, offering_id: saved.offering_id,
+      status: saved.status, enrolled_at: saved.enrolled_at, completed_at: saved.completed_at,
+    };
+    return NextResponse.json({ enrollment, alreadyEnrolled: saved.already_enrolled === true }, {
+      status: saved.already_enrolled === true ? 200 : 201,
+    });
   } catch {
     return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
   }
