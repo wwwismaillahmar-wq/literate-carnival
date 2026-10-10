@@ -84,7 +84,9 @@ export async function POST(request: Request) {
     if (existing) {
       const { data: profile, error } = await db.from('partner_identity_profiles').update({
         legal_name: legalName, country_code: countryCode, contact_email: (user.email ?? '').toLowerCase(),
-        identity_document_type: documentType, consent_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        identity_document_type: documentType, consent_at: new Date().toISOString(),
+        review_status: 'pending', reviewer_id: null, reviewed_at: null, review_note: '',
+        updated_at: new Date().toISOString(),
       }).eq('id', existing.id).select('id').single();
       if (error || !profile) return NextResponse.json({ error: 'تعذر تحديث ملف الهوية.' }, { status: 500 });
       profileId = profile.id;
