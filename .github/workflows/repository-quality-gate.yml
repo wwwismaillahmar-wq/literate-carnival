@@ -27,7 +27,7 @@ jobs:
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.120.0
 
       - name: Start isolated local database services
         run: supabase start -x studio,mailpit,edge-runtime,logflare,vector,imgproxy,postgres-meta,supavisor
