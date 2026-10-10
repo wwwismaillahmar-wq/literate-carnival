@@ -47,7 +47,7 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
     </div></main>;
   }
 
-  const moduleIds = (modules ?? []).map(module => module.id);
+  const moduleIds = (modules ?? []).map(academyModule => academyModule.id);
   const { data: assessments, error: assessmentError } = moduleIds.length
     ? await db.from('academy_assessments').select('id,module_id,title,pass_score').in('module_id', moduleIds).eq('status', 'published').order('created_at', { ascending: true })
     : { data: [], error: null };
@@ -62,9 +62,9 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
   const description = textField(course as CourseRow, ['description', 'summary', 'details']);
   const lessonGroups = new Map<string, typeof lessons>();
   const assessmentGroups = new Map<string, typeof assessments>();
-  for (const module of modules ?? []) {
-    lessonGroups.set(module.id, (lessons ?? []).filter(lesson => lesson.module_id === module.id));
-    assessmentGroups.set(module.id, (assessments ?? []).filter(assessment => assessment.module_id === module.id));
+  for (const academyModule of modules ?? []) {
+    lessonGroups.set(academyModule.id, (lessons ?? []).filter(lesson => lesson.module_id === academyModule.id));
+    assessmentGroups.set(academyModule.id, (assessments ?? []).filter(assessment => assessment.module_id === academyModule.id));
   }
 
   return <main className="section"><div className="wrap">
@@ -76,19 +76,19 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
     {assessmentError && <div className="card" role="alert">تعذر تحميل الاختبارات المنشورة.</div>}
     {!modules?.length && <div className="card" style={{ marginTop: 20 }}>لم يُنشر منهج لهذه الدورة بعد.</div>}
     <section className="grid" style={{ marginTop: 24 }}>
-      {(modules ?? []).map((module, index) => <article className="card" key={module.id}>
+      {(modules ?? []).map((academyModule, index) => <article className="card" key={academyModule.id}>
         <span className="kicker">MODULE {index + 1}</span>
-        <h2>{module.title}</h2>
-        {module.description && <p className="muted">{module.description}</p>}
+        <h2>{academyModule.title}</h2>
+        {academyModule.description && <p className="muted">{academyModule.description}</p>}
         <ol>
-          {(lessonGroups.get(module.id) ?? []).map(lesson => <li key={lesson.id} style={{ marginBottom: 16 }}>
+          {(lessonGroups.get(academyModule.id) ?? []).map(lesson => <li key={lesson.id} style={{ marginBottom: 16 }}>
             <strong>{lesson.title}</strong>
             <p className="muted">{lesson.lesson_type === 'video' ? 'درس فيديو' : lesson.lesson_type === 'document' ? 'مادة وثائقية' : lesson.lesson_type === 'link' ? 'رابط تعليمي' : 'درس نصي'}{lesson.duration_minutes ? ' · ' + lesson.duration_minutes + ' دقيقة' : ''}</p>
             {lesson.body && <p>{lesson.body}</p>}
             {lesson.resource_url && <a href={lesson.resource_url} target="_blank" rel="noreferrer">فتح المورد التعليمي ↗</a>}
           </li>)}
         </ol>
-        {(assessmentGroups.get(module.id) ?? []).map(assessment => <p key={assessment.id}><Link href={'/academy/assessments/' + assessment.id}>اختبار: {assessment.title} · النجاح {assessment.pass_score}% ↗</Link></p>)}
+        {(assessmentGroups.get(academyModule.id) ?? []).map(assessment => <p key={assessment.id}><Link href={'/academy/assessments/' + assessment.id}>اختبار: {assessment.title} · النجاح {assessment.pass_score}% ↗</Link></p>)}
       </article>)}
     </section>
     <CourseLearningActions courseId={String(course.id)} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />
