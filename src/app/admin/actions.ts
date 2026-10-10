@@ -791,13 +791,25 @@ export async function transitionServiceRequest(formData: FormData) {
 export async function markPaymentPaid(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
   const paymentId = textValue(formData, 'payment_id');
+  const providerReference = textValue(formData, 'provider_reference');
   if (!paymentId) throw new Error('معرّف الدفع غير صالح.');
-  const { data, error } = await db.rpc('admin_mark_payment_paid', { p_payment_id: paymentId });
-  if (error) dbError('تعذر تأكيد الدفع والفاتورة ذريًا', error, '/admin/control');
+  if (providerReference.length < 3 || providerReference.length > 200) {
+    return redirect('/admin/payments?error=' + encodeURIComponent('أدخل مرجع العملية الذي تمت مراجعته من إيصال التحويل أو بوابة الدفع.'));
+  }
+  const { data, error } = await db.rpc('admin_mark_payment_paid', {
+    p_payment_id: paymentId,
+    p_provider_reference: providerReference,
+  });
+  if (error) {
+    const message = error.message.includes('PAYMENT_REFERENCE_REQUIRED')
+      ? 'مرجع عملية الدفع مطلوب قبل تأكيد بوابة تعمل في الوضع الفعلي.'
+      : 'تعذر تأكيد الدفع والفاتورة ذريًا';
+    dbError(message, error, '/admin/control');
+  }
   const result = Array.isArray(data) ? data[0] : data;
   if (!result?.payment_id || !result?.invoice_id || result.status !== 'paid') dbError('لم تُرجع قاعدة البيانات تأكيدًا صالحًا للدفع', null, '/admin/control');
-  const warning = await auditWithWarning(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:result.invoice_id,atomic:true});
+  const warning = await auditWithWarning(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:result.invoice_id,providerReference,atomic:true});
   revalidatePath('/admin/payments');
   revalidatePath('/invoices');
-  finish('تم تأكيد الدفع وتحديث الفاتورة.', '/admin/control', warning);
+  finish('تم تأكيد الدفع والفاتورة ذريًا مع تسجيل مرجع العملية.', '/admin/control', warning);
 }
