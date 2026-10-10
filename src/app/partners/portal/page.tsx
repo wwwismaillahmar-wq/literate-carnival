@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { IdentityDocumentsWorkspace } from '@/components/partners/IdentityDocumentsWorkspace';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,7 @@ export default async function PartnerPortalPage() {
       <Link className="btn primary" href="/partners">طلب شراكة جديد</Link>
       <Link className="btn" href="/account">حسابي</Link>
     </div>
+    <IdentityDocumentsWorkspace />
     {error ? <section className="card" role="alert">
       <h2>تعذر تحميل طلباتك</h2>
       <p className="muted">لم نعرض بيانات بديلة على أنها سجلات محفوظة. حاول مجددًا لاحقًا.</p>
