@@ -69,13 +69,7 @@ alter table public.partner_identity_documents enable row level security;
 drop policy if exists partner_identity_profiles_owner_select on public.partner_identity_profiles;
 create policy partner_identity_profiles_owner_select on public.partner_identity_profiles
   for select to authenticated using (
-    user_id = (select auth.uid())
-    or (organization_id is not null and exists (
-      select 1 from public.organization_members om
-      where om.organization_id = partner_identity_profiles.organization_id
-        and om.user_id = (select auth.uid()) and om.status = 'active'
-    ))
-    or (select private.is_super_admin())
+    user_id = (select auth.uid()) or (select private.is_super_admin())
   );
 drop policy if exists partner_identity_profiles_owner_insert on public.partner_identity_profiles;
 create policy partner_identity_profiles_owner_insert on public.partner_identity_profiles
@@ -116,12 +110,6 @@ drop policy if exists partner_identity_documents_owner_select on public.partner_
 create policy partner_identity_documents_owner_select on public.partner_identity_documents
   for select to authenticated using (
     owner_id = (select auth.uid()) or (select private.is_super_admin())
-    or exists (
-      select 1 from public.partner_identity_profiles p
-      join public.organization_members om on om.organization_id = p.organization_id
-      where p.id = partner_identity_documents.identity_profile_id
-        and om.user_id = (select auth.uid()) and om.status = 'active'
-    )
   );
 drop policy if exists partner_identity_documents_owner_insert on public.partner_identity_documents;
 create policy partner_identity_documents_owner_insert on public.partner_identity_documents
