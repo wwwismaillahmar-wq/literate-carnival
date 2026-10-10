@@ -145,6 +145,9 @@ select is((select count(*)::int from public.partner_revenue_ledger
     and direction='debit' and status='paid'),1,
   'payout settlement writes one matching debit ledger entry');
 
+reset role;
+select set_config('request.jwt.claim.sub',(select partner_id::text from m36_flow_ids),true);
+set local role authenticated;
 select is((select already_requested from public.partner_request_payout(
   (select profile_id from m36_flow_ids),500,'DZD','m36-payout-0001'
 )),true,'replayed payout request returns the same payout without reserving funds twice');
