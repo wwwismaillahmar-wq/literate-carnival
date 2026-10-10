@@ -101,7 +101,7 @@ export function SiteSettingsWorkspace() {
     {fields.map(field => <label key={field.key}>{field.label}
       {field.type === 'textarea'
         ? <textarea rows={4} maxLength={field.key === 'home_subtitle' ? 1000 : field.key === 'announcement_text' ? 500 : 300} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />
-        : <input type={field.type} maxLength={field.key === 'brand_logo_path' ? 500 : field.key === 'contact_email' ? 254 : 180} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />}
+        : <input type={field.type} maxLength={field.key === 'contact_email' ? 254 : 180} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />}
     </label>)}
     <button className="btn primary" type="submit" disabled={busy}>{busy ? 'جارٍ الحفظ...' : 'حفظ إعدادات الموقع'}</button>
   </form></div>;
