@@ -15,6 +15,8 @@ export async function GET() {
     id: String(row.id ?? ''),
     title: [row.title, row.name, row.course_name].find(value => typeof value === 'string' && value.trim()) ?? String(row.id ?? 'دورة بلا عنوان'),
     description: [row.description, row.summary].find(value => typeof value === 'string' && value.trim()) ?? '',
+    duration: typeof row.duration === 'string' ? row.duration : '',
+    price_dzd: typeof row.price_dzd === 'number' ? row.price_dzd : null,
     status: typeof row.status === 'string' ? row.status : typeof row.published === 'boolean' ? (row.published ? 'published' : 'draft') : typeof row.active === 'boolean' ? (row.active ? 'active' : 'inactive') : 'unknown',
   })).filter(course => course.id);
   return NextResponse.json({ courses });
