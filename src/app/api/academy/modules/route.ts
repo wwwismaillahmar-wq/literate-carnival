@@ -39,7 +39,6 @@ export async function POST(request: Request) {
     const db = await createClient();
     const { user, allowed } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    if (!allowed) return NextResponse.json({ error: 'إنشاء الوحدات للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : String(body.courseId ?? '').trim();
     const title = typeof body.title === 'string' ? body.title.trim() : '';
@@ -48,6 +47,7 @@ export async function POST(request: Request) {
     if (!courseId || courseId.length > 120 || title.length < 2 || title.length > 180 || description.length > 2000 || sortOrder < 0 || sortOrder > 100000) {
       return NextResponse.json({ error: 'بيانات الوحدة غير صالحة.' }, { status: 400 });
     }
+    if (!await courseAccess(db, courseId)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
     const { data: course, error: courseError } = await db.from('courses').select('id').eq('id', courseId).maybeSingle();
     if (courseError) return NextResponse.json({ error: 'تعذر التحقق من الدورة؛ تحقق من مخطط courses الحالي.' }, { status: 500 });
     if (!course) return NextResponse.json({ error: 'الدورة غير موجودة.' }, { status: 404 });
@@ -68,10 +68,12 @@ export async function PATCH(request: Request) {
     const db = await createClient();
     const { user, allowed } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    if (!allowed) return NextResponse.json({ error: 'تعديل الوحدات للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const id = typeof body.id === 'string' ? body.id.trim() : '';
     if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الوحدة غير صالح.' }, { status: 400 });
+    const { data: existing, error: existingError } = await db.from('academy_modules').select('course_id').eq('id', id).maybeSingle();
+    if (existingError || !existing) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+    if (!await courseAccess(db, existing.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (body.title !== undefined) {
       if (typeof body.title !== 'string' || body.title.trim().length < 2 || body.title.trim().length > 180) return NextResponse.json({ error: 'عنوان الوحدة غير صالح.' }, { status: 400 });
@@ -103,9 +105,11 @@ export async function DELETE(request: Request) {
   const db = await createClient();
   const { user, allowed } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  if (!allowed) return NextResponse.json({ error: 'أرشفة الوحدات للإدارة فقط.' }, { status: 403 });
   const id = new URL(request.url).searchParams.get('id')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الوحدة غير صالح.' }, { status: 400 });
+  const { data: existing, error: existingError } = await db.from('academy_modules').select('course_id').eq('id', id).maybeSingle();
+  if (existingError || !existing) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+  if (!await courseAccess(db, existing.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
   const { data, error } = await db.from('academy_modules').update({ status: 'archived', updated_at: new Date().toISOString() })
     .eq('id', id).select('id,status').maybeSingle();
   if (error) return NextResponse.json({ error: 'تعذر أرشفة الوحدة.' }, { status: 500 });
