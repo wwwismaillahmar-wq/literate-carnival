@@ -23,9 +23,10 @@ export default async function AdminAcademyPage() {
       <Link className="btn secondary" href="/admin/academy/assessments">إدارة الاختبارات والتقييم والشهادات</Link>
       <Link className="btn secondary" href="/academy">معاينة الأكاديمية العامة</Link>
     </div>
-    <p className="muted">إدارة وحدات الدورات والدروس في قاعدة البيانات. لا تُنشأ دورة مكررة؛ تختار دورة موجودة من جدول courses. الوصول للطلاب والتقدم والاختبارات والشهادات تحتاج مراحل قبول مستقلة قبل إعلان اكتمال LMS.</p>
+    <p className="muted">إدارة دورة كاملة من المسودة إلى النشر، ثم تنظيم المدارس والفروع وعروض التكوين، وتأليف أسئلة القبول ومراجعة الطلبات. لا تُنشر الدورة حتى يتوفر محتوى منشور قابل للتعلم.</p>
     <AcademyAuthoringWorkspace />
     <AcademyStructureWorkspace />
+    <AcademyAdmissionQuestionWorkspace />
     <section style={{ marginTop: 40 }}>
       <h2>طلبات القبول والتأهيل</h2>
       <p className="muted">مراجعة إجابات المتقدمين وتوثيق قرار القبول. القبول لا يثبت الدفع ولا يفتح المحتوى المدفوع تلقائيًا.</p>
