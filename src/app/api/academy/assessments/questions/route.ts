@@ -27,7 +27,6 @@ export async function POST(request: Request) {
     const db = await createClient();
     const { user, allowed } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    if (!allowed) return NextResponse.json({ error: 'إضافة الأسئلة للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const assessmentId = typeof body.assessmentId === 'string' ? body.assessmentId.trim() : '';
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
@@ -39,8 +38,11 @@ export async function POST(request: Request) {
         !options.some((option: {key:string}) => option.key.trim() === correctOption)) {
       return NextResponse.json({ error: 'تحقق من نص السؤال والخيارات والمفتاح الصحيح.' }, { status: 400 });
     }
-    const { data: assessment, error: assessmentError } = await db.from('academy_assessments').select('id,status').eq('id', assessmentId).maybeSingle();
+    const { data: assessment, error: assessmentError } = await db.from('academy_assessments').select('id,status,module_id').eq('id', assessmentId).maybeSingle();
     if (assessmentError || !assessment) return NextResponse.json({ error: 'الاختبار غير موجود.' }, { status: 404 });
+    const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('course_id').eq('id', assessment.module_id).maybeSingle();
+    if (moduleError || !moduleRow) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+    if (!await courseAccess(db, moduleRow.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
     if (assessment.status !== 'draft') return NextResponse.json({ error: 'لا يمكن تعديل أسئلة اختبار منشور أو مؤرشف؛ أنشئ نسخة جديدة.' }, { status: 409 });
     const { data, error } = await db.from('academy_assessment_questions').insert({
       assessment_id: assessmentId, prompt, options: options.map((option: {key:string;label:string}) => ({ key: option.key.trim(), label: option.label.trim() })), correct_option: correctOption, sort_order: Number.isInteger(body.sortOrder) && body.sortOrder >= 0 ? body.sortOrder : 0,
