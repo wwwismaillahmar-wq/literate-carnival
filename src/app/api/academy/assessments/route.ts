@@ -23,7 +23,7 @@ export async function GET() {
   ]);
   if (moduleError || assessmentError) return NextResponse.json({ error: 'تعذر تحميل الاختبارات والوحدات.' }, { status: 500 });
   const visibleModules = [];
-  for (const module of modules ?? []) { if (await courseAccess(db, module.course_id)) visibleModules.push(module); }
+  for (const courseModule of modules ?? []) { if (await courseAccess(db, courseModule.course_id)) visibleModules.push(courseModule); }
   const ids = new Set(visibleModules.map(module => module.id));
   return NextResponse.json({ modules: visibleModules, assessments: (assessments ?? []).filter(item => ids.has(item.module_id)) });
 }
