@@ -11,17 +11,21 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
   return { user, allowed: !error && data === true };
 }
 
+async function courseAccess(db: Awaited<ReturnType<typeof createClient>>, courseId: string) { const { data, error } = await db.rpc('can_manage_academy_course', { p_course_id: courseId }); return !error && data === true; }
+
 export async function GET() {
   const db = await createClient();
   const { user, allowed } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  if (!allowed) return NextResponse.json({ error: 'إدارة الاختبارات للإدارة فقط.' }, { status: 403 });
   const [{ data: modules, error: moduleError }, { data: assessments, error: assessmentError }] = await Promise.all([
     db.from('academy_modules').select('id,course_id,title,status').order('created_at', { ascending: false }).limit(200),
     db.from('academy_assessments').select('id,module_id,title,pass_score,max_attempts,status,created_at').order('created_at', { ascending: false }).limit(200),
   ]);
   if (moduleError || assessmentError) return NextResponse.json({ error: 'تعذر تحميل الاختبارات والوحدات.' }, { status: 500 });
-  return NextResponse.json({ modules: modules ?? [], assessments: assessments ?? [] });
+  const visibleModules = [];
+  for (const module of modules ?? []) { if (await courseAccess(db, module.course_id)) visibleModules.push(module); }
+  const ids = new Set(visibleModules.map(module => module.id));
+  return NextResponse.json({ modules: visibleModules, assessments: (assessments ?? []).filter(item => ids.has(item.module_id)) });
 }
 
 export async function POST(request: Request) {
