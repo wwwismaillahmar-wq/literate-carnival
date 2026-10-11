@@ -12,7 +12,7 @@ async function readJson<T>(response: Response): Promise<T> {
   return result;
 }
 
-export function AcademyAuthoringWorkspace() {
+export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = [] }: { staffMode?: boolean; initialCourses?: Course[] }) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
@@ -38,10 +38,15 @@ export function AcademyAuthoringWorkspace() {
   const [busy, setBusy] = useState(false);
 
   const loadCourses = useCallback(async () => {
+    if (staffMode) {
+      setCourses(initialCourses);
+      setCourseId(current => current || initialCourses[0]?.id || '');
+      return;
+    }
     const result = await readJson<{ courses: Course[] }>(await fetch('/api/academy/courses', { cache: 'no-store' }));
     setCourses(result.courses);
     setCourseId(current => current || result.courses[0]?.id || '');
-  }, []);
+  }, [staffMode, initialCourses]);
 
   const loadModules = useCallback(async (selectedCourseId: string) => {
     if (!selectedCourseId) { setModules([]); setModuleId(''); return; }
@@ -197,7 +202,7 @@ export function AcademyAuthoringWorkspace() {
   return <div className="grid" style={{ marginTop: 20 }}>
     {error && <div className="card" role="alert">{error}</div>}
     {notice && <div className="card" role="status">{notice}</div>}
-    <form className="card" onSubmit={createCourse} style={{ display: 'grid', gap: 10 }}>
+    {!staffMode && <form className="card" onSubmit={createCourse} style={{ display: 'grid', gap: 10 }}>
       <h2>إنشاء دورة جديدة</h2>
       <p className="muted">أنشئ الهيكل أولًا. تفاصيل المحتوى والسعر والمدة حقول مستقلة تستكملها الإدارة والمدرسون.</p>
       <label>عنوان الدورة<input required minLength={2} maxLength={180} value={courseTitle} onChange={e => setCourseTitle(e.target.value)} /></label>
@@ -205,11 +210,11 @@ export function AcademyAuthoringWorkspace() {
       <label>المدة (يمكن استكمالها لاحقًا)<input maxLength={160} value={courseDuration} onChange={e => setCourseDuration(e.target.value)} placeholder="تُحدد من الإدارة لاحقًا" /></label>
       <label>السعر بالدينار الجزائري (اختياري)<input type="number" min={0} max={1000000000} value={coursePrice} onChange={e => setCoursePrice(e.target.value)} /></label>
       <button className="btn primary" disabled={busy || courseTitle.trim().length < 2}>{busy ? 'جارٍ الحفظ...' : 'إنشاء الدورة كمسودة'}</button>
-    </form>
+    </form>}
     <section className="card">
       <h2>اختيار الدورة</h2>
       <label>الدورة الموجودة في قاعدة البيانات<select value={courseId} onChange={e => { setCourseId(e.target.value); setModuleId(''); }}><option value="">اختر دورة</option>{courses.map(course => <option key={course.id} value={course.id}>{course.title} · {course.status}</option>)}</select></label>
-      {courseId && <>
+      {courseId && !staffMode && <>
         <form onSubmit={saveCourseDetails} style={{ display: 'grid', gap: 10, marginTop: 14 }}>
           <h3>تعديل بيانات الدورة المحددة</h3>
           <label>العنوان<input required minLength={2} maxLength={180} value={editCourseTitle} onChange={e => setEditCourseTitle(e.target.value)} /></label>
@@ -220,7 +225,7 @@ export function AcademyAuthoringWorkspace() {
         </form>
         <label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? 'draft'} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">نشر الدورة</option><option value="archived">أرشفة</option></select></label>
       </>}
-      {!courses.length && <p className="muted">لا توجد دورات قابلة للإدارة. أنشئ دورة أعلاه؛ لا ننشئ جدول دورات مكررًا.</p>}
+      {!courses.length && <p className="muted">لا توجد دورات مكلف بها هذا الحساب.</p>}
     </section>
 
     <section className="grid two">
