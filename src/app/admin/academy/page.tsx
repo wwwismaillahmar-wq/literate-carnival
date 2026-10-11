@@ -23,7 +23,7 @@ export default async function AdminAcademyPage() {
       <Link className="btn secondary" href="/admin/academy/assessments">إدارة الاختبارات والتقييم والشهادات</Link>
       <Link className="btn secondary" href="/academy">معاينة الأكاديمية العامة</Link>
     </div>
-    <p className="muted">إدارة دورة كاملة من المسودة إلى النشر، ثم تنظيم المدارس والفروع وعروض التكوين، وتأليف أسئلة القبول ومراجعة الطلبات. لا تُنشر الدورة حتى يتوفر محتوى منشور قابل للتعلم.</p>
+    <p className="muted">تجهيز البنية التشغيلية للأكاديمية: هياكل الدورات والوحدات والدروس، أدوات تأليف المحتوى والتقييم، المدارس والفروع وعروض التكوين، القبول والمدفوعات والتسجيل. يضيف المدرسون والإدارة المادة العلمية والأسئلة بعد تسليم الأدوات لهم.</p>
     <AcademyAuthoringWorkspace />
     <AcademyStructureWorkspace />
     <AcademyAdmissionQuestionWorkspace />
