@@ -5,6 +5,7 @@ import { AcademyAuthoringWorkspace } from '@/components/admin/AcademyAuthoringWo
 import { AcademyAdmissionReviewWorkspace } from '@/components/admin/AcademyAdmissionReviewWorkspace';
 import { AcademyStructureWorkspace } from '@/components/admin/AcademyStructureWorkspace';
 import { AcademyAdmissionQuestionWorkspace } from '@/components/admin/AcademyAdmissionQuestionWorkspace';
+import { AcademyStaffWorkspace } from '@/components/admin/AcademyStaffWorkspace';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function AdminAcademyPage() {
       <Link className="btn secondary" href="/academy">معاينة الأكاديمية العامة</Link>
     </div>
     <p className="muted">تجهيز البنية التشغيلية للأكاديمية: هياكل الدورات والوحدات والدروس، أدوات تأليف المحتوى والتقييم، المدارس والفروع وعروض التكوين، القبول والمدفوعات والتسجيل. يضيف المدرسون والإدارة المادة العلمية والأسئلة بعد تسليم الأدوات لهم.</p>
+    <AcademyStaffWorkspace />
     <AcademyAuthoringWorkspace />
     <AcademyStructureWorkspace />
     <AcademyAdmissionQuestionWorkspace />
