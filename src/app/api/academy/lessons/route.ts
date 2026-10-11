@@ -12,6 +12,8 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
   return { user, allowed: !error && data === true };
 }
 
+async function courseAccess(db: Awaited<ReturnType<typeof createClient>>, courseId: string) { const { data, error } = await db.rpc('can_manage_academy_course', { p_course_id: courseId }); return !error && data === true; }
+
 function sameOrigin(request: Request) {
   const origin = request.headers.get('origin');
   if (!origin) return true;
@@ -23,9 +25,11 @@ export async function GET(request: Request) {
   const db = await createClient();
   const { user, allowed } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  if (!allowed) return NextResponse.json({ error: 'إدارة الدروس للإدارة فقط.' }, { status: 403 });
   const moduleId = new URL(request.url).searchParams.get('moduleId')?.trim() ?? '';
   if (!validUuid.test(moduleId)) return NextResponse.json({ error: 'معرّف الوحدة غير صالح.' }, { status: 400 });
+  const { data: accessModule, error: accessError } = await db.from('academy_modules').select('course_id').eq('id', moduleId).maybeSingle();
+  if (accessError || !accessModule) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+  if (!await courseAccess(db, accessModule.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
   const { data, error } = await db.from('academy_lessons').select('id,module_id,title,lesson_type,body,resource_url,duration_minutes,sort_order,status,created_at,updated_at')
     .eq('module_id', moduleId).order('sort_order').order('created_at');
   if (error) return NextResponse.json({ error: 'تعذر تحميل الدروس.' }, { status: 500 });
@@ -38,7 +42,6 @@ export async function POST(request: Request) {
     const db = await createClient();
     const { user, allowed } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    if (!allowed) return NextResponse.json({ error: 'إنشاء الدروس للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const moduleId = typeof body.moduleId === 'string' ? body.moduleId.trim() : '';
     const title = typeof body.title === 'string' ? body.title.trim() : '';
@@ -54,9 +57,10 @@ export async function POST(request: Request) {
         !Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 100000) {
       return NextResponse.json({ error: 'بيانات الدرس غير صالحة.' }, { status: 400 });
     }
-    const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('id').eq('id', moduleId).maybeSingle();
+    const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('id,course_id').eq('id', moduleId).maybeSingle();
     if (moduleError) return NextResponse.json({ error: 'تعذر التحقق من الوحدة.' }, { status: 500 });
     if (!moduleRow) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+    if (!await courseAccess(db, moduleRow.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
     const { data, error } = await db.from('academy_lessons').insert({
       module_id: moduleId, title, lesson_type: lessonType, body: lessonBody,
       resource_url: resourceUrl || null, duration_minutes: duration, sort_order: sortOrder,
@@ -75,10 +79,14 @@ export async function PATCH(request: Request) {
     const db = await createClient();
     const { user, allowed } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    if (!allowed) return NextResponse.json({ error: 'تعديل الدروس للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const id = typeof body.id === 'string' ? body.id.trim() : '';
     if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الدرس غير صالح.' }, { status: 400 });
+    const { data: existing, error: existingError } = await db.from('academy_lessons').select('module_id').eq('id', id).maybeSingle();
+    if (existingError || !existing) return NextResponse.json({ error: 'الدرس غير موجود.' }, { status: 404 });
+    const { data: existingModule, error: existingModuleError } = await db.from('academy_modules').select('course_id').eq('id', existing.module_id).maybeSingle();
+    if (existingModuleError || !existingModule) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+    if (!await courseAccess(db, existingModule.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (body.title !== undefined) {
       if (typeof body.title !== 'string' || body.title.trim().length < 2 || body.title.trim().length > 180) return NextResponse.json({ error: 'عنوان الدرس غير صالح.' }, { status: 400 });
@@ -122,9 +130,13 @@ export async function DELETE(request: Request) {
   const db = await createClient();
   const { user, allowed } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  if (!allowed) return NextResponse.json({ error: 'أرشفة الدروس للإدارة فقط.' }, { status: 403 });
   const id = new URL(request.url).searchParams.get('id')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الدرس غير صالح.' }, { status: 400 });
+  const { data: existing, error: existingError } = await db.from('academy_lessons').select('module_id').eq('id', id).maybeSingle();
+  if (existingError || !existing) return NextResponse.json({ error: 'الدرس غير موجود.' }, { status: 404 });
+  const { data: existingModule, error: existingModuleError } = await db.from('academy_modules').select('course_id').eq('id', existing.module_id).maybeSingle();
+  if (existingModuleError || !existingModule) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+  if (!await courseAccess(db, existingModule.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
   const { data, error } = await db.from('academy_lessons').update({ status: 'archived', updated_at: new Date().toISOString() })
     .eq('id', id).select('id,status').maybeSingle();
   if (error) return NextResponse.json({ error: 'تعذر أرشفة الدرس.' }, { status: 500 });
