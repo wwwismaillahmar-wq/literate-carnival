@@ -19,6 +19,10 @@ export function AcademyAuthoringWorkspace() {
   const [courseDescription, setCourseDescription] = useState('');
   const [courseDuration, setCourseDuration] = useState('4 أسابيع');
   const [coursePrice, setCoursePrice] = useState('');
+  const [editCourseTitle, setEditCourseTitle] = useState('');
+  const [editCourseDescription, setEditCourseDescription] = useState('');
+  const [editCourseDuration, setEditCourseDuration] = useState('');
+  const [editCoursePrice, setEditCoursePrice] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
   const [moduleId, setModuleId] = useState('');
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -53,6 +57,14 @@ export function AcademyAuthoringWorkspace() {
   }, []);
 
   useEffect(() => { void loadCourses().catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الدورات.')); }, [loadCourses]);
+  useEffect(() => {
+    const course = courses.find(row => row.id === courseId);
+    if (!course) { setEditCourseTitle(''); setEditCourseDescription(''); setEditCourseDuration(''); setEditCoursePrice(''); return; }
+    setEditCourseTitle(course.title);
+    setEditCourseDescription(course.description);
+    setEditCourseDuration(course.duration ?? '');
+    setEditCoursePrice(course.price_dzd == null ? '' : String(course.price_dzd));
+  }, [courseId, courses]);
   useEffect(() => { void loadModules(courseId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الوحدات.')); }, [courseId, loadModules]);
   useEffect(() => { void loadLessons(moduleId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الدروس.')); }, [moduleId, loadLessons]);
 
@@ -70,6 +82,21 @@ export function AcademyAuthoringWorkspace() {
       setCourseTitle(''); setCourseDescription(''); setCourseDuration('4 أسابيع'); setCoursePrice('');
       setNotice(result.message || 'تم إنشاء الدورة كمسودة.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر إنشاء الدورة.'); }
+    finally { setBusy(false); }
+  }
+
+  async function saveCourseDetails(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!courseId || busy) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = await readJson<{ course: Course }>(await fetch('/api/academy/courses', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: courseId, title: editCourseTitle, description: editCourseDescription, duration: editCourseDuration, priceDzd: editCoursePrice }),
+      }));
+      setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
+      setNotice('تم حفظ بيانات الدورة.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذر حفظ بيانات الدورة.'); }
     finally { setBusy(false); }
   }
 
@@ -182,7 +209,17 @@ export function AcademyAuthoringWorkspace() {
     <section className="card">
       <h2>اختيار الدورة</h2>
       <label>الدورة الموجودة في قاعدة البيانات<select value={courseId} onChange={e => { setCourseId(e.target.value); setModuleId(''); }}><option value="">اختر دورة</option>{courses.map(course => <option key={course.id} value={course.id}>{course.title} · {course.status}</option>)}</select></label>
-      {courseId && <label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? 'draft'} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">نشر الدورة</option><option value="archived">أرشفة</option></select></label>}
+      {courseId && <>
+        <form onSubmit={saveCourseDetails} style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          <h3>تعديل بيانات الدورة المحددة</h3>
+          <label>العنوان<input required minLength={2} maxLength={180} value={editCourseTitle} onChange={e => setEditCourseTitle(e.target.value)} /></label>
+          <label>الوصف<textarea maxLength={10000} rows={3} value={editCourseDescription} onChange={e => setEditCourseDescription(e.target.value)} /></label>
+          <label>المدة<input required maxLength={160} value={editCourseDuration} onChange={e => setEditCourseDuration(e.target.value)} /></label>
+          <label>السعر بالدينار الجزائري<input type="number" min={0} max={1000000000} value={editCoursePrice} onChange={e => setEditCoursePrice(e.target.value)} /></label>
+          <button className="btn secondary" disabled={busy}>حفظ بيانات الدورة</button>
+        </form>
+        <label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? 'draft'} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">نشر الدورة</option><option value="archived">أرشفة</option></select></label>
+      </>}
       {!courses.length && <p className="muted">لا توجد دورات قابلة للإدارة. أنشئ دورة أعلاه؛ لا ننشئ جدول دورات مكررًا.</p>}
     </section>
 
