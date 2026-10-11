@@ -23,7 +23,7 @@ function sameOrigin(request: Request) {
 
 export async function GET(request: Request) {
   const db = await createClient();
-  const { user, allowed } = await admin(db);
+  const { user } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
   const moduleId = new URL(request.url).searchParams.get('moduleId')?.trim() ?? '';
   if (!validUuid.test(moduleId)) return NextResponse.json({ error: 'معرّف الوحدة غير صالح.' }, { status: 400 });
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 });
   try {
     const db = await createClient();
-    const { user, allowed } = await admin(db);
+    const { user } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
     const moduleId = typeof body.moduleId === 'string' ? body.moduleId.trim() : '';
@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
   if (!sameOrigin(request)) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 });
   try {
     const db = await createClient();
-    const { user, allowed } = await admin(db);
+    const { user } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
     const id = typeof body.id === 'string' ? body.id.trim() : '';
@@ -128,7 +128,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const db = await createClient();
-  const { user, allowed } = await admin(db);
+  const { user } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
   const id = new URL(request.url).searchParams.get('id')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الدرس غير صالح.' }, { status: 400 });
