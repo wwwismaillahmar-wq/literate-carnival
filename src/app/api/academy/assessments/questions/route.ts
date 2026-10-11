@@ -12,7 +12,7 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
 async function courseAccess(db: Awaited<ReturnType<typeof createClient>>, courseId: string) { const { data, error } = await db.rpc('can_manage_academy_course', { p_course_id: courseId }); return !error && data === true; }
 export async function GET(request: Request) {
   const db = await createClient();
-  const { user, allowed } = await admin(db);
+  const { user } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
   const id = new URL(request.url).searchParams.get('assessmentId')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الاختبار غير صالح.' }, { status: 400 });
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (origin) { try { if (new URL(origin).origin !== new URL(request.url).origin) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 }); } catch { return NextResponse.json({ error: 'مصدر الطلب غير صالح.' }, { status: 403 }); } }
   try {
     const db = await createClient();
-    const { user, allowed } = await admin(db);
+    const { user } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
     const assessmentId = typeof body.assessmentId === 'string' ? body.assessmentId.trim() : '';
