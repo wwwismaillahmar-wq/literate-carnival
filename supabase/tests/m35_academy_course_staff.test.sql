@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','academy_course_staff','Course-scoped staff assignments are persisted');
+select has_column('public','academy_course_staff','course_id','Assignments identify a course');
+select has_column('public','academy_course_staff','user_id','Assignments identify the staff member');
+select has_column('public','academy_course_staff','staff_role','Assignments carry an explicit role');
+select has_function('public','can_manage_academy_course',ARRAY['text'],'Course access is checked by the database');
+select has_function('public','can_manage_academy_module',ARRAY['uuid'],'Module access resolves through the assigned course');
+select has_function('public','can_manage_academy_assessment',ARRAY['uuid'],'Assessment access resolves through the assigned course');
+select ok(exists(select 1 from pg_policies where schemaname='public' and tablename='academy_course_staff' and policyname='academy_course_staff_admin_all'),'Only admins manage assignments');
+select ok(exists(select 1 from pg_policies where schemaname='public' and tablename='academy_course_staff' and policyname='academy_course_staff_read_self'),'Staff can read their own assignments');
+select ok(exists(select 1 from pg_policies where schemaname='public' and tablename='academy_modules' and policyname='academy_modules_assigned_staff_all'),'Module authoring is scoped to assigned courses');
+select ok(exists(select 1 from pg_policies where schemaname='public' and tablename='academy_lessons' and policyname='academy_lessons_assigned_staff_all'),'Lesson authoring is scoped to assigned courses');
+select ok(exists(select 1 from pg_policies where schemaname='public' and tablename='academy_assessment_questions' and policyname='academy_assessment_questions_assigned_staff_all'),'Question authoring is scoped to assigned courses');
+select * from finish();
+rollback;
