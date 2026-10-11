@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-type Course = { id: string; title: string; description: string; status: string };
+type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null };
 type Module = { id: string; course_id: string; title: string; description: string; sort_order: number; status: string };
 type Lesson = { id: string; module_id: string; title: string; lesson_type: string; body: string; resource_url: string | null; duration_minutes: number; sort_order: number; status: string };
 
@@ -15,6 +15,10 @@ async function readJson<T>(response: Response): Promise<T> {
 export function AcademyAuthoringWorkspace() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState('');
+  const [courseTitle, setCourseTitle] = useState('');
+  const [courseDescription, setCourseDescription] = useState('');
+  const [courseDuration, setCourseDuration] = useState('4 أسابيع');
+  const [coursePrice, setCoursePrice] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
   const [moduleId, setModuleId] = useState('');
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -51,6 +55,37 @@ export function AcademyAuthoringWorkspace() {
   useEffect(() => { void loadCourses().catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الدورات.')); }, [loadCourses]);
   useEffect(() => { void loadModules(courseId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الوحدات.')); }, [courseId, loadModules]);
   useEffect(() => { void loadLessons(moduleId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الدروس.')); }, [moduleId, loadLessons]);
+
+  async function createCourse(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = await readJson<{ course: Course; message?: string }>(await fetch('/api/academy/courses', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: courseTitle, description: courseDescription, duration: courseDuration, priceDzd: coursePrice }),
+      }));
+      setCourses(current => [...current, result.course]);
+      setCourseId(result.course.id);
+      setCourseTitle(''); setCourseDescription(''); setCourseDuration('4 أسابيع'); setCoursePrice('');
+      setNotice(result.message || 'تم إنشاء الدورة كمسودة.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذر إنشاء الدورة.'); }
+    finally { setBusy(false); }
+  }
+
+  async function saveCourseStatus(status: string) {
+    if (!courseId || busy) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = await readJson<{ course: Course }>(await fetch('/api/academy/courses', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: courseId, status }),
+      }));
+      setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
+      setNotice(status === 'published' ? 'تم نشر الدورة بعد التحقق من وجود وحدة ودرس منشورين.' : 'تم تحديث حالة الدورة.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذر تحديث الدورة.'); }
+    finally { setBusy(false); }
+  }
 
   async function createModule(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,10 +170,20 @@ export function AcademyAuthoringWorkspace() {
   return <div className="grid" style={{ marginTop: 20 }}>
     {error && <div className="card" role="alert">{error}</div>}
     {notice && <div className="card" role="status">{notice}</div>}
+    <form className="card" onSubmit={createCourse} style={{ display: 'grid', gap: 10 }}>
+      <h2>إنشاء دورة جديدة</h2>
+      <p className="muted">تُحفظ الدورة أولًا كمسودة. لا تظهر للمتعلمين قبل إعداد وحدة ودرس منشورين على الأقل.</p>
+      <label>عنوان الدورة<input required minLength={2} maxLength={180} value={courseTitle} onChange={e => setCourseTitle(e.target.value)} /></label>
+      <label>وصف الدورة<textarea maxLength={10000} rows={4} value={courseDescription} onChange={e => setCourseDescription(e.target.value)} /></label>
+      <label>المدة<input required maxLength={160} value={courseDuration} onChange={e => setCourseDuration(e.target.value)} placeholder="مثال: 4 أسابيع" /></label>
+      <label>السعر بالدينار الجزائري (اختياري)<input type="number" min={0} max={1000000000} value={coursePrice} onChange={e => setCoursePrice(e.target.value)} /></label>
+      <button className="btn primary" disabled={busy || courseTitle.trim().length < 2 || !courseDuration.trim()}>{busy ? 'جارٍ الحفظ...' : 'إنشاء الدورة كمسودة'}</button>
+    </form>
     <section className="card">
       <h2>اختيار الدورة</h2>
       <label>الدورة الموجودة في قاعدة البيانات<select value={courseId} onChange={e => { setCourseId(e.target.value); setModuleId(''); }}><option value="">اختر دورة</option>{courses.map(course => <option key={course.id} value={course.id}>{course.title} · {course.status}</option>)}</select></label>
-      {!courses.length && <p className="muted">لا توجد دورات قابلة للإدارة، أو تعذر تحميل مخطط courses. لم ننشئ جدول دورات مكررًا.</p>}
+      {courseId && <label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? 'draft'} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">نشر الدورة</option><option value="archived">أرشفة</option></select></label>}
+      {!courses.length && <p className="muted">لا توجد دورات قابلة للإدارة. أنشئ دورة أعلاه؛ لا ننشئ جدول دورات مكررًا.</p>}
     </section>
 
     <section className="grid two">
