@@ -18,8 +18,9 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('media_assets')
-    .select('id, owner_id, post_id, contribution_id, bucket_id, object_path, media_type, mime_type, file_size, created_at')
+    .select('id, owner_id, post_id, contribution_id, bucket_id, object_path, media_type, mime_type, file_size, upload_status, uploaded_at, created_at')
     .eq('owner_id', user.id)
+    .eq('upload_status', 'uploaded')
     .order('created_at', { ascending: false });
 
   if (postId) query = query.eq('post_id', postId);
@@ -101,8 +102,10 @@ export async function POST(request: Request) {
         media_type: mediaType,
         mime_type: mimeType,
         file_size: fileSize,
+        upload_status: 'pending',
+        uploaded_at: null,
       })
-      .select('id, owner_id, post_id, contribution_id, bucket_id, object_path, media_type, mime_type, file_size, created_at')
+      .select('id, owner_id, post_id, contribution_id, bucket_id, object_path, media_type, mime_type, file_size, upload_status, uploaded_at, created_at')
       .single();
 
     if (assetError) {
@@ -121,6 +124,36 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول أولًا.' }, { status: 401 });
+    const body = await request.json();
+    const assetId = typeof body.assetId === 'string' ? body.assetId.trim() : '';
+    if (!assetId) return NextResponse.json({ error: 'معرّف الوسائط مطلوب.' }, { status: 400 });
+
+    const { data: asset, error: readError } = await supabase.from('media_assets')
+      .select('id, object_path, upload_status')
+      .eq('id', assetId).eq('owner_id', user.id).maybeSingle();
+    if (readError || !asset) return NextResponse.json({ error: 'الوسائط غير موجودة.' }, { status: 404 });
+    if (asset.upload_status === 'uploaded') return NextResponse.json({ asset: { id: asset.id, upload_status: 'uploaded' } });
+    const verified = await supabase.storage.from(bucket).createSignedUrl(asset.object_path, 60);
+    if (verified.error || !verified.data?.signedUrl) {
+      return NextResponse.json({ error: 'لم يؤكد التخزين وجود الملف بعد؛ أعد المحاولة بعد اكتمال الرفع.' }, { status: 409 });
+    }
+    const { data, error } = await supabase.from('media_assets').update({
+      upload_status: 'uploaded',
+      uploaded_at: new Date().toISOString(),
+    }).eq('id', assetId).eq('owner_id', user.id)
+      .select('id,upload_status,uploaded_at').single();
+    if (error) return NextResponse.json({ error: 'تم رفع الملف لكن تعذر تثبيت حالة اكتماله.' }, { status: 500 });
+    return NextResponse.json({ asset: data });
+  } catch {
+    return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient();
@@ -132,7 +165,7 @@ export async function DELETE(request: Request) {
 
     const { data: asset, error: readError } = await supabase
       .from('media_assets')
-      .select('id, object_path')
+      .select('id, object_path, upload_status')
       .eq('id', assetId)
       .eq('owner_id', user.id)
       .maybeSingle();

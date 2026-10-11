@@ -15,6 +15,7 @@ const sections = [
   ['/account/orders', 'طلباتي', 'متابعة طلبات المنتجات.', true],
   ['/account/services', 'خدماتي', 'متابعة طلبات الخدمات.', true],
   ['/account/academy', 'الأكاديمية', 'الدورات والتكوينات المرتبطة بحسابك.', true],
+  ['/account/talent', 'ملفي المهني', 'إدارة المهارات والأدلة المهنية وإرسالها للمراجعة.', false],
 ] as const;
 
 export default async function AccountPage(){

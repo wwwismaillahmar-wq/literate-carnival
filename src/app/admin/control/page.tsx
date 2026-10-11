@@ -6,6 +6,15 @@ import LogoutButton from '@/components/LogoutButton';
 export const dynamic = 'force-dynamic';
 
 const areas = [
+  { href: '/admin/site-settings', title: 'إعدادات هوية الموقع', eyebrow: 'BRAND / M39', description: 'تحرير إعدادات الشعار والنصوص والألوان وبيانات التواصل المخزنة.' },
+  { href: '/admin/academy/assessments', title: 'إدارة الاختبارات والتقييم', eyebrow: 'ACADEMY / M34', description: 'إنشاء الاختبارات الاختيارية، حفظ مفاتيح التصحيح في الخادم، ونشرها للدورات.' },
+  { href: '/admin/academy', title: 'إدارة محتوى الأكاديمية', eyebrow: 'ACADEMY / M33–M34', description: 'إدارة وحدات الدورات والدروس على السجلات الموجودة في كتالوج الدورات.' },
+  { href: '/admin/crm', title: 'إدارة علاقات العملاء', eyebrow: 'CRM / M38', description: 'متابعة العملاء المحتملين وتسجيل سجل الاتصالات ومواعيد المتابعة.' },
+  { href: '/admin/knowledge', title: 'إدارة المعرفة والموسوعات', eyebrow: 'KNOWLEDGE / M37', description: 'إنشاء المقالات والمدخلات العلمية والتقنية ونشرها أو أرشفتها.' },
+  { href: '/admin/talent', title: 'مراجعة الأدلة المهنية', eyebrow: 'TALENT / M35', description: 'مراجعة أدلة التدريب والمشاريع والخبرات وتوثيقها إداريًا.' },
+  { href: '/admin/partners', title: 'طلبات الشراكة', eyebrow: 'PARTNERS / M36', description: 'مراجعة طلبات الشراكة المحفوظة وتحديث حالتها وملاحظاتها الإدارية.' },
+  { href: '/admin/events', title: 'مراقبة المهام والأحداث', eyebrow: 'EVENTS / M42', description: 'مراقبة الأحداث المعلقة والفاشلة وآخر أخطاء المعالجة من قاعدة البيانات.' },
+  { href: '/admin/platform', title: 'مركز تشغيل M26–M32', eyebrow: 'PLATFORM / M26–M32', description: 'البحث الموحد، صندوق الإشعارات، قاعدة المعرفة، التقارير، بوابة الذكاء الاصطناعي، التوصيات ومؤشرات التشغيل.' },
   { href: '/admin/products', title: 'المنتجات', eyebrow: 'MARKET / PRODUCTS', description: 'إنشاء المنتجات وتعديلها وحفظها ونشرها وإدارة صورها وفيديوهاتها.' },
   { href: '/admin/categories', title: 'فئات السوق', eyebrow: 'MARKET / CATEGORIES', description: 'إنشاء الفئات وتعديلها وحذفها ومراجعة ارتباطها بالمنتجات.' },
   { href: '/admin/market', title: 'السوق والعملاء', eyebrow: 'MARKET / LEADS', description: 'متابعة طلبات الاهتمام والعملاء المحتملين وحالة التواصل ومؤشرات الكتالوج.' },
@@ -34,12 +43,23 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
   const { data: isSuperAdmin, error } = await db.rpc('has_role', { role_key: 'super_admin' });
   if (error || isSuperAdmin !== true) redirect('/');
 
-  const [{ count: products }, { count: leads }, { count: services }, { count: requests }] = await Promise.all([
+  const [
+    { count: products, error: productsError },
+    { count: leads, error: leadsError },
+    { count: services, error: servicesError },
+    { count: requests, error: requestsError },
+  ] = await Promise.all([
     db.from('products').select('*', { count: 'exact', head: true }),
     db.from('leads').select('*', { count: 'exact', head: true }),
     db.from('services').select('*', { count: 'exact', head: true }),
     db.from('service_requests').select('*', { count: 'exact', head: true }),
   ]);
+  const metrics = [
+    { label: 'المنتجات', value: products, error: productsError },
+    { label: 'العملاء المحتملون', value: leads, error: leadsError },
+    { label: 'الخدمات', value: services, error: servicesError },
+    { label: 'طلبات الخدمة', value: requests, error: requestsError },
+  ];
 
   return <main className="section"><div className="wrap">
     <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
@@ -49,7 +69,7 @@ export default async function AdminControl({ searchParams }: { searchParams?: Pr
     {params.success && <div className="card" style={{marginTop:16,border:'1px solid #2f855a'}}><strong>✓ {params.success}</strong></div>}
     {params.error && <div className="card" style={{marginTop:16,border:'1px solid #c53030'}}><strong>✕ {params.error}</strong></div>}
     <div className="grid four" style={{marginTop:24}}>
-      {[['المنتجات',products],['العملاء المحتملون',leads],['الخدمات',services],['طلبات الخدمة',requests]].map(([label,value])=><article className="card" key={String(label)}><span className="muted">{label}</span><h2>{value ?? 0}</h2></article>)}
+      {metrics.map((metric)=><article className="card" key={metric.label}><span className="muted">{metric.label}</span><h2>{metric.error ? '—' : metric.value ?? 0}</h2>{metric.error && <small role="alert" className="muted">تعذر تحميل المؤشر: {metric.error.message}</small>}</article>)}
     </div>
     <section style={{marginTop:28}}><h2>أبواب الإدارة</h2><div className="grid three" style={{marginTop:16}}>
       {areas.map((area)=><Link href={area.href} className="card" key={area.href} style={{textDecoration:'none',display:'block'}}>

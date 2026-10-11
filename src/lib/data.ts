@@ -30,7 +30,7 @@ export async function getProducts(): Promise<Product[]> {
 
   const ids = (data ?? []).map((product) => product.id);
   const { data: media } = ids.length
-    ? await db.from('media_assets').select('product_id,media_type,object_path,bucket_id,created_at').in('product_id', ids).order('created_at', { ascending: true })
+    ? await db.from('media_assets').select('product_id,media_type,object_path,bucket_id,created_at').in('product_id', ids).eq('upload_status', 'uploaded').order('created_at', { ascending: true })
     : { data: [] };
   const mediaByProduct = new Map<number, string[]>();
   for (const item of media ?? []) {

@@ -25,7 +25,7 @@ type Media = {
 };
 
 export default async function AdminProducts({ searchParams }: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
+  searchParams?: Promise<{ success?: string; error?: string; warning?: string }>;
 }) {
   const params = searchParams ? await searchParams : {};
   const db = await createClient();
@@ -37,7 +37,7 @@ export default async function AdminProducts({ searchParams }: {
   const [productResult, categoryResult, mediaResult] = await Promise.all([
     db.from('products').select('id,name,slug,description,price_dzd,stock,active,category_id,ad_priority,home_featured').order('id', { ascending: false }),
     db.from('categories').select('id,name,slug').order('name'),
-    db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id', 'is', null).order('created_at', { ascending: false }),
+    db.from('media_assets').select('id,product_id,media_type,mime_type,file_size,object_path,bucket_id').not('product_id', 'is', null).eq('upload_status', 'uploaded').order('created_at', { ascending: false }),
   ]);
   const products = (productResult.data ?? []) as Product[];
   const categories = (categoryResult.data ?? []) as Category[];
@@ -47,6 +47,12 @@ export default async function AdminProducts({ searchParams }: {
     return { ...row, bucket_id: bucket, url: data?.signedUrl ?? null } as Media;
   }));
 
+  const loadErrors = [
+    productResult.error ? 'المنتجات: ' + productResult.error.message : null,
+    categoryResult.error ? 'الفئات: ' + categoryResult.error.message : null,
+    mediaResult.error ? 'الوسائط: ' + mediaResult.error.message : null,
+  ].filter((message): message is string => Boolean(message));
+
   return (
     <main className="section">
       <div className="wrap">
@@ -55,7 +61,12 @@ export default async function AdminProducts({ searchParams }: {
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="card" href="/admin/dashboard">مركز الإدارة</Link><Link className="card" href="/products" target="_blank">معاينة المتجر</Link><Link className="card" href="/admin/market">إدارة السوق</Link><Link className="card" href="/admin/categories">إدارة الفئات</Link></div>
         </div>
         {params.success && <div className="card" style={{marginTop:16,border:'1px solid #2f855a'}}><strong>✓ {params.success}</strong></div>}
-        {params.error && <div className="card" style={{marginTop:16,border:'1px solid #c53030'}}><strong>✕ {params.error}</strong></div>}
+        {params.error && <div className="card" role="alert" style={{marginTop:16,border:'1px solid #c53030'}}><strong>✕ {params.error}</strong></div>}
+        {params.warning && <div className="card" role="status" style={{marginTop:16,border:'1px solid #b7791f'}}><strong>تنبيه: {params.warning}</strong></div>}
+        {loadErrors.length > 0 && <div className="card" role="alert" style={{marginTop:16,border:'1px solid #c53030'}}>
+          <strong>تعذر تحميل بعض بيانات إدارة المنتجات. لم يعتبر النظام البيانات غير المحمّلة فارغة.</strong>
+          <ul>{loadErrors.map((message) => <li key={message}>{message}</li>)}</ul>
+        </div>}
 
         <section className="card" style={{marginTop:24}}>
           <h2>إضافة منتج جديد</h2>
@@ -87,7 +98,7 @@ export default async function AdminProducts({ searchParams }: {
                         <button type="submit">حذف الملف</button>
                       </form>
                     </div>)}
-                    {!productMedia.length && <p className="muted">لا توجد وسائط مرتبطة بهذا المنتج حتى الآن.</p>}
+                    {!productMedia.length && !mediaResult.error && <p className="muted">لا توجد وسائط مرتبطة بهذا المنتج حتى الآن.</p>}
                   </div>
                 </div>
                 <form action={deleteProduct} style={{marginTop:16}}>
@@ -96,7 +107,7 @@ export default async function AdminProducts({ searchParams }: {
                 </form>
               </article>;
             })}
-            {!products.length && <article className="card"><p>لا توجد منتجات مسجلة. استخدم نموذج الإضافة أعلاه.</p></article>}
+            {!products.length && !productResult.error && <article className="card"><p>لا توجد منتجات مسجلة. استخدم نموذج الإضافة أعلاه.</p></article>}
           </div>
         </section>
       </div>

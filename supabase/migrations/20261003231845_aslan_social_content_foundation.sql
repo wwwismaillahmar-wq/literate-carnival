@@ -51,17 +51,41 @@ create table if not exists public.posts (
 create index if not exists posts_author_created_idx on public.posts(author_id, created_at desc);
 create index if not exists posts_public_feed_idx on public.posts(status, visibility, created_at desc);
 
+-- Historical source for public.contributions was not present in any current
+-- repository branch. Reconstruct its minimal contract from the existing
+-- account/API consumers and downstream M03 policies; this is additive and a
+-- no-op where the table already exists in an established environment.
+create table if not exists public.contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null default 'post',
+  title text not null,
+  content text not null default '',
+  status public.content_status not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.contributions
   add column if not exists visibility public.content_visibility not null default 'private';
 
 alter table public.contributions
   add column if not exists published_at timestamptz;
 
+-- Normalize these constraints explicitly instead of a DO block: the
+-- Supabase migration runner splits SQL statements before sending them to
+-- PostgreSQL, and this keeps the migration replayable by that runner.
 alter table public.contributions
-  add constraint contributions_title_length check (char_length(title) between 1 and 160);
+  drop constraint if exists contributions_title_length;
+alter table public.contributions
+  add constraint contributions_title_length
+  check (char_length(title) between 1 and 160);
 
 alter table public.contributions
-  add constraint contributions_content_length check (char_length(content) <= 10000);
+  drop constraint if exists contributions_content_length;
+alter table public.contributions
+  add constraint contributions_content_length
+  check (char_length(content) <= 10000);
 
 create index if not exists contributions_visibility_idx
 on public.contributions(status, visibility, created_at desc);

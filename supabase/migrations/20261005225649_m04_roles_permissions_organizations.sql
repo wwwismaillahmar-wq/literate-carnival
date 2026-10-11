@@ -158,7 +158,7 @@ as $$ select
 
 create or replace function private.is_super_admin_role(target_role uuid)
 returns boolean language sql stable security definer set search_path=''
-as $ select exists (select 1 from public.roles where id=target_role and key='super_admin'); $;
+as $$ select exists (select 1 from public.roles where id=target_role and key='super_admin'); $$;
 
 create or replace function private.has_permission(target_user uuid, permission_key text, organization_id uuid default null)
 returns boolean language sql stable security definer set search_path=''
@@ -205,6 +205,7 @@ grant usage on schema private to authenticated;
 grant execute on function private.is_super_admin(uuid) to authenticated;
 grant execute on function private.has_role(uuid,text,uuid) to authenticated;
 grant execute on function private.has_permission(uuid,text,uuid) to authenticated;
+grant execute on function private.is_super_admin_role(uuid) to authenticated;
 revoke all on function public.authorize(text,uuid) from public,anon;
 revoke all on function public.has_role(text,uuid) from public,anon;
 revoke all on function public.authorization_context() from public,anon;

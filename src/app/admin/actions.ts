@@ -69,9 +69,28 @@ async function audit(db: Awaited<ReturnType<typeof createClient>>, userId: strin
   await new SupabaseAuditWriter().record({id: crypto.randomUUID() as never, occurredAt: new Date().toISOString() as never, actorId: userId as never, action, resourceType, resourceId: resourceId as never, success: true, metadata});
 }
 
-function finish(message: string, returnTo = '/admin/control'): never {
+async function auditWithWarning(
+  db: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  action: 'CREATE'|'UPDATE'|'DELETE'|'AUTHORIZE'|'REVOKE'|'OTHER',
+  resourceType: string,
+  resourceId?: string,
+  metadata?: Record<string, unknown>,
+): Promise<string | null> {
+  try {
+    await audit(db, userId, action, resourceType, resourceId, metadata);
+    return null;
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    console.error('[ASLAN admin audit] mutation completed but audit write failed', { action, resourceType, resourceId, detail });
+    return 'تم حفظ التغيير، لكن تعذر تسجيله في سجل التدقيق: ' + detail;
+  }
+}
+
+function finish(message: string, returnTo = '/admin/control', warning?: string | null): never {
   const safeReturnTo = ['/admin/products', '/admin/categories', '/admin/content', '/admin/market', '/admin/company', '/admin/legacy', '/admin/services/catalog', '/admin/services', '/admin/access', '/admin/organizations', '/admin/payment-settings'].includes(returnTo) ? returnTo : '/admin/control';
-  redirect(safeReturnTo + '?success=' + encodeURIComponent(message));
+  const query = '?success=' + encodeURIComponent(message) + (warning ? '&warning=' + encodeURIComponent(warning) : '');
+  redirect(safeReturnTo + query);
 }
 
 export async function saveProduct(formData: FormData) {
@@ -181,7 +200,20 @@ export async function saveProduct(formData: FormData) {
       upsert: false,
     });
 
-    if (uploadError) dbError('تعذر رفع ' + file.name, uploadError, returnTo);
+    if (uploadError) {
+      if (!productIdInput) {
+        const { error: rollbackError } = await db.from('products').delete().eq('id', productId);
+        if (rollbackError) {
+          dbError(
+            'فشل رفع الصورة وفشل التراجع عن إنشاء المنتج',
+            { message: uploadError.message + ' | تعذر حذف المنتج الذي أُنشئ جزئيًا: ' + rollbackError.message },
+            returnTo,
+          );
+        }
+        dbError('أُلغي إنشاء المنتج لأن رفع الصورة فشل: ' + file.name, uploadError, returnTo);
+      }
+      dbError('حُفظت بيانات المنتج لكن تعذر رفع الوسيط ' + file.name, uploadError, returnTo);
+    }
 
     const { error: mediaError } = await db.from('media_assets').insert({
       owner_id: user.id,
@@ -194,8 +226,21 @@ export async function saveProduct(formData: FormData) {
     });
 
     if (mediaError) {
-      await db.storage.from('aslan-media').remove([objectPath]);
-      dbError('تعذر ربط الوسيط بالمنتج', mediaError, returnTo);
+      const { error: storageCleanupError } = await db.storage.from('aslan-media').remove([objectPath]);
+      if (!productIdInput) {
+        const { error: rollbackError } = await db.from('products').delete().eq('id', productId);
+        if (rollbackError) {
+          dbError(
+            'فشل ربط الصورة وفشل التراجع عن إنشاء المنتج',
+            { message: mediaError.message + ' | تعذر حذف المنتج الذي أُنشئ جزئيًا: ' + rollbackError.message },
+            returnTo,
+          );
+        }
+        const cleanupNote = storageCleanupError ? ' | تعذر تنظيف ملف التخزين: ' + storageCleanupError.message : '';
+        dbError('أُلغي إنشاء المنتج لأن ربط الصورة فشل: ' + mediaError.message + cleanupNote, null, returnTo);
+      }
+      const cleanupNote = storageCleanupError ? ' | تعذر تنظيف ملف التخزين: ' + storageCleanupError.message : '';
+      dbError('حُفظت بيانات المنتج لكن تعذر ربط الوسيط: ' + mediaError.message + cleanupNote, null, returnTo);
     }
   }
 
@@ -205,10 +250,10 @@ export async function saveProduct(formData: FormData) {
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
 
-  await audit(db,user.id,id?'UPDATE':'CREATE','product',String(productId),{mediaCount:files.length});
+  const auditWarning = await auditWithWarning(db,user.id,id?'UPDATE':'CREATE','product',String(productId),{mediaCount:files.length});
   console.log('[M04 saveProduct] success', { productId, userId: user.id, mediaCount: files.length });
 
-  finish(id ? 'تم حفظ المنتج وتحقق النظام من التعديل.' : 'تم إنشاء المنتج وتحقق النظام من الحفظ.', returnTo);
+  finish(id ? 'تم حفظ المنتج وتحقق النظام من التعديل.' : 'تم إنشاء المنتج وتحقق النظام من الحفظ.', returnTo, auditWarning);
 }
 export async function uploadProductMedia(formData: FormData) {
   const {db,user}=await requireSuperAdmin(); const productId=Number(formData.get('product_id')); const file=formData.get('file');
@@ -226,7 +271,7 @@ export async function registerProductMedia(input: {
   objectPath: string;
   mimeType: string;
   fileSize: number;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; error?: string; warning?: string | null }> {
   const { db, user } = await requireSuperAdmin();
   const allowed = new Set([
     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -259,11 +304,11 @@ export async function registerProductMedia(input: {
     file_size: input.fileSize,
   });
   if (error) return { ok: false, error: 'تم رفع الملف لكن تعذر ربطه بالمنتج: ' + error.message };
-  await audit(db, user.id, 'CREATE', 'product_media', input.objectPath, { productId: input.productId, mimeType: input.mimeType, fileSize: input.fileSize });
+  const warning = await auditWithWarning(db, user.id, 'CREATE', 'product_media', input.objectPath, { productId: input.productId, mimeType: input.mimeType, fileSize: input.fileSize });
   revalidatePath('/admin/products');
   revalidatePath('/products');
   revalidatePath('/products/' + product.slug);
-  return { ok: true };
+  return { ok: true, warning };
 }
 
 export async function deleteProductMedia(formData: FormData) {
@@ -298,13 +343,13 @@ export async function deleteProduct(formData: FormData) {
 
   const { error } = await db.from('products').delete().eq('id', id);
   if (error) dbError('تعذر حذف المنتج', error, returnTo);
-  await audit(db, user.id, 'DELETE', 'product', String(id), { mediaCount: media?.length ?? 0 });
+  const auditWarning = await auditWithWarning(db, user.id, 'DELETE', 'product', String(id), { mediaCount: media?.length ?? 0 });
   revalidatePath('/');
   revalidatePath('/products');
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
   revalidatePath('/admin/products');
-  finish('تم حذف المنتج ووسائطه المرتبطة.', returnTo);
+  finish('تم حذف المنتج ووسائطه المرتبطة.', returnTo, auditWarning);
 }
 
 export async function saveCategory(formData: FormData) {
@@ -746,16 +791,27 @@ export async function transitionServiceRequest(formData: FormData) {
 export async function markPaymentPaid(formData: FormData) {
   const { db, user } = await requireSuperAdmin();
   const paymentId = textValue(formData, 'payment_id');
+  const providerReference = textValue(formData, 'provider_reference');
   if (!paymentId) throw new Error('معرّف الدفع غير صالح.');
-  const { data: payment, error: paymentError } = await db.from('payments').select('id,invoice_id').eq('id',paymentId).single();
-  if (paymentError || !payment) dbError('تعذر قراءة الدفع', paymentError || new Error('NOT_FOUND'));
-  const now = new Date().toISOString();
-  const { error } = await db.from('payments').update({status:'paid',paid_at:now}).eq('id',paymentId);
-  if (error) dbError('تعذر تأكيد الدفع', error);
-  const { error: invoiceError } = await db.from('invoices').update({status:'paid',paid_at:now}).eq('id',payment.invoice_id);
-  if (invoiceError) dbError('تعذر تحديث الفاتورة', invoiceError);
-  await audit(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:payment.invoice_id});
+  if (providerReference.length < 3 || providerReference.length > 200) {
+    return redirect('/admin/payments?error=' + encodeURIComponent('أدخل مرجع العملية الذي تمت مراجعته من إيصال التحويل أو بوابة الدفع.'));
+  }
+  const { data, error } = await db.rpc('admin_mark_payment_paid', {
+    p_payment_id: paymentId,
+    p_provider_reference: providerReference,
+  });
+  if (error) {
+    const message = error.message.includes('PAYMENT_REFERENCE_REQUIRED')
+      ? 'مرجع عملية الدفع مطلوب قبل تأكيد بوابة تعمل في الوضع الفعلي.'
+      : error.message.includes('PAYMENT_INVOICE_MISMATCH')
+        ? 'رفضت قاعدة البيانات التأكيد لأن المبلغ أو العملة أو صاحب الدفع لا يطابق الفاتورة.'
+        : 'تعذر تأكيد الدفع والفاتورة ذريًا';
+    return redirect('/admin/payments?error=' + encodeURIComponent(message));
+  }
+  const result = Array.isArray(data) ? data[0] : data;
+  if (!result?.payment_id || !result?.invoice_id || result.status !== 'paid') dbError('لم تُرجع قاعدة البيانات تأكيدًا صالحًا للدفع', null, '/admin/control');
+  const warning = await auditWithWarning(db,user.id,'UPDATE','payments',paymentId,{status:'paid',invoiceId:result.invoice_id,providerReference,atomic:true});
   revalidatePath('/admin/payments');
   revalidatePath('/invoices');
-  finish('تم تأكيد الدفع وتحديث الفاتورة.');
+  finish('تم تأكيد الدفع والفاتورة ذريًا مع تسجيل مرجع العملية.', '/admin/control', warning);
 }

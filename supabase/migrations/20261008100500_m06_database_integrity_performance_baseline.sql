@@ -1,6 +1,22 @@
 -- M06: Database Architecture integrity and performance baseline.
 -- Enforce invariants already satisfied by current production data.
 
+-- Earlier foundational migrations omitted fields required by the production
+-- catalog, member directory, and media uploader. Define them before indexes
+-- and constraints below; IF NOT EXISTS preserves already-upgraded databases.
+alter table public.profiles
+  add column if not exists username text;
+
+alter table public.products
+  add column if not exists ad_priority integer not null default 0
+    check (ad_priority between 0 and 100);
+alter table public.products
+  add column if not exists home_featured boolean not null default false;
+
+alter table public.media_assets
+  add column if not exists product_id bigint
+    references public.products(id) on delete cascade;
+
 create unique index if not exists profiles_username_ci_unique
   on public.profiles (lower(username))
   where username is not null;

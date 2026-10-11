@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - 'feat/**'
   workflow_dispatch:
 
 permissions:
@@ -15,13 +16,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: TypeScript and production build
+  database-integrity:
+    name: Replay migrations and run pgTAP acceptance tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Start isolated local database services
+        run: supabase start -x studio,mailpit,edge-runtime,logflare,vector,imgproxy,postgres-meta,supavisor
+
+      - name: Replay complete migration history from an empty database
+        run: supabase db reset
+
+      - name: Run pgTAP database acceptance tests
+        run: supabase test db
+
+  verify:
+    name: Lint, TypeScript, and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      ESLINT_USE_FLAT_CONFIG: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,6 +58,33 @@ jobs:
 
       - name: Install locked dependencies
         run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Verify migration file ordering and duplicate timestamps
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, sys
+          files = sorted(Path('supabase/migrations').glob('*.sql'))
+          errors = []
+          seen = {}
+          for path in files:
+              match = re.match(r'^(\d{14})_', path.name)
+              if not match:
+                  errors.append(f'{path}: migration filename must start with a 14-digit timestamp and underscore')
+                  continue
+              stamp = match.group(1)
+              if stamp in seen:
+                  errors.append(f'duplicate migration timestamp {stamp}: {seen[stamp]} and {path}')
+              seen[stamp] = path
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print(f'Validated naming/order uniqueness for {len(files)} migration files.')
+          PY
 
       - name: TypeScript check
         run: npx tsc --noEmit

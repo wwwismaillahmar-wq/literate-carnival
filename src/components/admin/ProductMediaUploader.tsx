@@ -41,6 +41,7 @@ export default function ProductMediaUploader({ productId }: { productId: number 
       if (userError || !user) throw new Error('انتهت جلسة الدخول. سجّل الدخول مجددًا.');
 
       let completed = 0;
+      let auditWarning = false;
       for (const file of files) {
         const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
         const objectPath = user.id + '/products/' + productId + '/' + crypto.randomUUID() + '.' + extension;
@@ -60,12 +61,13 @@ export default function ProductMediaUploader({ productId }: { productId: number 
           await supabase.storage.from('aslan-media').remove([objectPath]);
           throw new Error(registered.error);
         }
+        if (registered.warning) auditWarning = true;
         completed += 1;
         setMessage('تم رفع وربط ' + completed + ' من ' + files.length + ' ملفات.');
       }
 
       if (inputRef.current) inputRef.current.value = '';
-      setMessage('تم رفع جميع الملفات وربطها بالمنتج بنجاح.');
+      setMessage(auditWarning ? 'تم رفع جميع الملفات وربطها بالمنتج، لكن تعذر تسجيل أحد أحداث التدقيق.' : 'تم رفع جميع الملفات وربطها بالمنتج بنجاح.');
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'حدث خطأ غير معروف أثناء رفع الوسائط.');

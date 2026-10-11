@@ -17,7 +17,7 @@ export default async function CommunityPage(){
     const author=authorMap.get(post.author_id);
     let avatar_url=null;
     if(author?.avatar_path){const s=await supabase.storage.from('aslan-media').createSignedUrl(author.avatar_path,3600);avatar_url=s.data?.signedUrl??null;}
-    const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq('post_id',post.id).order('created_at',{ascending:true}).limit(8);
+    const {data:media}=await supabase.from('media_assets').select('id,media_type,mime_type,object_path').eq('post_id',post.id).eq('upload_status','uploaded').order('created_at',{ascending:true}).limit(8);
     const rendered=[];
     for(const item of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);rendered.push({...item,signed_url:s.data?.signedUrl??null});}
     result.push({...post,author,avatar_url,media:rendered,viewerIsOwner:user?.id===post.author_id,viewerAuthenticated:!!user});
