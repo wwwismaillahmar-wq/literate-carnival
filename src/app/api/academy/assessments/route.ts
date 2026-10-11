@@ -35,7 +35,6 @@ export async function POST(request: Request) {
     const db = await createClient();
     const { user, allowed } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-    if (!allowed) return NextResponse.json({ error: 'إنشاء الاختبارات للإدارة فقط.' }, { status: 403 });
     const body = await request.json();
     const moduleId = typeof body.moduleId === 'string' ? body.moduleId.trim() : '';
     const title = typeof body.title === 'string' ? body.title.trim() : '';
@@ -44,8 +43,9 @@ export async function POST(request: Request) {
     if (!validUuid.test(moduleId) || title.length < 2 || title.length > 180 || !Number.isInteger(passScore) || passScore < 1 || passScore > 100 || !Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 10) {
       return NextResponse.json({ error: 'بيانات الاختبار غير صالحة.' }, { status: 400 });
     }
-    const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('id').eq('id', moduleId).maybeSingle();
+    const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('id,course_id').eq('id', moduleId).maybeSingle();
     if (moduleError || !moduleRow) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+    if (!await courseAccess(db, moduleRow.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
     const { data, error } = await db.from('academy_assessments').insert({ module_id: moduleId, title, pass_score: passScore, max_attempts: maxAttempts, created_by: user.id })
       .select('id,module_id,title,pass_score,max_attempts,status,created_at').single();
     if (error) return NextResponse.json({ error: 'تعذر حفظ الاختبار.' }, { status: 500 });
