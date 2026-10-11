@@ -17,7 +17,7 @@ export function AcademyAuthoringWorkspace() {
   const [courseId, setCourseId] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
-  const [courseDuration, setCourseDuration] = useState('4 أسابيع');
+  const [courseDuration, setCourseDuration] = useState('');
   const [coursePrice, setCoursePrice] = useState('');
   const [editCourseTitle, setEditCourseTitle] = useState('');
   const [editCourseDescription, setEditCourseDescription] = useState('');
@@ -79,7 +79,7 @@ export function AcademyAuthoringWorkspace() {
       }));
       setCourses(current => [...current, result.course]);
       setCourseId(result.course.id);
-      setCourseTitle(''); setCourseDescription(''); setCourseDuration('4 أسابيع'); setCoursePrice('');
+      setCourseTitle(''); setCourseDescription(''); setCourseDuration(''); setCoursePrice('');
       setNotice(result.message || 'تم إنشاء الدورة كمسودة.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر إنشاء الدورة.'); }
     finally { setBusy(false); }
@@ -109,7 +109,7 @@ export function AcademyAuthoringWorkspace() {
         body: JSON.stringify({ id: courseId, status }),
       }));
       setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
-      setNotice(status === 'published' ? 'تم نشر الدورة بعد التحقق من وجود وحدة ودرس منشورين.' : 'تم تحديث حالة الدورة.');
+      setNotice(status === 'published' ? 'تم نشر هيكل الدورة؛ يمكن إضافة المحتوى والبيانات لاحقًا.' : 'تم تحديث حالة الدورة.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر تحديث الدورة.'); }
     finally { setBusy(false); }
   }
@@ -199,12 +199,12 @@ export function AcademyAuthoringWorkspace() {
     {notice && <div className="card" role="status">{notice}</div>}
     <form className="card" onSubmit={createCourse} style={{ display: 'grid', gap: 10 }}>
       <h2>إنشاء دورة جديدة</h2>
-      <p className="muted">تُحفظ الدورة أولًا كمسودة. لا تظهر للمتعلمين قبل إعداد وحدة ودرس منشورين على الأقل.</p>
+      <p className="muted">أنشئ الهيكل أولًا. تفاصيل المحتوى والسعر والمدة حقول مستقلة تستكملها الإدارة والمدرسون.</p>
       <label>عنوان الدورة<input required minLength={2} maxLength={180} value={courseTitle} onChange={e => setCourseTitle(e.target.value)} /></label>
       <label>وصف الدورة<textarea maxLength={10000} rows={4} value={courseDescription} onChange={e => setCourseDescription(e.target.value)} /></label>
-      <label>المدة<input required maxLength={160} value={courseDuration} onChange={e => setCourseDuration(e.target.value)} placeholder="مثال: 4 أسابيع" /></label>
+      <label>المدة (يمكن استكمالها لاحقًا)<input maxLength={160} value={courseDuration} onChange={e => setCourseDuration(e.target.value)} placeholder="تُحدد من الإدارة لاحقًا" /></label>
       <label>السعر بالدينار الجزائري (اختياري)<input type="number" min={0} max={1000000000} value={coursePrice} onChange={e => setCoursePrice(e.target.value)} /></label>
-      <button className="btn primary" disabled={busy || courseTitle.trim().length < 2 || !courseDuration.trim()}>{busy ? 'جارٍ الحفظ...' : 'إنشاء الدورة كمسودة'}</button>
+      <button className="btn primary" disabled={busy || courseTitle.trim().length < 2}>{busy ? 'جارٍ الحفظ...' : 'إنشاء الدورة كمسودة'}</button>
     </form>
     <section className="card">
       <h2>اختيار الدورة</h2>
