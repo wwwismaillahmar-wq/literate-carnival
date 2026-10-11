@@ -50,15 +50,15 @@ export async function POST(request: Request) {
     const duration = typeof body.duration === 'string' ? body.duration.trim() : '';
     const price = body.priceDzd === '' || body.priceDzd == null ? null : Number(body.priceDzd);
     if (title.length < 2 || title.length > 180 || description.length > 10000 ||
-        !duration || duration.length > 160 ||
+        duration.length > 160 ||
         (price !== null && (!Number.isFinite(price) || price < 0 || price > 1000000000))) {
-      return NextResponse.json({ error: 'أدخل عنوان الدورة ومدتها، وتحقق من الوصف والسعر.' }, { status: 400 });
+      return NextResponse.json({ error: 'أدخل عنوان الدورة، ويمكن ترك المدة والسعر والوصف فارغة لإكمالها لاحقًا.' }, { status: 400 });
     }
     const { data, error } = await db.from('courses').insert({
       title, description, duration, price_dzd: price, status: 'draft',
     }).select('id,title,description,duration,price_dzd,status,created_at,updated_at,published_at').single();
     if (error) return NextResponse.json({ error: 'تعذر إنشاء الدورة في قاعدة البيانات.' }, { status: 500 });
-    return NextResponse.json({ course: data, message: 'تم إنشاء الدورة كمسودة؛ لن تظهر للمتعلمين قبل اكتمال المحتوى ونشرها.' }, { status: 201 });
+    return NextResponse.json({ course: data, message: 'تم إنشاء هيكل الدورة كمسودة؛ يمكن استكمال المحتوى والبيانات ونشرها لاحقًا.' }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 });
   }
@@ -86,7 +86,7 @@ export async function PATCH(request: Request) {
       patch.description = body.description.trim();
     }
     if (body.duration !== undefined) {
-      if (typeof body.duration !== 'string' || !body.duration.trim() || body.duration.trim().length > 160) return NextResponse.json({ error: 'مدة الدورة غير صالحة.' }, { status: 400 });
+      if (typeof body.duration !== 'string' || body.duration.trim().length > 160) return NextResponse.json({ error: 'مدة الدورة غير صالحة.' }, { status: 400 });
       patch.duration = body.duration.trim();
     }
     if (body.priceDzd !== undefined) {
