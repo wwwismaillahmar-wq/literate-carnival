@@ -11,6 +11,8 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
   return { user, allowed: !error && data === true };
 }
 
+async function courseAccess(db: Awaited<ReturnType<typeof createClient>>, courseId: string) { const { data, error } = await db.rpc('can_manage_academy_course', { p_course_id: courseId }); return !error && data === true; }
+
 function sameOrigin(request: Request) {
   const origin = request.headers.get('origin');
   if (!origin) return true;
@@ -22,9 +24,9 @@ export async function GET(request: Request) {
   const db = await createClient();
   const { user, allowed } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  if (!allowed) return NextResponse.json({ error: 'إدارة وحدات الدورات للإدارة فقط.' }, { status: 403 });
   const courseId = new URL(request.url).searchParams.get('courseId')?.trim() ?? '';
   if (!courseId || courseId.length > 120) return NextResponse.json({ error: 'معرّف الدورة مطلوب.' }, { status: 400 });
+  if (!await courseAccess(db, courseId)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
   const { data, error } = await db.from('academy_modules').select('id,course_id,title,description,sort_order,status,created_at,updated_at')
     .eq('course_id', courseId).order('sort_order').order('created_at');
   if (error) return NextResponse.json({ error: 'تعذر تحميل وحدات الدورة.' }, { status: 500 });
