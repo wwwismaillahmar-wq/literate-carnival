@@ -9,11 +9,11 @@ async function admin(db: Awaited<ReturnType<typeof createClient>>) {
   const { data, error } = await db.rpc('has_role', { role_key: 'super_admin' });
   return { user, allowed: !error && data === true };
 }
+async function courseAccess(db: Awaited<ReturnType<typeof createClient>>, courseId: string) { const { data, error } = await db.rpc('can_manage_academy_course', { p_course_id: courseId }); return !error && data === true; }
 export async function GET(request: Request) {
   const db = await createClient();
   const { user, allowed } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  if (!allowed) return NextResponse.json({ error: 'إدارة الأسئلة للإدارة فقط.' }, { status: 403 });
   const id = new URL(request.url).searchParams.get('assessmentId')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الاختبار غير صالح.' }, { status: 400 });
   const { data, error } = await db.from('academy_assessment_questions').select('id,assessment_id,prompt,options,correct_option,sort_order,created_at').eq('assessment_id', id).order('sort_order');
