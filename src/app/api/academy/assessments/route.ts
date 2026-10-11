@@ -15,7 +15,7 @@ async function courseAccess(db: Awaited<ReturnType<typeof createClient>>, course
 
 export async function GET() {
   const db = await createClient();
-  const { user, allowed } = await admin(db);
+  const { user } = await admin(db);
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
   const [{ data: modules, error: moduleError }, { data: assessments, error: assessmentError }] = await Promise.all([
     db.from('academy_modules').select('id,course_id,title,status').order('created_at', { ascending: false }).limit(200),
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   if (origin) { try { if (new URL(origin).origin !== new URL(request.url).origin) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 }); } catch { return NextResponse.json({ error: 'مصدر الطلب غير صالح.' }, { status: 403 }); } }
   try {
     const db = await createClient();
-    const { user, allowed } = await admin(db);
+    const { user } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
     const moduleId = typeof body.moduleId === 'string' ? body.moduleId.trim() : '';
@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
   if (origin) { try { if (new URL(origin).origin !== new URL(request.url).origin) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 }); } catch { return NextResponse.json({ error: 'مصدر الطلب غير صالح.' }, { status: 403 }); } }
   try {
     const db = await createClient();
-    const { user, allowed } = await admin(db);
+    const { user } = await admin(db);
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
     const id = typeof body.id === 'string' ? body.id.trim() : '';
