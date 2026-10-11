@@ -16,6 +16,11 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
   const id = new URL(request.url).searchParams.get('assessmentId')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الاختبار غير صالح.' }, { status: 400 });
+  const { data: assessment, error: assessmentError } = await db.from('academy_assessments').select('module_id').eq('id', id).maybeSingle();
+  if (assessmentError || !assessment) return NextResponse.json({ error: 'الاختبار غير موجود.' }, { status: 404 });
+  const { data: moduleRow, error: moduleError } = await db.from('academy_modules').select('course_id').eq('id', assessment.module_id).maybeSingle();
+  if (moduleError || !moduleRow) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
+  if (!await courseAccess(db, moduleRow.course_id)) return NextResponse.json({ error: 'لا تملك صلاحية إدارة هذه الدورة.' }, { status: 403 });
   const { data, error } = await db.from('academy_assessment_questions').select('id,assessment_id,prompt,options,correct_option,sort_order,created_at').eq('assessment_id', id).order('sort_order');
   if (error) return NextResponse.json({ error: 'تعذر تحميل أسئلة الاختبار.' }, { status: 500 });
   return NextResponse.json({ questions: data ?? [] });
