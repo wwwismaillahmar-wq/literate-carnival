@@ -97,13 +97,8 @@ export async function PATCH(request: Request) {
     if (body.status !== undefined) {
       if (!['draft','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدورة غير صالحة.' }, { status: 400 });
       if (body.status === 'published') {
-        const { data: modules, error: modulesError } = await db.from('academy_modules').select('id').eq('course_id', id).eq('status', 'published');
-        if (modulesError) return NextResponse.json({ error: 'تعذر التحقق من وحدات الدورة.' }, { status: 500 });
-        const moduleIds = (modules ?? []).map((module: { id: string }) => module.id);
-        if (!moduleIds.length) return NextResponse.json({ error: 'لا يمكن نشر دورة بلا وحدة منشورة واحدة على الأقل.' }, { status: 400 });
-        const { count, error: lessonsError } = await db.from('academy_lessons').select('id', { count: 'exact', head: true }).in('module_id', moduleIds).eq('status', 'published');
-        if (lessonsError) return NextResponse.json({ error: 'تعذر التحقق من دروس الدورة.' }, { status: 500 });
-        if (!count) return NextResponse.json({ error: 'لا يمكن نشر دورة بلا درس منشور واحد على الأقل.' }, { status: 400 });
+        // Publishing exposes the course shell. Content, pricing, assessments and admissions
+        // are intentionally authored independently by the assigned academy staff.
         patch.published_at = new Date().toISOString();
       } else if (body.status === 'draft') {
         patch.published_at = null;
