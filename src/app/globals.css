@@ -28,3 +28,118 @@ input,select,textarea{width:100%;background:#171b1e;color:var(--text);border:1px
 .market-description{min-height:3.2em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 @media(max-width:1000px){.market-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.market-toolbar{grid-template-columns:1fr}}
+
+
+/* ASLAN unified presentation language — inherited by legacy pages, not commerce-domain business logic. */
+:root{
+  --gold:#a57b2e;
+  --brand-navy:#203744;
+  --brand-gold:#b48a3c;
+  --bg:#f4f6f8;
+  --panel:#ffffff;
+  --text:#263743;
+  --muted:#65747f;
+  --line:#dce3e8;
+  --aslan-radius:16px;
+  --aslan-shadow:0 12px 30px rgba(23,47,63,.055);
+}
+html{scroll-padding-top:95px}
+body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+.wrap{width:min(1240px,94%);margin-inline:auto}
+.section{padding:54px 0;border-bottom:1px solid var(--line)}
+.dark{background:#203440;color:#f4f6f8}
+.dark .card{background:#fff;color:#263743}
+.dark .card .muted{color:#65747f}
+.gold{color:var(--gold)}
+.muted{color:var(--muted)}
+.kicker{color:var(--gold);font-weight:800;letter-spacing:.1em}
+.card{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:var(--aslan-radius);box-shadow:var(--aslan-shadow)}
+.card a:not(.btn){transition:color .2s}
+.card a:not(.btn):hover{color:#916a2e}
+.btn,.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--brand-gold);border-radius:10px;padding:10px 18px;font-size:14px;font-weight:800;line-height:1.5;cursor:pointer;text-decoration:none;min-height:42px}
+.btn.primary,.button.primary{background:var(--brand-gold);color:white}
+.btn.secondary,.button.secondary{background:white;color:#755622}
+.btn:disabled,.button:disabled{opacity:.55;cursor:not-allowed}
+input,select,textarea{background:#fff;color:var(--text);border:1px solid #cdd6dd;border-radius:9px;padding:11px 13px}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(180,138,60,.28);border-color:var(--brand-gold)}
+input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--brand-gold)}
+a,button,input,textarea,select{transition:box-shadow .15s,border-color .15s}
+:where(a,button,input,select,textarea):focus-visible{outline:3px solid var(--brand-gold);outline-offset:3px}
+.head h2{font-size:clamp(25px,3vw,38px)}
+/* Top-level platform navigation deliberately stays consistent in every sector. */
+.shell-header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.97);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);box-shadow:0 2px 15px rgba(25,48,60,.035)}
+.shell-header .shell-brand{color:#233943;gap:10px;white-space:nowrap}
+.shell-header .shell-brand:hover{color:#243f50}
+.shell-header .shell-wordmark{font-size:24px;font-family:Georgia,serif;font-weight:800}
+.shell-header .shell-nav{gap:4px;flex-wrap:wrap;justify-content:center}
+.shell-header .shell-nav a{padding:8px 11px;font-size:13px;font-weight:700;border-radius:9px;white-space:nowrap;color:#4e6471;transition:background .15s,color .15s}
+.shell-header .shell-nav a:hover,.shell-header .shell-nav a[aria-current=page]{background:#f6ecd8;color:#826025}
+.shell-header .shell-actions{color:#293f4b}
+.shell-header .shell-actions>a:not(.btn){color:#293f4b;padding:5px}
+.shell-header .shell-actions>a:hover{color:#a47a32}
+.shell-header .shell-mobile{color:#775727}
+.shell-header .shell-mobile-menu{background:#fff;border-top:1px solid var(--line);padding-bottom:18px}
+.shell-header .shell-mobile-menu a{display:block;padding:7px 10px;border-radius:7px;font-size:14px}
+.shell-header .shell-mobile-menu a:hover,.shell-header .shell-mobile-menu a[aria-current=page]{background:#f7f1e4;color:#866024}
+.shell-header .shell-brand-mark{background:#f7edd9}
+.shell-header small{color:#758591}
+@media(max-width:1160px){.shell-header .shell-nav{gap:0}.shell-header .shell-nav a{font-size:12px;padding:8px}}
+/* Footer: an institutional dark anchor, with gold highlights matching market hero. */
+.aslan-footer{padding:48px 0 28px;background:linear-gradient(115deg,#233b48,#111e28);color:#eff4f4;border-top:3px solid #b48a3c}
+.aslan-footer .footer-grid{display:grid;grid-template-columns:minmax(240px,1.4fr) repeat(3,minmax(135px,1fr));gap:30px}
+.aslan-footer .footer-title{display:block;margin-bottom:10px;color:#e0bd79;font-size:13px;letter-spacing:.03em}
+.aslan-footer .footer-brand{font:800 26px Georgia,serif;letter-spacing:.09em;color:#dfbd7a}
+.aslan-footer .footer-description{font-size:13px;color:#bccbd2;max-width:300px;line-height:1.85}
+.aslan-footer .footer-column{display:flex;flex-direction:column;gap:7px;font-size:13px}
+.aslan-footer a{color:#dae5e9;transition:color .2s}
+.aslan-footer a:hover{color:#e5be74}
+.aslan-footer .footer-bottom{margin-top:28px;border-top:1px solid rgba(235,244,247,.15);padding-top:18px;color:#b9c9d2;font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media(max-width:850px){.aslan-footer .footer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.aslan-footer .footer-grid{grid-template-columns:1fr}.aslan-footer{padding-top:35px}}
+/* Legacy social and chat widgets: aligned surfaces, without changing their behavior. */
+.social-post__body{color:#344752}
+.social-post__title{color:#253946}
+.social-avatar--fallback{background:#e9eff2;color:#9a7336}
+.icon-button{color:#6f5328;background:#fff}
+.post-menu{background:#fff;box-shadow:0 15px 36px rgba(15,34,44,.12)}
+.post-menu button{color:#263743}
+.post-menu button:hover{background:#f4f6f8}
+.social-media__item{background:#f1f4f5}
+.featured-badge{background:#fff5e1;color:#87601e}
+.community-nav a{background:white;color:#566a76;border-color:var(--line)}
+.community-nav a:hover{color:#8b662e;background:#fff8e9}
+.market-stock{color:#a24c38}
+.market-stock--available{color:#296f50}
+.message-attachments img,.message-attachments video,.media-uploader__item img,.media-uploader__item video{background:#f4f6f8}
+.messenger,.message-popover__panel{background:#fff;color:var(--text);box-shadow:0 16px 44px rgba(25,47,60,.12)}
+.conversation-row{color:var(--text);border-bottom-color:var(--line)}
+.conversation-row:hover,.conversation-row.is-active{background:#f3f6f8}
+.conversation-avatar{background:#eff2f3;color:#9d722d}
+.chat-body{background:radial-gradient(ellipse at 98% 0,rgba(180,138,60,.06),transparent 36%),#f7f9fa}
+.message-bubble{background:#fff;color:#263743;border-color:#e1e7ec}
+.message-row--out .message-bubble{background:#f5e7cb;border-color:#e5c994}
+.message-bubble small{color:#63727a}
+.message-popover__head-actions button,.message-popover__head-actions a{color:#9a712e}
+.message-composer{background:#fff}
+.messenger input,.messenger textarea,.message-popover__panel input,.message-popover__panel textarea{background:#fff;color:#263743;border-color:#cdd6dd}
+.message-popover__error{color:#9f4335}
+.message-composer__pending{color:#936b29}
+/* Generic cards and dense administration grids retain their original functionality. */
+.section>.wrap>h1,.section>.wrap>.display{font-size:clamp(30px,4vw,44px);line-height:1.4;letter-spacing:-.025em}
+.section>.wrap>.lead{font-size:16px;color:var(--muted);max-width:780px}
+.section>.wrap>.kicker{display:inline-block;margin-bottom:9px}
+.section>.wrap>.grid.three,.section>.wrap>.grid.two{margin-top:16px}
+.section>.wrap>.grid .card{min-width:0}
+.section>.wrap>.grid .card>h2{font-size:22px}
+.cta{background:linear-gradient(115deg,#243d4b,#172935);color:white;border-radius:20px;padding:30px}
+.cta .kicker{color:#e1be76}
+.cta h2{font-size:clamp(25px,3vw,36px);margin:8px 0}
+.cta .button.secondary{background:transparent;color:#ffda98}
+@media(max-width:800px){.section{padding:36px 0}.grid.three{grid-template-columns:1fr}.head h2{font-size:27px}}
+@media(prefers-reduced-motion:reduce){a,button,input,textarea,select{transition:none!important}}
+
+/* Consistent form action treatment for existing functional workflows. */
+main form button[type=submit]:not([class]){border:1px solid #b48a3c;border-radius:10px;background:#b48a3c;color:#fff;padding:10px 16px;font-size:14px;font-weight:800;min-height:42px}
+main form button[type=submit]:not([class]):hover{background:#976f2c;border-color:#976f2c}
+main form button[type=submit]:not([class]):disabled{opacity:.45;cursor:not-allowed}
+.product-image{background:#f0f3f5;color:#80909c}

@@ -1,0 +1,77 @@
+
+/* Corporate homepage: the same white-surface / navy-gold language as the marketplace. */
+.home{background:#f4f6f8;color:#263743;line-height:1.75;padding:0 0 65px;min-height:60vh}
+.wrap{width:min(1320px,94%);margin-inline:auto}
+.announcement{background:#fff6e5;color:#76551e;border-bottom:1px solid #e8d5b2}
+.announcement .wrap{display:flex;gap:12px;align-items:center;padding-block:9px;font-size:13px}
+.announcement span{font-size:11px;font-weight:900;white-space:nowrap}
+.announcement p{margin:0}
+.hero{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(295px,1fr);gap:18px;padding-top:27px}
+.heroMain{border-radius:20px;background:radial-gradient(circle at 8% 8%,rgba(197,160,89,.23),transparent 45%),linear-gradient(115deg,#233b48,#111e28);color:white;position:relative;overflow:hidden;padding:clamp(28px,4vw,52px)}
+.heroMain:after{position:absolute;content:'';pointer-events:none;width:280px;height:280px;border:1px solid rgba(197,160,89,.2);border-radius:50%;bottom:-150px;left:-70px}
+.heroEyebrow{font-weight:850;font-size:12px;letter-spacing:.13em;color:#e6c07e}
+.heroMain h1{font-size:clamp(32px,4.3vw,56px);line-height:1.38;letter-spacing:-.024em;margin:12px 0 18px;max-width:700px}
+.heroMain h1 em{color:#f0cb88;font-style:normal}
+.heroMain p{color:#d1dfe4;font-size:16px;max-width:570px;margin:0}
+.heroButtons{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:24px}
+.goldButton,.outlineButton{display:inline-flex;gap:9px;align-items:center;justify-content:center;font-size:14px;font-weight:800;padding:11px 18px;border-radius:10px;text-decoration:none;border:1px solid #b48a3c;min-height:43px;white-space:nowrap}
+.goldButton{background:#b48a3c;color:#fff}
+.outlineButton{background:transparent;color:#f2d39b}
+.heroCapabilities{display:flex;flex-wrap:wrap;gap:13px;margin-top:28px;border-top:1px solid rgba(244,238,220,.13);padding-top:17px}
+.heroCapabilities span{display:inline-flex;align-items:center;gap:6px;color:#d8e0e2;font-size:12px}
+.heroCapabilities svg{color:#dbba7b}
+.heroAside{background:#fff;border:1px solid #dce3e8;border-radius:20px;padding:clamp(22px,2.8vw,34px);display:flex;flex-direction:column;justify-content:center}
+.sideEyebrow,.eyebrow{color:#96712e;letter-spacing:.09em;font-size:12px;font-weight:900}
+.heroAside h2{font-size:clamp(23px,2.5vw,29px);line-height:1.5;margin:11px 0 6px;color:#233946}
+.heroAside>p{font-size:14px;color:#667882;margin:0 0 15px}
+.quickRoutes{display:grid;gap:8px}
+.quickRoutes a{display:flex;gap:12px;align-items:center;min-height:46px;background:#f7f9fa;border:1px solid #e4e9ed;border-radius:11px;padding:9px 12px;font-size:14px;font-weight:700;color:#334c58;transition:border-color .18s,background .18s}
+.quickRoutes a:hover{background:#fff8ed;border-color:#cdb783}
+.quickRoutes a svg:first-child{color:#a57b2e}
+.quickRoutes a svg:last-child{margin-inline-start:auto;color:#a57b2e}
+.section{padding-top:40px;scroll-margin-top:110px}
+.sectionHeading{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;flex-wrap:wrap;margin-bottom:18px}
+.sectionHeading h2{font-size:clamp(24px,2.7vw,32px);line-height:1.4;margin:7px 0}
+.sectionHeading p{margin:4px 0 0;font-size:14px;color:#65747f}
+.textLink{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:800;color:#956d2a;text-decoration:none}
+.textLink:hover{color:#64471b}
+.portalGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:13px}
+.portalCard{border-radius:16px;border:1px solid #dce3e8;background:white;padding:22px 16px;display:flex;flex-direction:column;min-width:0;gap:8px;min-height:245px;transition:border-color .2s,box-shadow .2s,transform .2s}
+.portalCard:hover{border-color:#c5a46b;box-shadow:0 10px 27px rgba(32,55,68,.07);transform:translateY(-2px)}
+.portalIcon,.serviceIcon,.marketEmptyIcon,.communityIcon{display:grid;place-items:center;background:#f6eedf;color:#a47b34;border-radius:13px;width:50px;height:50px}
+.portalLabel{font-size:11px;color:#9b762e;font-weight:750}
+.portalCard strong{font-size:17px;color:#283d48;line-height:1.5}
+.portalCard p{font-size:12px;color:#65747f;margin:0;flex:1;line-height:1.7}
+.portalVisit{font-size:12px;font-weight:850;color:#916b2a;display:flex;align-items:center;gap:5px}
+.marketEmpty,.communityEmpty{background:#fff;border:1px solid #dce3e8;border-radius:16px;padding:27px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.marketEmptyIcon,.communityIcon{width:65px;height:65px;flex-shrink:0}
+.marketEmpty>div:nth-child(2),.communityEmpty>div:nth-child(2){flex:1;min-width:210px}
+.marketEmpty h3,.communityEmpty h3{font-size:22px;color:#263b48;margin:0 0 7px}
+.marketEmpty p,.communityEmpty p{color:#65747f;font-size:14px;margin:0;max-width:700px}
+.serviceGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.serviceCard{display:flex;flex-direction:column;background:white;border:1px solid #dce3e8;border-radius:16px;padding:22px;min-width:0;gap:10px;transition:border-color .2s,box-shadow .2s}
+.serviceCard:hover{border-color:#bfa16b;box-shadow:0 10px 27px rgba(32,55,68,.06)}
+.serviceCard h3{font-size:18px;color:#2e4350;margin:0;line-height:1.5}
+.serviceCard p{font-size:13px;color:#627682;line-height:1.8;margin:0;flex:1}
+.serviceCard>span:last-child{display:flex;align-items:center;gap:6px;color:#8c672b;font-size:12px;font-weight:850;margin-top:8px}
+.panel{padding:25px;border-radius:16px;background:white;border:1px solid #dce3e8}
+.panel h3{margin:0 0 8px}
+.panel p{color:#65747f}
+.communityGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.opportunities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;margin:40px 0 0}
+.opportunities article{background:#fff;border:1px solid #dce3e8;border-radius:16px;padding:25px}
+.opportunities svg{color:#a57b2e}
+.opportunities h3{font-size:20px;margin:10px 0 5px}
+.opportunities p{font-size:13px;color:#65747f;margin:0}
+.opportunities a{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b652a;font-weight:800;margin-top:16px}
+.closing{background:linear-gradient(115deg,#243d4b,#172935);color:#fff;border-radius:20px;margin-top:38px;padding:34px 40px}
+.closing .eyebrow{color:#dbb878}
+.closing h2{font-size:clamp(25px,3vw,36px);line-height:1.4;margin:10px 0}
+.closing p{color:#d0dce1;max-width:730px;font-size:14px}
+.closing .goldButton{margin-top:14px}
+.home :is(a,button,input,select):focus-visible{outline:3px solid #b58b3e;outline-offset:3px}
+@media(max-width:1200px){.portalGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.serviceGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:850px){.hero{grid-template-columns:1fr}.portalGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.communityGrid{grid-template-columns:1fr}}
+@media(max-width:600px){.heroMain,.heroAside{padding:26px}.heroMain h1{font-size:33px}.heroMain p{font-size:14px}.heroCapabilities{gap:10px}.section{padding-top:32px}.sectionHeading{align-items:flex-start}.portalGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.portalCard{padding:16px 11px;min-height:235px}.portalCard strong{font-size:15px}.portalCard p{font-size:11px}.serviceGrid,.opportunities{grid-template-columns:1fr}.marketEmpty,.communityEmpty{padding:20px;gap:13px}.marketEmpty h3,.communityEmpty h3{font-size:19px}.closing{padding:28px}.sectionHeading h2{font-size:25px}}
+@media(max-width:360px){.portalGrid{grid-template-columns:1fr}.portalCard{min-height:auto}}
+@media(prefers-reduced-motion:reduce){.portalCard,.serviceCard{transition:none}.portalCard:hover{transform:none}}

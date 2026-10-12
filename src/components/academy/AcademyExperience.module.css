@@ -2,3 +2,32 @@
 @media(max-width:1000px){.fields{grid-template-columns:repeat(3,minmax(0,1fr))}.heroGrid{grid-template-columns:1fr 1fr;gap:24px}.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.hero{padding:40px 0}.heroGrid,.joinGrid,.editorial,.toolbar{grid-template-columns:1fr}.heroGrid{gap:28px}.hero p{font-size:16px}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.field{padding:18px 14px}.field strong{font-size:15px}.gallery{grid-template-columns:1fr}.section{padding-top:38px}.heading h2{font-size:26px}.feature{padding:24px}.courseDetail{grid-template-columns:1fr}.cover{height:210px}.steps{gap:10px}.step{padding:14px}.home{padding:42px 0}.notice{padding:20px}.joinSteps{gap:6px}.joinSteps li{font-size:12px;padding:6px 10px}}
 @media(prefers-reduced-motion:reduce){.field{transition:none}.field:hover{transform:none}}
+
+
+/* Market-inspired academy surfaces; official ASLAN blue/gold retained in the hero. */
+.page{background:#f4f6f8;color:#263743}
+.hero{color:#fff;background:radial-gradient(ellipse at 7% 12%,rgba(197,160,89,.20),transparent 47%),linear-gradient(115deg,#233b48,#111e28);border-bottom:0;padding:50px 0}
+.hero h1{font-size:clamp(32px,4.3vw,54px)}
+.hero p{color:#d5e0e6}
+.hero .feature{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(217,187,124,.35)}
+.hero .feature p{color:#d5e0e6}
+.hero .feature a{color:#eed09a}
+.feature{background:#fff;border:1px solid #dce3e8;color:#263743}
+.feature::before{border-color:#e4eaf0}
+.feature p{color:#65747f}
+.field,.toolbar,.course,.selection,.article,.courseDetail{background:#fff;border-color:#dce3e8;color:#263743;box-shadow:0 10px 27px rgba(25,48,60,.04)}
+.field:hover,.course:hover{border-color:#b48a3c}
+.toolbar :is(input,select),.selection :is(input,select){background:#fff;color:#263743}
+.meta{color:#906a2a}
+.notice{background:#fff8e9;border-color:#e8d5ae;color:#473e30}
+.notice p{color:#65747f}
+.empty{background:#fff;border-color:#dce3e8}
+.home{background:#f4f6f8;color:#263743;border-block:1px solid #dce3e8;padding:48px 0}
+.homeFields a{background:white;border-color:#dce3e8;color:#526771}
+.homeFields a:hover{border-color:#b48a3c;color:#8c682d}
+.cover{background:linear-gradient(120deg,#e7ebec,#dde8ed);color:#a57b2e}
+.coverLabel{background:#243b48;color:#fff}
+.step{border-color:#dce3e8}
+.section{padding-top:42px}
+.page .btn.primary{color:#fff}
+.page .btn.secondary{color:#755622}

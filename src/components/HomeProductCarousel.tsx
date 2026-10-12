@@ -57,13 +57,13 @@ export function HomeProductCarousel({ products }: { products: HomeProduct[] }) {
             الأكثر طلبًا، الأحدث، والمنتجات المدعومة إعلانيًا تظهر هنا تلقائيًا.
           </p>
         </div>
-        <Link href="/products">دخول إلى الـMarket ↗</Link>
+        <Link href="/market">دخول إلى السوق ↗</Link>
       </div>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 205px), 1fr))',
           gap: 14,
         }}
       >
