@@ -20,6 +20,9 @@ export async function Footer() {
           <Link href="/encyclopedia">الموسوعة العلمية والتقنية</Link>
           <Link href="/talent">الكفاءات المهنية</Link>
           <Link href="/partners">الشراكات</Link>
+          <Link href="/guides">دليل استخدام الموقع</Link>
+          <Link href="/guides/management">دليل الإدارة والأدوار</Link>
+          <Link href="/guides/rules">قواعد الاستخدام والمعاملات</Link>
           <Link href="/contact">التواصل</Link>
         </nav>
       </div>

@@ -113,12 +113,12 @@ export async function PATCH(request: Request) {
       patch.sort_order = body.sortOrder;
     }
     if (body.status !== undefined) {
-      if (!['draft', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدرس غير صالحة.' }, { status: 400 });
+      if (!['draft', 'review', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدرس غير صالحة.' }, { status: 400 });
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_lessons').update(patch).eq('id', id)
       .select('id,module_id,title,lesson_type,body,resource_url,duration_minutes,sort_order,status,updated_at').maybeSingle();
-    if (error) return NextResponse.json({ error: 'تعذر تحديث الدرس.' }, { status: 500 });
+    if (error) return NextResponse.json({ error: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 'اعتماد المحتوى يحتاج صلاحية المشرف؛ أرسل المسودة للمراجعة.' : 'تعذر تحديث الدرس.' }, { status: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 403 : 500 });
     if (!data) return NextResponse.json({ error: 'الدرس غير موجود.' }, { status: 404 });
     return NextResponse.json({ lesson: data });
   } catch {

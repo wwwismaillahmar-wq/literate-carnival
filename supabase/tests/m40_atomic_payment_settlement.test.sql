@@ -33,10 +33,10 @@ select admin_id,super_role_id from m40_ids
 on conflict do nothing;
 
 insert into public.invoices(id,invoice_number,customer_id,source_type,source_id,currency,subtotal,tax_amount,total_amount,status)
-select invoice_id,'M40-'||replace(invoice_id::text,'-',''),customer_id,'test','valid','DZD',1200,0,1200,'issued'
+select invoice_id,'M40-'||replace(invoice_id::text,'-',''),customer_id,'other','valid','DZD',1200,0,1200,'issued'
 from m40_ids
 union all
-select mismatch_invoice_id,'M40-'||replace(mismatch_invoice_id::text,'-',''),customer_id,'test','mismatch','DZD',1200,0,1200,'issued'
+select mismatch_invoice_id,'M40-'||replace(mismatch_invoice_id::text,'-',''),customer_id,'other','mismatch','DZD',1200,0,1200,'issued'
 from m40_ids;
 
 insert into public.payments(id,invoice_id,payer_id,provider,amount,currency,status,idempotency_key)

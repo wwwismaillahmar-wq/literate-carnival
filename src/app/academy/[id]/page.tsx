@@ -2,7 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { CourseLearningActions } from '@/components/academy/CourseLearningActions';
-import { AcademyAdmissionForm } from '@/components/academy/AcademyAdmissionForm';
+import { getCourseOfferings } from '@/lib/academy/offerings.server';
+import { coursePrice, fieldTitle, normalizeCourse, readPresentation } from '@/lib/academy/catalog';
+import { TrainingIcon } from '@/components/academy/TrainingIcon';
+import styles from '@/components/academy/AcademyExperience.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,50 +37,26 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
   const { data: course, error: courseError } = await db.from('courses').select('*').eq('id', id).maybeSingle();
   if (courseError || !course || !isPublished(course as CourseRow)) notFound();
 
-  const { data: offeringRows, error: offeringsError } = await db.from('academy_course_offerings')
-    .select('id,school_id,branch_id,language,capacity')
-    .eq('course_id', String(course.id)).eq('status', 'published')
-    .order('created_at', { ascending: true });
-  const schoolIds = [...new Set((offeringRows ?? []).map(row => row.school_id))];
-  const branchIds = [...new Set((offeringRows ?? []).map(row => row.branch_id).filter((id): id is string => Boolean(id)))];
-  const [{ data: schools, error: schoolsError }, { data: branches, error: branchesError }] = await Promise.all([
-    schoolIds.length ? db.from('academy_schools').select('id,name').in('id', schoolIds) : Promise.resolve({ data: [], error: null }),
-    branchIds.length ? db.from('academy_branches').select('id,name').in('id', branchIds) : Promise.resolve({ data: [], error: null }),
-  ]);
-  const offeringLookupError = offeringsError || schoolsError || branchesError;
-  const schoolNames = new Map((schools ?? []).map(row => [row.id, row.name]));
-  const branchNames = new Map((branches ?? []).map(row => [row.id, row.name]));
-  const offerings = (offeringRows ?? []).map(row => ({
-    id: row.id,
-    label: (schoolNames.get(row.school_id) || 'المدرسة') + (row.branch_id ? ' / ' + (branchNames.get(row.branch_id) || 'الفرع') : ' / جميع الفروع'),
-    language: row.language,
-    capacity: row.capacity,
-  }));
+  const {offerings,error:offeringsError,unavailable}=await getCourseOfferings(String(course.id));
+  const offeringLookupError=offeringsError || unavailable;
+  const {data:presentationRow}=await db.from('site_settings').select('setting_value').eq('setting_key','academy_catalog').eq('is_public',true).maybeSingle();
+  const presentation=readPresentation(presentationRow?.setting_value)[String(course.id)];
 
   const { data: modules, error: moduleError } = await db.from('academy_modules')
     .select('id,title,description,sort_order')
     .eq('course_id', String(course.id))
     .eq('status', 'published')
     .order('sort_order', { ascending: true });
-  if (moduleError) {
-    return <main className="section"><div className="wrap">
-      <Link href="/academy">← العودة إلى الأكاديمية</Link>
-      <h1>{textField(course as CourseRow, ['title', 'name', 'course_name'], 'الدورة')}</h1>
-      <div className="card" role="alert">تعذر تحميل المنهج المنشور. لم نعرض محتوى غير مؤكد.</div>
-    </div></main>;
-  }
 
   const moduleIds = (modules ?? []).map(academyModule => academyModule.id);
   const { data: assessments, error: assessmentError } = moduleIds.length
     ? await db.from('academy_assessments').select('id,module_id,title,pass_score').in('module_id', moduleIds).eq('status', 'published').order('created_at', { ascending: true })
     : { data: [], error: null };
-  const { data: lessons, error: lessonError } = moduleIds.length
-    ? await db.from('academy_lessons')
-        .select('id,module_id,title,lesson_type,body,resource_url,duration_minutes,sort_order')
-        .in('module_id', moduleIds).eq('status', 'published')
-        .order('sort_order', { ascending: true })
-    : { data: [], error: null };
+  type CurriculumLesson = { id:string; module_id:string; title:string; lesson_type:string; duration_minutes:number; sort_order:number; accessible:boolean };
+  const {data:curriculum,error:lessonError}=await db.rpc('academy_curriculum',{p_course_id:String(course.id)});
+  const lessons=(Array.isArray(curriculum)?curriculum:[]) as CurriculumLesson[];
 
+  const summary = normalizeCourse(course as CourseRow,presentation);
   const title = textField(course as CourseRow, ['title', 'name', 'course_name'], 'الدورة');
   const description = textField(course as CourseRow, ['description', 'summary', 'details']);
   const lessonGroups = new Map<string, typeof lessons>();
@@ -92,6 +71,8 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
     <span className="kicker" style={{ display: 'block', marginTop: 20 }}>ACADEMY / CURRICULUM</span>
     <h1>{title}</h1>
     {description && <p className="lead">{description}</p>}
+    <section className={styles.courseDetail} aria-label="ملخص الدورة"><div><TrainingIcon field={summary.field}/><h2>{fieldTitle(summary.field)}</h2><p>{summary.duration ? 'المدة: '+summary.duration+' · ' : ''}السعر المعلن: {coursePrice(summary.price)}</p></div><div className={styles.actions}><Link className="btn primary" href={'/academy/join?course='+encodeURIComponent(String(course.id))}>اختيار العرض وطلب الالتحاق</Link><Link className="btn secondary" href="/account/academy">مساحتي الدراسية</Link></div></section>
+    {moduleError && <p className="card" role="alert">تعذر تحميل المنهج حاليًا. يمكنك مراجعة معلومات الدورة والتواصل مع الأكاديمية.</p>}
     {lessonError && <div className="card" role="alert">تعذر تحميل بعض الدروس المنشورة.</div>}
     {assessmentError && <div className="card" role="alert">تعذر تحميل الاختبارات المنشورة.</div>}
     {!modules?.length && <div className="card" style={{ marginTop: 20 }}>لم يُنشر منهج لهذه الدورة بعد.</div>}
@@ -104,15 +85,14 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
           {(lessonGroups.get(academyModule.id) ?? []).map(lesson => <li key={lesson.id} style={{ marginBottom: 16 }}>
             <strong>{lesson.title}</strong>
             <p className="muted">{lesson.lesson_type === 'video' ? 'درس فيديو' : lesson.lesson_type === 'document' ? 'مادة وثائقية' : lesson.lesson_type === 'link' ? 'رابط تعليمي' : 'درس نصي'}{lesson.duration_minutes ? ' · ' + lesson.duration_minutes + ' دقيقة' : ''}</p>
-            {lesson.body && <p>{lesson.body}</p>}
-            {lesson.resource_url && <a href={lesson.resource_url} target="_blank" rel="noreferrer">فتح المورد التعليمي ↗</a>}
+            {lesson.accessible ? <Link href={'/academy/lessons/'+lesson.id}>فتح الدرس ↗</Link> : <span className="muted">الدرس مغلق حتى التسجيل وإتمام المتطلبات السابقة.</span>}
           </li>)}
         </ol>
         {(assessmentGroups.get(academyModule.id) ?? []).map(assessment => <p key={assessment.id}><Link href={'/academy/assessments/' + assessment.id}>اختبار: {assessment.title} · النجاح {assessment.pass_score}% ↗</Link></p>)}
       </article>)}
     </section>
     {offeringLookupError && <div className="card" role="alert">تعذر التحقق من المدارس والفروع المتاحة. تم تعطيل التسجيل والقبول حتى يكتمل التحقق.</div>}
-    {!offeringLookupError && <CourseLearningActions courseId={String(course.id)} offerings={offerings} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />}
-    {!offeringLookupError && <AcademyAdmissionForm courseId={String(course.id)} offerings={offerings} />}
+    {!offeringLookupError && <CourseLearningActions courseId={String(course.id)} offerings={offerings} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title, accessible: lesson.accessible }))} />}
+    <p style={{marginTop:24}}><Link href="/guides#academy">دليل الطالب وخطوات الالتحاق ←</Link></p>
   </div></main>;
 }
