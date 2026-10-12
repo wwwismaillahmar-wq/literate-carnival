@@ -44,6 +44,7 @@ export async function POST(request: Request) {
   try {
     const db = await createClient();
     const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'سجّل الدخول قبل تقديم طلب القبول حتى يرتبط الطلب بحسابك.' }, { status: 401 });
     const body = await request.json();
     const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : '';
     const offeringId = typeof body.offeringId === 'string' && body.offeringId.trim() ? body.offeringId.trim() : null;

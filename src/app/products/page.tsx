@@ -1,2 +1,5 @@
-import {getProducts} from '@/lib/data'; import {ProductGrid} from '@/components/ProductGrid';
-export default async function Products(){return <main className="section"><div className="wrap"><div className="head"><div><span className="kicker">COLLECTION</span><h1>المنتجات</h1></div><span className="muted">اطلب القطعة المخصصة</span></div><ProductGrid products={await getProducts()}/></div></main>}
+import {redirect} from 'next/navigation';
+export default async function ProductsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
+ const params=await searchParams;const query=new URLSearchParams();for(const [key,value] of Object.entries(params)){if(typeof value==='string')query.set(key,value);}
+ redirect('/market'+(query.size?'?'+query.toString():''));
+}

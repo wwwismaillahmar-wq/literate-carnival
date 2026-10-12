@@ -82,7 +82,7 @@ export async function PATCH(request: Request) {
       patch.max_attempts = body.maxAttempts;
     }
     if (body.status !== undefined) {
-      if (!['draft','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الاختبار غير صالحة.' }, { status: 400 });
+      if (!['draft','review','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الاختبار غير صالحة.' }, { status: 400 });
       if (body.status === 'published') {
         const { data: existing, error: existingError } = await db.from('academy_assessments').select('module_id').eq('id', id).maybeSingle();
         if (existingError || !existing) return NextResponse.json({ error: 'الاختبار غير موجود.' }, { status: 404 });
@@ -94,7 +94,7 @@ export async function PATCH(request: Request) {
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_assessments').update(patch).eq('id', id).select('id,module_id,title,pass_score,max_attempts,status,updated_at').maybeSingle();
-    if (error) return NextResponse.json({ error: 'تعذر تحديث الاختبار.' }, { status: 500 });
+    if (error) return NextResponse.json({ error: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 'اعتماد الاختبار يحتاج صلاحية المشرف؛ أرسل المسودة للمراجعة.' : 'تعذر تحديث الاختبار.' }, { status: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 403 : 500 });
     if (!data) return NextResponse.json({ error: 'الاختبار غير موجود.' }, { status: 404 });
     return NextResponse.json({ assessment: data });
   } catch { return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 }); }

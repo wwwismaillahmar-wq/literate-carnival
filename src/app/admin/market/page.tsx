@@ -71,6 +71,8 @@ export default async function MarketAdmin({
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Link className="card" href="/admin/control">بوابة الإدارة</Link>
+            <Link className="card" href="/admin/market/partners">اعتماد متاجر ومنتجات الشركاء</Link>
+            <Link className="card" href="/market/requests">طلبات عروض الأسعار</Link>
             <Link className="card" href="/admin/products">إدارة المنتجات</Link>
             <Link className="card" href="/products" target="_blank">عرض المتجر</Link>
           </div>

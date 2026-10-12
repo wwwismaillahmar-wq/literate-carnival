@@ -19,7 +19,13 @@ export async function Footer() {
         <nav aria-label="روابط إضافية" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <Link href="/encyclopedia">الموسوعة العلمية والتقنية</Link>
           <Link href="/talent">الكفاءات المهنية</Link>
+          <Link href="/market">السوق</Link>
+          <Link href="/market/stores">المتاجر</Link>
+          <Link href="/market/sell">مكتب التاجر</Link>
           <Link href="/partners">الشراكات</Link>
+          <Link href="/guides">دليل استخدام الموقع</Link>
+          <Link href="/guides/management">دليل الإدارة والأدوار</Link>
+          <Link href="/guides/rules">قواعد الاستخدام والمعاملات</Link>
           <Link href="/contact">التواصل</Link>
         </nav>
       </div>

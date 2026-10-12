@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 
 export default function RegisterPage() {
+  const [next, setNext] = useState('/');
+  useEffect(() => { const value = new URLSearchParams(window.location.search).get('next'); if(value && value.startsWith('/') && !value.startsWith('//') && !value.includes(String.fromCharCode(92))) setNext(value); }, []);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,7 +51,7 @@ export default function RegisterPage() {
       }
 
       if (result.hasSession) {
-        window.location.href = '/';
+        window.location.href = next;
         return;
       }
 
@@ -112,6 +114,7 @@ export default function RegisterPage() {
           minLength={6}
         />
 
+        <p className="muted">باستخدام الحساب، التزم <Link href="/guides/rules">بقواعد الاحترام والخصوصية والمعاملات</Link>.</p>
         <button className="btn primary" type="submit" disabled={loading}>
           {loading ? 'جارٍ إنشاء الحساب...' : 'إنشاء الحساب'}
         </button>
@@ -120,7 +123,7 @@ export default function RegisterPage() {
         {error && <p style={{ color: '#ef8b8b' }}>{error}</p>}
 
         <p>
-          لديك حساب بالفعل؟ <Link href="/login">تسجيل الدخول</Link>
+          لديك حساب بالفعل؟ <Link href={'/login?next='+encodeURIComponent(next)}>تسجيل الدخول</Link>
         </p>
       </form>
     </main>

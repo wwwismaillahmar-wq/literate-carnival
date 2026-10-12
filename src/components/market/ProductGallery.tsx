@@ -1,0 +1,5 @@
+'use client';
+import Image from 'next/image';import {useState} from 'react';import {Package} from 'lucide-react';import styles from './Market.module.css';
+export function ProductGallery({images,name,videos=[]}:{images:string[];name:string;videos?:{id:string;url:string}[]}){
+ const [index,setIndex]=useState(0);return <div><div className={styles.galleryMain}>{images[index]?<Image src={images[index]} alt={name} width={800} height={800} unoptimized priority/>:<Package size={80} color="#b8c0c6" aria-label="لا توجد صورة منشورة للمنتج"/>}</div>{images.length>1&&<div className={styles.thumbnails} aria-label="صور المنتج">{images.map((image,i)=><button type="button" key={image+i} aria-label={'عرض الصورة '+(i+1)} aria-pressed={index===i} onClick={()=>setIndex(i)}><Image src={image} alt="" width={90} height={90} unoptimized/></button>)}</div>}{videos.map(video=><video key={video.id} src={video.url} controls preload="metadata" style={{width:'100%',borderRadius:14,marginTop:18}}/>)}</div>;
+}

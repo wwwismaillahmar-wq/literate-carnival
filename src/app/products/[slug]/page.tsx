@@ -1,127 +1,23 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { whatsappLink } from '@/lib/config';
-import { addProductToCart } from '../actions';
-
-export const dynamic = 'force-dynamic';
-
-export default async function ProductDetail({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const db = await createClient();
-
-  const { data: product, error } = await db
-    .from('products')
-    .select('id,name,slug,description,price_dzd,stock,active,images,created_at,category:categories(name)')
-    .eq('slug', slug)
-    .eq('active', true)
-    .maybeSingle();
-
-  if (error || !product) notFound();
-
-  const { data: reviews, error: reviewsError } = await db
-    .from('reviews')
-    .select('id,rating,body,created_at')
-    .eq('subject_type', 'product')
-    .eq('subject_id', String(product.id))
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-    .limit(20);
-  if (reviewsError) throw new Error('تعذر تحميل تقييمات المنتج.');
-
-  const { data: media } = await db
-    .from('media_assets')
-    .select('id,media_type,mime_type,object_path,bucket_id')
-    .eq('product_id', product.id)
-    .eq('upload_status', 'uploaded')
-    .order('created_at', { ascending: true });
-
-  const gallery = [];
-  for (const item of media ?? []) {
-    const signed = await db.storage.from(item.bucket_id ?? 'aslan-media').createSignedUrl(item.object_path, 3600);
-    if (signed.data?.signedUrl) gallery.push({ ...item, url: signed.data.signedUrl });
-  }
-
-  const legacyImages = Array.isArray(product.images)
-    ? product.images.filter((item: unknown): item is string => typeof item === 'string')
-    : [];
-  const images = [...gallery.filter((item) => item.media_type === 'image').map((item) => item.url), ...legacyImages];
-  const categoryData = product.category as { name: string } | { name: string }[] | null;
-  const category = Array.isArray(categoryData) ? categoryData[0]?.name : categoryData?.name;
-
-  return (
-    <main className="section">
-      <div className="wrap">
-        <div style={{ marginBottom: 18 }}>
-          <Link href="/products">← العودة إلى الـMarket</Link>
-        </div>
-
-        <div className="grid two" style={{ alignItems: 'start' }}>
-          <div className="card">
-            <div style={{ display: 'grid', gap: 12 }}>
-              {images.length ? images.map((url, index) => (
-                <img
-                  key={url + index}
-                  src={url}
-                  alt={product.name}
-                  style={{ width: '100%', maxHeight: 520, objectFit: 'cover', borderRadius: 10 }}
-                />
-              )) : (
-                <div style={{ minHeight: 360, display: 'grid', placeItems: 'center' }} className="muted">ASLAN</div>
-              )}
-              {gallery.filter((item) => item.media_type === 'video').map((item) => (
-                <video key={item.id} src={item.url} controls style={{ width: '100%', borderRadius: 10 }} />
-              ))}
-            </div>
-          </div>
-
-          <article className="card">
-            <span className="kicker">{category ?? 'ASLAN MARKET'}</span>
-            <h1>{product.name}</h1>
-            {product.description && <p className="lead">{product.description}</p>}
-            <div className="product-price" style={{ fontSize: 24, margin: '20px 0' }}>
-              {product.price_dzd === null ? 'حسب الطلب' : `${product.price_dzd} دج`}
-            </div>
-            <p className="muted">
-              {product.stock > 0 ? `متوفر — ${product.stock} قطعة` : 'المنتج غير متوفر حاليًا'}
-            </p>
-
-            <div className="card" style={{ marginTop: 24 }}>
-              <form action={addProductToCart} style={{ display:'grid', gap:12 }}>
-                <input type="hidden" name="product_id" value={product.id} />
-                <label>الكمية
-                  <input name="quantity" type="number" min="1" max={Math.max(1, product.stock)} defaultValue="1" disabled={product.stock <= 0} />
-                </label>
-                <button className="button primary" type="submit" disabled={product.stock <= 0}>أضف إلى السلة</button>
-              </form>
-            </div>
-            <div className="actions" style={{ marginTop: 16 }}>
-              <a className="button secondary" href={whatsappLink(`مرحباً ASLAN MODELLING، أريد طلب المنتج: ${product.name}. أرجو إرسال التفاصيل.`)} target="_blank" rel="noopener noreferrer">طلب عبر WhatsApp</a>
-              <Link className="button secondary" href="/cart">السلة</Link>
-              <Link className="button secondary" href="/products">كل المنتجات</Link>
-            </div>
-            <div className="card" style={{ marginTop: 20 }}>
-              <strong>مسار الشراء</strong>
-              <p className="muted" style={{ marginBottom: 0 }}>
-                إضافة إلى السلة → Checkout → حجز المخزون وإنشاء الفاتورة → الدفع الإلكتروني عند تفعيل مزود M15.
-              </p>
-            </div>
-          </article>
-        </div>
-        <section className="card" style={{ marginTop: 28 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <h2>تقييمات العملاء</h2>
-            <Link href="/reviews">تقييم مشترياتك أو خدماتك ←</Link>
-          </div>
-          {!reviews?.length ? <p className="muted">لا توجد تقييمات معتمدة لهذا المنتج بعد.</p> : <div style={{ display: 'grid', gap: 12 }}>
-            {reviews.map(review => <article key={review.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-              <strong aria-label={'التقييم ' + review.rating + ' من 5'}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong>
-              <p>{review.body || 'تقييم دون تعليق.'}</p>
-              <small className="muted">{new Date(review.created_at).toLocaleDateString('ar-DZ')}</small>
-            </article>)}
-          </div>}
-        </section>
-      </div>
-    </main>
-  );
+import Link from 'next/link';import {notFound} from 'next/navigation';import {Store,PackageCheck} from 'lucide-react';import {createClient} from '@/lib/supabase/server';import {getMarketCatalog} from '@/lib/market/catalog.server';import {money} from '@/lib/market/catalog';import {whatsappLink} from '@/lib/config';import {addProductToCart} from '../actions';import {MarketHeader} from '@/components/market/MarketHeader';import {ProductGallery} from '@/components/market/ProductGallery';import {MarketProductCard} from '@/components/market/MarketProductCard';import styles from '@/components/market/Market.module.css';
+export const dynamic='force-dynamic';
+export default async function ProductDetail({params,searchParams}:{params:Promise<{slug:string}>;searchParams:Promise<{error?:string}>}){
+ const [{slug},catalog,query,db]=await Promise.all([params,getMarketCatalog(),searchParams,createClient()]);const product=catalog.products.find(item=>item.slug===slug);if(!product)notFound();const store=catalog.stores.find(item=>item.id===product.storeId);const [{data:reviews,error:reviewsError},{data:media}]=await Promise.all([
+ db.from('reviews').select('id,rating,body,created_at').eq('subject_type','product').eq('subject_id',String(product.id)).eq('status','approved').order('created_at',{ascending:false}).limit(20),
+ db.from('media_assets').select('id,media_type,object_path,bucket_id').eq('product_id',product.id).eq('upload_status','uploaded').neq('media_type','image'),
+ ]);const attachments=await Promise.all((media||[]).map(async item=>{const signed=await db.storage.from(item.bucket_id||'aslan-media').createSignedUrl(item.object_path,3600);return {...item,url:signed.data?.signedUrl||''};}));
+ const purchasable=product.price!==null&&product.price>0&&product.stock>=product.minimumOrder;
+ const related=catalog.products.filter(item=>item.id!==product.id&&item.categoryId===product.categoryId).slice(0,4);
+ const rating=reviews?.length?reviews.reduce((sum,item)=>sum+item.rating,0)/reviews.length:null;
+ return <main className={styles.page}><MarketHeader/><div className={styles.wrap}><nav className={styles.breadcrumbs} aria-label="مسار المنتج"><Link href="/market">السوق</Link> / <Link href={'/market?category='+product.categoryId+'#catalog'}>{product.category}</Link> / {product.name}</nav>
+ {query.error&&<p className={styles.notice} role="alert">{query.error}</p>}
+ <div className={styles.detail}><ProductGallery images={product.images} name={product.name} videos={attachments.filter(item=>item.media_type==='video'&&item.url)}/><article className={styles.info}><Link className={styles.seller} href={'/market/stores/'+(store?.slug||'aslan')}><Store size={18}/>{store?.name}</Link><h1>{product.name}</h1>{rating!==null&&<p className={styles.small}>★ {rating.toFixed(1)} من 5 · {reviews?.length} تقييم معتمد</p>}<strong className={styles.price}>{money(product.price)}</strong><p className={styles.stock}><PackageCheck size={15} style={{display:'inline',verticalAlign:'middle'}}/> {product.stock>0?'المتاح حاليًا: '+product.stock+' قطعة':'استفسر عن التوفر أو التصنيع'}</p><p className={styles.small}>الحد الأدنى للطلب: {product.minimumOrder} قطعة</p>
+ {purchasable?<form action={addProductToCart} className={styles.form}><input type="hidden" name="product_id" value={product.id}/><label>الكمية<input name="quantity" type="number" required min={product.minimumOrder} max={product.stock} defaultValue={product.minimumOrder}/></label><button className={styles.primary} type="submit">أضف إلى السلة</button></form>:<p className={styles.notice}>هذا المنتج يحتاج تأكيد السعر أو الكمية والتجهيز قبل إتمام الطلب.</p>}
+ <div className={styles.actions}><Link className={styles.secondary} href={'/market/quote?product='+product.id+'&type=wholesale'}>اطلب عرض سعر للكميات</Link><Link className={styles.secondary} href={'/market/quote?product='+product.id+'&type=custom'}>تخصيص المنتج</Link></div>
+ {product.storeId==='aslan'&&<a href={whatsappLink('مرحبًا، أريد الاستفسار عن '+product.name)} target="_blank" rel="noopener noreferrer" className={styles.small} style={{display:'block',marginTop:18}}>استفسار مع المؤسسة عبر WhatsApp ←</a>}
+ <p className={styles.small} style={{marginTop:20}}>راجع شروط التسليم والآجال والإلغاء مع الجهة المسؤولة قبل تأكيد المعاملة. <Link href="/guides/rules#transactions">حقوق العميل والتاجر</Link></p>
+ </article></div>
+ <section className={styles.section+' '+styles.panel}><h2>تفاصيل المنتج</h2><p className={styles.description}>{product.description||'لم يُضف وصف تفصيلي لهذا المنتج بعد. اطلب توضيحًا قبل الشراء.'}</p>{Object.keys(product.specifications).length>0&&<table className={styles.table}><caption style={{textAlign:'right',fontWeight:'bold'}}>المواصفات المعلنة</caption><tbody>{Object.entries(product.specifications).map(([key,value])=><tr key={key}><th scope="row">{key}</th><td>{value}</td></tr>)}</tbody></table>}{attachments.filter(item=>item.media_type!=='video'&&item.url).map(item=><p key={item.id}><a href={item.url} target="_blank" rel="noopener noreferrer">فتح مستند المنتج ←</a></p>)}</section>
+ <section className={styles.section+' '+styles.panel}><div className={styles.heading}><h2>تقييمات العملاء</h2><Link href="/reviews">تقييم مشترياتك ←</Link></div>{reviewsError?<p role="alert">تعذر تحميل التقييمات حاليًا.</p>:!reviews?.length?<p>لا توجد تقييمات معتمدة لهذا المنتج بعد.</p>:reviews.map(review=><article key={review.id} style={{borderTop:'1px solid var(--line)',paddingTop:12}}><strong aria-label={'التقييم '+review.rating+' من 5'}>{'★'.repeat(Math.max(0,Math.min(5,review.rating)))}</strong><p>{review.body||'تقييم دون تعليق.'}</p><small>{new Date(review.created_at).toLocaleDateString('ar-DZ')}</small></article>)}</section>
+ {related.length>0&&<section className={styles.section}><div className={styles.heading}><h2>خيارات أخرى في التصنيف نفسه</h2><Link href={'/market?category='+product.categoryId}>عرض التصنيف ←</Link></div><div className={styles.grid}>{related.map(item=><MarketProductCard key={item.id} product={item} store={catalog.stores.find(seller=>seller.id===item.storeId)}/>)}</div></section>}
+ </div></main>;
 }

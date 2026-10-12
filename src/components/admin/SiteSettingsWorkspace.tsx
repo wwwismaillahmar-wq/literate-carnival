@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AcademyPresentationWorkspace } from './AcademyPresentationWorkspace';
 
 const fields = [
   { key: 'brand_tagline', label: 'الشعار النصي', type: 'text' },
@@ -14,6 +15,19 @@ const fields = [
   { key: 'contact_phone', label: 'هاتف التواصل', type: 'text' },
   { key: 'contact_email', label: 'بريد التواصل', type: 'email' },
   { key: 'contact_address', label: 'عنوان التواصل', type: 'text' },
+  {key:'academy_hero_title',label:'عنوان واجهة الأكاديمية',type:'text'},
+  {key:'academy_hero_body',label:'وصف واجهة الأكاديمية',type:'textarea'},
+  {key:'academy_announcement_title',label:'عنوان إعلان الأكاديمية',type:'text'},
+  {key:'academy_announcement_body',label:'نص الإعلان (اتركه فارغًا لإخفائه)',type:'textarea'},
+  {key:'academy_promo_title',label:'عنوان الإعلان التعريفي بالدورات',type:'text'},
+  {key:'academy_promo_body',label:'محتوى الإعلان التعريفي (اتركه فارغًا لإخفائه)',type:'textarea'},
+  {key:'academy_promo_link',label:'رابط التفاصيل داخل الموقع، مثل /academy/معرّف-الدورة',type:'text'},
+  {key:'academy_article_1_title',label:'عنوان البطاقة التعريفية 1',type:'text'},
+  {key:'academy_article_1_body',label:'محتوى البطاقة التعريفية 1',type:'textarea'},
+  {key:'academy_article_2_title',label:'عنوان البطاقة التعريفية 2',type:'text'},
+  {key:'academy_article_2_body',label:'محتوى البطاقة التعريفية 2',type:'textarea'},
+  {key:'academy_article_3_title',label:'عنوان البطاقة التعريفية 3',type:'text'},
+  {key:'academy_article_3_body',label:'محتوى البطاقة التعريفية 3',type:'textarea'},
 ] as const;
 
 type Values = Record<string, string>;
@@ -79,7 +93,7 @@ export function SiteSettingsWorkspace() {
       const result = await response.json() as { settings?: Values; error?: string };
       if (!response.ok || !result.settings) throw new Error(result.error || 'تعذر حفظ الإعدادات.');
       setValues(current => ({ ...current, ...result.settings }));
-      setNotice('تم حفظ الإعدادات في قاعدة البيانات. ستنعكس على الواجهة فقط في المواضع المرتبطة بهذه المفاتيح.');
+      setNotice('تم حفظ إعدادات الموقع ومحتوى الأكاديمية.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر حفظ الإعدادات.');
     } finally {
@@ -88,7 +102,7 @@ export function SiteSettingsWorkspace() {
   }
 
   if (loading) return <p className="muted">جارٍ تحميل الإعدادات...</p>;
-  return <div style={{display:'grid',gap:16,marginTop:20}}>
+  return <div style={{display:'grid',gap:16,marginTop:20}}><AcademyPresentationWorkspace/>
     <form className="card" onSubmit={uploadLogo} style={{display:'grid',gap:12}}>
       <h2>شعار الموقع</h2>
       {logoUrl && <img src={logoUrl} alt="الشعار الحالي" style={{maxWidth:220,maxHeight:100,objectFit:'contain',justifySelf:'start'}} />}
@@ -100,8 +114,8 @@ export function SiteSettingsWorkspace() {
     {notice && <p role="status">{notice}</p>}
     {fields.map(field => <label key={field.key}>{field.label}
       {field.type === 'textarea'
-        ? <textarea rows={4} maxLength={field.key === 'home_subtitle' ? 1000 : field.key === 'announcement_text' ? 500 : 300} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />
-        : <input type={field.type} maxLength={field.key === 'contact_email' ? 254 : 180} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />}
+        ? <textarea rows={4} maxLength={field.key.startsWith('academy_') || field.key === 'home_subtitle' ? 1000 : field.key === 'announcement_text' ? 500 : 300} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />
+        : <input type={field.type} maxLength={field.key === 'academy_promo_link' ? 500 : field.key === 'contact_email' ? 254 : 180} value={values[field.key] ?? ''} onChange={e => setValues(current => ({ ...current, [field.key]: e.target.value }))} />}
     </label>)}
     <button className="btn primary" type="submit" disabled={busy}>{busy ? 'جارٍ الحفظ...' : 'حفظ إعدادات الموقع'}</button>
   </form></div>;
