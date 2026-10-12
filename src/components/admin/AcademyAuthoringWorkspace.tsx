@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { AcademyLessonAssets } from './AcademyLessonAssets';
 
-type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null };
+type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null; lesson_release_mode?: string };
 type Module = { id: string; course_id: string; title: string; description: string; sort_order: number; status: string };
 type Lesson = { id: string; module_id: string; title: string; lesson_type: string; body: string; resource_url: string | null; duration_minutes: number; sort_order: number; status: string };
 
@@ -12,7 +14,9 @@ async function readJson<T>(response: Response): Promise<T> {
   return result;
 }
 
-export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = [] }: { staffMode?: boolean; initialCourses?: Course[] }) {
+const emptyCourses: Course[] = [];
+
+export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = emptyCourses }: { staffMode?: boolean; initialCourses?: Course[] }) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
@@ -23,6 +27,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const [editCourseDescription, setEditCourseDescription] = useState('');
   const [editCourseDuration, setEditCourseDuration] = useState('');
   const [editCoursePrice, setEditCoursePrice] = useState('');
+  const [releaseMode, setReleaseMode] = useState('sequential');
   const [modules, setModules] = useState<Module[]>([]);
   const [moduleId, setModuleId] = useState('');
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -69,6 +74,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
     setEditCourseDescription(course.description);
     setEditCourseDuration(course.duration ?? '');
     setEditCoursePrice(course.price_dzd == null ? '' : String(course.price_dzd));
+    setReleaseMode(course.lesson_release_mode ?? 'sequential');
   }, [courseId, courses]);
   useEffect(() => { void loadModules(courseId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الوحدات.')); }, [courseId, loadModules]);
   useEffect(() => { void loadLessons(moduleId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الدروس.')); }, [moduleId, loadLessons]);
@@ -97,7 +103,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
     try {
       const result = await readJson<{ course: Course }>(await fetch('/api/academy/courses', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: courseId, title: editCourseTitle, description: editCourseDescription, duration: editCourseDuration, priceDzd: editCoursePrice }),
+        body: JSON.stringify({ id: courseId, title: editCourseTitle, description: editCourseDescription, duration: editCourseDuration, priceDzd: editCoursePrice, lessonReleaseMode: releaseMode }),
       }));
       setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
       setNotice('تم حفظ بيانات الدورة.');
@@ -212,6 +218,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
       <button className="btn primary" disabled={busy || courseTitle.trim().length < 2}>{busy ? 'جارٍ الحفظ...' : 'إنشاء الدورة كمسودة'}</button>
     </form>}
     <section className="card">
+      <Link className="btn secondary" href="/admin/academy/assessments">أدوات الاختبارات والتقييم</Link>
       <h2>اختيار الدورة</h2>
       <label>الدورة الموجودة في قاعدة البيانات<select value={courseId} onChange={e => { setCourseId(e.target.value); setModuleId(''); }}><option value="">اختر دورة</option>{courses.map(course => <option key={course.id} value={course.id}>{course.title} · {course.status}</option>)}</select></label>
       {courseId && !staffMode && <>
@@ -219,8 +226,9 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
           <h3>تعديل بيانات الدورة المحددة</h3>
           <label>العنوان<input required minLength={2} maxLength={180} value={editCourseTitle} onChange={e => setEditCourseTitle(e.target.value)} /></label>
           <label>الوصف<textarea maxLength={10000} rows={3} value={editCourseDescription} onChange={e => setEditCourseDescription(e.target.value)} /></label>
-          <label>المدة<input required maxLength={160} value={editCourseDuration} onChange={e => setEditCourseDuration(e.target.value)} /></label>
+          <label>المدة<input maxLength={160} value={editCourseDuration} onChange={e => setEditCourseDuration(e.target.value)} /></label>
           <label>السعر بالدينار الجزائري<input type="number" min={0} max={1000000000} value={editCoursePrice} onChange={e => setEditCoursePrice(e.target.value)} /></label>
+          <label>فتح الدروس<select value={releaseMode} onChange={e => setReleaseMode(e.target.value)}><option value="sequential">تدريجي حسب ترتيب الدروس</option><option value="open">جميع الدروس بعد التسجيل</option></select></label>
           <button className="btn secondary" disabled={busy}>حفظ بيانات الدورة</button>
         </form>
         <label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? 'draft'} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">نشر الدورة</option><option value="archived">أرشفة</option></select></label>
@@ -263,6 +271,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
         {lessons.map(lesson => <article key={lesson.id} className="card" style={{ marginTop: 10 }}>
           <h3>{lesson.title}</h3><p className="muted">{lesson.lesson_type} · {lesson.duration_minutes} دقيقة · {lesson.status}</p>
           <LessonEditor lesson={lesson} disabled={busy} onSave={patch => void saveLesson(lesson, patch)} />
+          <AcademyLessonAssets lessonId={lesson.id} />
           {lesson.status !== 'archived' && <button type="button" disabled={busy} onClick={() => void archiveLesson(lesson)}>أرشفة الدرس</button>}
         </article>)}
       </section>
@@ -279,7 +288,7 @@ function ModuleEditor({ module, disabled, onSave }: { module: Module; disabled: 
     <label>العنوان<input required minLength={2} maxLength={180} value={title} onChange={e => setTitle(e.target.value)} /></label>
     <label>الوصف<textarea maxLength={2000} value={description} onChange={e => setDescription(e.target.value)} /></label>
     <label>الترتيب<input type="number" min={0} max={100000} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} /></label>
-    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشور</option><option value="archived">مؤرشف</option></select></label>
+    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="review">إرسال للمراجعة</option><option value="published">اعتماد ونشر (المشرف)</option><option value="archived">مؤرشف</option></select></label>
     <button className="btn primary" disabled={disabled}>حفظ</button>
   </form></details>;
 }
@@ -299,7 +308,7 @@ function LessonEditor({ lesson, disabled, onSave }: { lesson: Lesson; disabled: 
     <label>الرابط<input type="url" maxLength={2048} value={resourceUrl} onChange={e => setResourceUrl(e.target.value)} /></label>
     <label>المدة بالدقائق<input type="number" min={0} max={1440} value={duration} onChange={e => setDuration(Number(e.target.value))} /></label>
     <label>الترتيب<input type="number" min={0} max={100000} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} /></label>
-    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشور</option><option value="archived">مؤرشف</option></select></label>
+    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="review">إرسال للمراجعة</option><option value="published">اعتماد ونشر (المشرف)</option><option value="archived">مؤرشف</option></select></label>
     <button className="btn primary" disabled={disabled}>حفظ</button>
   </form></details>;
 }

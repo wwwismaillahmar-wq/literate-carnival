@@ -3,6 +3,7 @@ import { site } from '@/lib/config';
 import { getHomepageProducts } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
 import SocialPost, { type SocialPostData } from '@/components/SocialPost';
+import { HomeAcademySection } from '@/components/academy/HomeAcademySection';
 import { HomeProductCarousel } from '@/components/HomeProductCarousel';
 
 export default async function HomePage(){
@@ -47,6 +48,7 @@ export default async function HomePage(){
       </div>
     </section>
 
+    <HomeAcademySection/>
     <section className="section"><div className="wrap"><div className="section-heading row"><div><span className="kicker">ASLAN FEATURED FEED</span><h2>المحتوى المميز</h2><p>هذه الصفحة لا تجمع كل منشورات المجتمع؛ هنا يظهر فقط المحتوى الذي تم تمييزه.</p></div><Link href="/community">المجتمع ↗</Link></div>{posts.length?<div className="grid" style={{maxWidth:760,margin:'0 auto'}}>{posts.map(post=><SocialPost key={post.id} post={post as SocialPostData}/>)}</div>:<div className="card"><h3>لا يوجد محتوى مميز حاليًا.</h3><p className="muted">سيظهر هنا المحتوى المنشور الذي تختاره الإدارة لاحقًا كـ Featured.</p><Link href="/community">انتقل إلى المجتمع ↗</Link></div>}</div></section>
 
     <section className="section"><div className="wrap"><div className="grid three"><article className="card"><span className="number">01</span><h3>تنجيد • خياطة • تفصيل</h3><p>منتجات ومنفذات مخصصة تجمع بين الحرفة والتصميم وجودة التنفيذ.</p><Link href="/products">استكشف المنتجات ↗</Link></article><article className="card"><span className="number">02</span><h3>الخدمات التنفيذية</h3><p>خدمات تقنية وتنفيذية مرتبطة بخبرة ASLAN.</p><Link href="/services">استكشف الخدمات ↗</Link></article><article className="card"><span className="number">03</span><h3>الأكاديمية</h3><p>تكوين مهني وتقني قابل للتطبيق والتوسع.</p><Link href="/academy">استكشف الأكاديمية ↗</Link></article><article className="card"><span className="number">04</span><h3>الموسوعة العلمية والتقنية</h3><p>مقالات ومدخلات معرفية منشورة قابلة للبحث والتصنيف.</p><Link href="/encyclopedia">استكشف الموسوعة ↗</Link></article><article className="card"><span className="number">05</span><h3>الكفاءات المهنية</h3><p>ملفات مهنية عامة لا تظهر إلا بعد موافقة صاحبها والتحقق من الأدلة.</p><Link href="/talent">استكشف الكفاءات ↗</Link></article></div></div></section>

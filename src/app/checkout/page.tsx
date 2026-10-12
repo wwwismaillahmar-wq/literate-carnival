@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getActiveCart } from '@/domains/commerce/cart';
 import { submitCheckout } from './actions';
 
@@ -35,8 +36,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 عدد العناصر في السلة: <strong>{(cart.cart_items ?? []).length}</strong>
               </p>
               <p>
-                سيتم تثبيت الطلب، حجز المخزون، وإنشاء الفاتورة في معاملة واحدة. الدفع الإلكتروني
-                يتم عبر طبقة M15 عندما يكون مزود الدفع مفعّلًا.
+                راجع تفاصيل الطلب والفاتورة وتعليمات الدفع المتاحة قبل التأكيد.
               </p>
             </article>
 
@@ -73,6 +73,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
                 <textarea name="notes" rows={3} />
               </label>
 
+              <p className="muted">تحقق من السعر وشروط التسليم والإلغاء الخاصة بالعرض. لا تشارك رموز الدفع، وتحقق من المؤسسة قبل أي تحويل يُطلب خارج الموقع. <Link href="/guides/rules#transactions">راجع قواعد المعاملات</Link>.</p>
               <button type="submit" className="button button-gold">
                 تأكيد الطلب
               </button>
