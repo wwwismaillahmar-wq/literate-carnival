@@ -45,3 +45,23 @@
 .article h3{background:#1b2024;color:#f5f2ea;border-radius:8px;padding:9px 12px}
 .course{border-top:3px solid #c5a059}
 @media(max-width:650px){.heading{padding:13px 14px}.field strong{font-size:14px}}
+
+
+/* Academy shares the white-background ASLAN launch identity. */
+.page,.home{background:#fff}
+.hero{background:radial-gradient(ellipse at 7% 12%,rgba(197,160,89,.22),transparent 47%),linear-gradient(115deg,#203744,#142835)}
+.heading{background:linear-gradient(115deg,#203744,#2b4552);border-bottom:3px solid #c5a059;border-radius:13px;padding:16px 22px;color:#fff;align-items:center}
+.heading h2{color:#fff}
+.heading p{color:#d7e0e4}
+.heading .eyebrow{color:#e3c385}
+.heading a{color:#f1d39b}
+.field,.course,.article,.selection,.toolbar,.courseDetail,.feature{background:#fff}
+.field,.article{border-top:3px solid #203744}
+.course{border-top:3px solid #c5a059}
+.field:hover,.course:hover{border-top-color:#c5a059}
+.homeFields a{background:#fff;border-color:#d9e0e5;color:#344b56}
+.homeFields a:hover{background:#f5f7f8}
+.cover{background:linear-gradient(120deg,#eef1f3,#e1e7eb);color:#203744}
+.page .btn.primary{background:#c5a059;border-color:#c5a059;color:#203744}
+.page .btn.secondary{color:#203744}
+@media(max-width:650px){.heading{padding:13px 15px}}

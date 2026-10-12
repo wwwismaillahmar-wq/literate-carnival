@@ -92,3 +92,22 @@
 .cardBody h3{background:linear-gradient(108deg,#1b2024,#233b48);color:#f5f2ea;border-radius:8px;padding:10px 12px}
 .detailPanel h1{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:10px;padding:15px 18px;color:#f5f2ea}
 @media(max-width:600px){.heading{padding:13px 14px}.cardBody h3{font-size:16px}}
+
+
+/* Services: same launch identity as Market, white pages with navy title bands. */
+.page{--bg:#fff;--panel:#fff;--line:#dce3e8;background:#fff}
+.top{background:#fff;border-bottom:3px solid #203744}
+.heroMain{background:radial-gradient(circle at 7% 2%,rgba(197,160,89,.23),transparent 48%),linear-gradient(115deg,#203744,#142835)}
+.heroSide{background:#fff;border-top:4px solid #c5a059}
+.heading{background:linear-gradient(115deg,#203744,#2b4552);color:#fff;border-bottom:3px solid #c5a059;border-radius:13px;padding:16px 22px;align-items:center}
+.heading h2{color:#fff}
+.heading p{color:#d7e0e4}
+.heading a{color:#f1d39b}
+.category{background:#fff;border-top:3px solid #203744}
+.category[aria-pressed="true"]{background:#f8f9fa;border-color:#c5a059}
+.card,.filters,.detailPanel,.trust article,.heroSide{background:#fff}
+.card{border-top:3px solid #c5a059}
+.primary,.search button{background:#c5a059;color:#203744;border-color:#c5a059}
+.secondary{background:#fff;color:#203744;border-color:#c5a059}
+.heroMain .secondary{background:transparent;color:#f1d39b}
+@media(max-width:600px){.heading{padding:13px 15px}}

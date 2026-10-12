@@ -155,3 +155,30 @@ main.section>.wrap>.kicker + h1{color:#233b48}
 .section-heading p{color:#d4d7d8}
 .section-heading a:hover{color:#fff}
 @media(max-width:600px){.section-heading{padding:13px 14px}}
+
+
+/* ASLAN launch palette: original deep navy + cool gray + #C5A059 gold, on white page backgrounds. */
+:root{--bg:#fff;--panel:#fff;--gold:#a57b2e;--brand-gold:#c5a059;--brand-navy:#203744;--brand-gray:#65747f;--aslan-soft-gray:#eef1f3;--line:#dce3e8}
+body{background:#fff;color:#263743}
+.section{background:#fff}
+.section.dark{background:#203744;color:#f4f6f8}
+.card{background:#fff;border-color:#dce3e8}
+.btn.primary,.button.primary,main form button[type=submit]:not([class]){background:#c5a059;border-color:#c5a059;color:#203744}
+.btn.primary:hover,.button.primary:hover,main form button[type=submit]:not([class]):hover{background:#e0bb75;border-color:#c5a059;color:#203744}
+.btn.secondary,.button.secondary{color:#203744;border-color:#c5a059}
+.kicker{color:#9a702d}
+.shell-header{background:linear-gradient(115deg,#203744,#162834);border-bottom:3px solid #c5a059}
+.shell-header .shell-brand,.shell-header .shell-brand:hover{color:#fff}
+.shell-header .shell-nav a{color:#edf2f4}
+.shell-header .shell-nav a:hover,.shell-header .shell-nav a[aria-current=page]{background:rgba(197,160,89,.19);color:#f3d296}
+.shell-header .shell-actions,.shell-header .shell-actions>a:not(.btn),.shell-header .shell-actions>a:hover{color:#f4f6f8}
+.shell-header .shell-actions .btn.secondary{background:transparent;color:#f2d18c;border-color:#c5a059}
+.shell-header .shell-mobile{color:#f2d18c}
+.shell-header small{color:#c1cdd3}
+.shell-header .shell-mobile-menu{background:#fff;color:#203744}
+.shell-header .shell-mobile-menu a{color:#203744}
+.shell-header .shell-mobile-menu a:hover,.shell-header .shell-mobile-menu a[aria-current=page]{background:#eef1f3;color:#806023}
+.aslan-footer{border-top:4px solid #c5a059}
+.social-post,.messenger,.message-popover__panel{background:#fff}
+.social-post__title{color:#203744}
+@media(prefers-contrast:more){.shell-header .shell-nav a{color:#fff}.btn.primary,.button.primary{border-width:2px}}

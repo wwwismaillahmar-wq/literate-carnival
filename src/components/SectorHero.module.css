@@ -13,3 +13,12 @@
 .side p{font-size:14px;color:#637581;margin:0}
 .sideLink{display:inline-flex;align-items:center;gap:7px;margin-top:18px;font-weight:850;color:#946c2a;font-size:13px}
 @media(max-width:760px){.hero{grid-template-columns:1fr}.main{min-height:210px}.side{padding:22px}}
+
+
+/* Shared sector entry points always sit on white and repeat the original ASLAN palette. */
+.hero{background:#fff}
+.main{background:radial-gradient(circle at 5% 8%,rgba(197,160,89,.22),transparent 45%),linear-gradient(115deg,#203744,#142835)}
+.side{background:#fff;border-top:4px solid #c5a059}
+.primary{background:#c5a059;border-color:#c5a059;color:#203744}
+.secondary{color:#f2d39b;border-color:#c5a059}
+.side h2{color:#203744}
