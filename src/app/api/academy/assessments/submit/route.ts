@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   const id = new URL(request.url).searchParams.get('id')?.trim() ?? '';
   if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الاختبار غير صالح.' }, { status: 400 });
   const db = await createClient();
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'سجّل الدخول لفتح الاختبار.' }, { status: 401 });
   const { data, error } = await db.rpc('get_published_academy_assessment', { p_assessment_id: id });
   if (error) return NextResponse.json({ error: 'تعذر تحميل الاختبار المنشور.' }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'الاختبار غير منشور أو غير موجود.' }, { status: 404 });
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
     if (error) {
       const message = error.message.includes('ATTEMPT_LIMIT_REACHED') ? 'استنفدت عدد محاولات هذا الاختبار.' :
         error.message.includes('ENROLLMENT_REQUIRED') ? 'يجب التسجيل في الدورة أولًا.' :
+        error.message.includes('MODULE_COMPLETION_REQUIRED') ? 'أكمل دروس الوحدة قبل بدء الاختبار.' :
         error.message.includes('ANSWERS_INCOMPLETE') ? 'أجب عن جميع الأسئلة قبل الإرسال.' :
         error.message.includes('ANSWER_OPTION_INVALID') ? 'تحتوي الإجابات على خيار غير صالح.' : 'تعذر تصحيح الاختبار.';
       return NextResponse.json({ error: message }, { status: error.message.includes('ATTEMPT_LIMIT_REACHED') ? 409 : 400 });

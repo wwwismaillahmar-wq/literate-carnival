@@ -34,6 +34,15 @@ export function AcademyAdmissionReviewWorkspace() {
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر حفظ القرار.'); }
     finally { setBusyId(''); }
   }
+  async function issueInvoice(item:Application) {
+    if(busyId)return;setBusyId(item.id);setError('');setNotice('');
+    try{
+      const response=await fetch('/api/academy/admissions/invoice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({applicationId:item.id})});
+      const result=await response.json() as {invoice?:{invoice_number:string};error?:string};
+      if(!response.ok||!result.invoice)throw new Error(result.error||'تعذر إصدار الفاتورة.');
+      await load();setNotice('تم تثبيت فاتورة القبول: '+result.invoice.invoice_number);
+    }catch(e){setError(e instanceof Error?e.message:'تعذر إصدار الفاتورة.');}finally{setBusyId('');}
+  }
   if (loading) return <p className="muted">جارٍ تحميل طلبات القبول...</p>;
   return <section className="grid" style={{ marginTop:24 }}>
     {error && <div className="card" role="alert">{error}</div>}
@@ -51,7 +60,8 @@ export function AcademyAdmissionReviewWorkspace() {
         <textarea maxLength={4000} rows={3} value={notes[item.id] ?? item.review_note ?? ''} onChange={e=>setNotes(current=>({...current,[item.id]:e.target.value}))} />
       </label>
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
-        <button type="button" disabled={busyId===item.id} onClick={()=>void decide(item,'under_review')}>قيد المراجعة</button>
+        {['accepted','payment_pending'].includes(item.status)&&<button type="button" disabled={!!busyId} onClick={()=>void issueInvoice(item)}>{item.status==='accepted'?'إصدار فاتورة القبول':'عرض الفاتورة الحالية'}</button>}
+        <button type="button" disabled={!!busyId || !['submitted','under_review','needs_information'].includes(item.status)} onClick={()=>void decide(item,'under_review')}>قيد المراجعة</button>
         <button type="button" className="btn primary" disabled={busyId===item.id} onClick={()=>void decide(item,'accepted')}>قبول</button>
         <button type="button" disabled={busyId===item.id} onClick={()=>void decide(item,'needs_information')}>طلب استكمال</button>
         <button type="button" disabled={busyId===item.id} onClick={()=>void decide(item,'rejected')}>رفض</button>

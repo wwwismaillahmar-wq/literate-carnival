@@ -86,8 +86,14 @@ jobs:
           print(f'Validated naming/order uniqueness for {len(files)} migration files.')
           PY
 
+      - name: Academy API acceptance
+        run: npm run test:academy:api
+
       - name: TypeScript check
         run: npx tsc --noEmit
 
       - name: Production build
         run: npm run build
+
+      - name: Academy HTTP access boundaries
+        run: npm run test:academy:http

@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type Enrollment = { id: string; course_id: string; offering_id?: string | null; status: string };
 type Offering = { id: string; label: string; language: string; capacity: number | null };
 type Progress = { lesson_id: string; completed: boolean };
 
-export function CourseLearningActions({ courseId, lessons, offerings = [] }: { courseId: string; lessons: { id: string; title: string }[]; offerings?: Offering[] }) {
+export function CourseLearningActions({ courseId, lessons, offerings = [] }: { courseId: string; lessons: { id: string; title: string; accessible?: boolean }[]; offerings?: Offering[] }) {
+  const router = useRouter();
   const [enrolled, setEnrolled] = useState(false);
   const [offeringId, setOfferingId] = useState(offerings[0]?.id || '');
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
@@ -32,7 +34,7 @@ export function CourseLearningActions({ courseId, lessons, offerings = [] }: { c
       if (!enrollmentResponse.ok) throw new Error(enrollmentData.error || 'تعذر التحقق من التسجيل.');
       if (!progressResponse.ok) throw new Error(progressData.error || 'تعذر تحميل تقدم الدروس.');
       setSignedIn(true);
-      setEnrolled((enrollmentData.enrollments ?? []).some(item => item.course_id === courseId && item.status === 'enrolled'));
+      setEnrolled((enrollmentData.enrollments ?? []).some(item => item.course_id === courseId && ['enrolled','completed'].includes(item.status)));
       setCompleted(Object.fromEntries((progressData.progress ?? []).map(item => [item.lesson_id, item.completed])));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل حالة التعلم.');
@@ -53,7 +55,8 @@ export function CourseLearningActions({ courseId, lessons, offerings = [] }: { c
       });
       const result = await response.json() as { enrollment?: Enrollment; alreadyEnrolled?: boolean; error?: string };
       if (!response.ok || !result.enrollment) throw new Error(result.error || 'تعذر التسجيل في الدورة.');
-      setEnrolled(result.enrollment.status === 'enrolled');
+      setEnrolled(['enrolled','completed'].includes(result.enrollment.status));
+      router.refresh();
       setNotice(result.alreadyEnrolled ? 'أنت مسجل بالفعل في هذه الدورة.' : 'تم حفظ تسجيلك في الدورة.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر التسجيل.');
@@ -74,6 +77,7 @@ export function CourseLearningActions({ courseId, lessons, offerings = [] }: { c
       if (!response.ok || !result.progress) throw new Error(result.error || 'تعذر حفظ تقدم الدرس.');
       setCompleted(current => ({ ...current, [lessonId]: result.progress!.completed }));
       setNotice('تم حفظ تقدمك الدراسي.');
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر حفظ التقدم.');
     } finally {
@@ -96,7 +100,7 @@ export function CourseLearningActions({ courseId, lessons, offerings = [] }: { c
         <button className="btn primary" type="button" disabled={busy || (offerings.length > 0 && !offeringId)} onClick={() => void enroll()}>{busy ? 'جارٍ التسجيل...' : 'التسجيل في الدورة'}</button></>
       : <><strong>أنت مسجل في هذه الدورة</strong><p className="muted">علّم الدروس التي أكملتها لحفظ تقدمك.</p>
         {lessons.map(lesson => <label key={lesson.id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <input type="checkbox" checked={completed[lesson.id] === true} disabled={busy} onChange={event => void toggleLesson(lesson.id, event.target.checked)} />
+          <input type="checkbox" checked={completed[lesson.id] === true} disabled={busy || lesson.accessible === false} onChange={event => void toggleLesson(lesson.id, event.target.checked)} />
           {lesson.title}
         </label>)}
       </>}

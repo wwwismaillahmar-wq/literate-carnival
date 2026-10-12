@@ -71,12 +71,9 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
   const { data: assessments, error: assessmentError } = moduleIds.length
     ? await db.from('academy_assessments').select('id,module_id,title,pass_score').in('module_id', moduleIds).eq('status', 'published').order('created_at', { ascending: true })
     : { data: [], error: null };
-  const { data: lessons, error: lessonError } = moduleIds.length
-    ? await db.from('academy_lessons')
-        .select('id,module_id,title,lesson_type,body,resource_url,duration_minutes,sort_order')
-        .in('module_id', moduleIds).eq('status', 'published')
-        .order('sort_order', { ascending: true })
-    : { data: [], error: null };
+  type CurriculumLesson = { id:string; module_id:string; title:string; lesson_type:string; duration_minutes:number; sort_order:number; accessible:boolean };
+  const {data:curriculum,error:lessonError}=await db.rpc('academy_curriculum',{p_course_id:String(course.id)});
+  const lessons=(Array.isArray(curriculum)?curriculum:[]) as CurriculumLesson[];
 
   const title = textField(course as CourseRow, ['title', 'name', 'course_name'], 'الدورة');
   const description = textField(course as CourseRow, ['description', 'summary', 'details']);
@@ -104,15 +101,14 @@ export default async function AcademyCoursePage({ params }: { params: Promise<{ 
           {(lessonGroups.get(academyModule.id) ?? []).map(lesson => <li key={lesson.id} style={{ marginBottom: 16 }}>
             <strong>{lesson.title}</strong>
             <p className="muted">{lesson.lesson_type === 'video' ? 'درس فيديو' : lesson.lesson_type === 'document' ? 'مادة وثائقية' : lesson.lesson_type === 'link' ? 'رابط تعليمي' : 'درس نصي'}{lesson.duration_minutes ? ' · ' + lesson.duration_minutes + ' دقيقة' : ''}</p>
-            {lesson.body && <p>{lesson.body}</p>}
-            {lesson.resource_url && <a href={lesson.resource_url} target="_blank" rel="noreferrer">فتح المورد التعليمي ↗</a>}
+            {lesson.accessible ? <Link href={'/academy/lessons/'+lesson.id}>فتح الدرس ↗</Link> : <span className="muted">الدرس مغلق حتى التسجيل وإتمام المتطلبات السابقة.</span>}
           </li>)}
         </ol>
         {(assessmentGroups.get(academyModule.id) ?? []).map(assessment => <p key={assessment.id}><Link href={'/academy/assessments/' + assessment.id}>اختبار: {assessment.title} · النجاح {assessment.pass_score}% ↗</Link></p>)}
       </article>)}
     </section>
     {offeringLookupError && <div className="card" role="alert">تعذر التحقق من المدارس والفروع المتاحة. تم تعطيل التسجيل والقبول حتى يكتمل التحقق.</div>}
-    {!offeringLookupError && <CourseLearningActions courseId={String(course.id)} offerings={offerings} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title }))} />}
+    {!offeringLookupError && <CourseLearningActions courseId={String(course.id)} offerings={offerings} lessons={(lessons ?? []).map(lesson => ({ id: lesson.id, title: lesson.title, accessible: lesson.accessible }))} />}
     {!offeringLookupError && <AcademyAdmissionForm courseId={String(course.id)} offerings={offerings} />}
   </div></main>;
 }
