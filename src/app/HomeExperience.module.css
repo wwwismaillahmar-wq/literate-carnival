@@ -75,3 +75,18 @@
 @media(max-width:600px){.heroMain,.heroAside{padding:26px}.heroMain h1{font-size:33px}.heroMain p{font-size:14px}.heroCapabilities{gap:10px}.section{padding-top:32px}.sectionHeading{align-items:flex-start}.portalGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.portalCard{padding:16px 11px;min-height:235px}.portalCard strong{font-size:15px}.portalCard p{font-size:11px}.serviceGrid,.opportunities{grid-template-columns:1fr}.marketEmpty,.communityEmpty{padding:20px;gap:13px}.marketEmpty h3,.communityEmpty h3{font-size:19px}.closing{padding:28px}.sectionHeading h2{font-size:25px}}
 @media(max-width:360px){.portalGrid{grid-template-columns:1fr}.portalCard{min-height:auto}}
 @media(prefers-reduced-motion:reduce){.portalCard,.serviceCard{transition:none}.portalCard:hover{transform:none}}
+
+
+/* Original ASLAN palette: charcoal #111417, graphite #1b2024, navy #233b48 and the original gold #c5a059. */
+.sectionHeading{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:14px;padding:17px 21px;align-items:center}
+.sectionHeading h2{color:#f5f2ea}
+.sectionHeading .eyebrow,.sectionHeading .textLink{color:#c5a059}
+.sectionHeading p{color:#d4d7d8}
+.sectionHeading .textLink:hover{color:#fff}
+.portalCard{border-top:3px solid #c5a059;padding-top:19px}
+.portalCard strong{display:block;border-radius:8px;background:linear-gradient(108deg,#1b2024,#233b48);color:#f5f2ea;padding:9px 11px}
+.serviceCard{border-top:3px solid #c5a059;padding-top:19px}
+.serviceCard h3{background:linear-gradient(108deg,#1b2024,#233b48);color:#f5f2ea;border-radius:8px;padding:9px 12px}
+.opportunities article{border-top:3px solid #c5a059}
+.opportunities h3{background:#1b2024;color:#f5f2ea;border-radius:8px;padding:9px 12px}
+@media(max-width:600px){.sectionHeading{padding:14px 16px}.portalCard strong{padding:8px;font-size:14px}}

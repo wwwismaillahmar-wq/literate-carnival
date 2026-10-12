@@ -143,3 +143,15 @@ main form button[type=submit]:not([class]){border:1px solid #b48a3c;border-radiu
 main form button[type=submit]:not([class]):hover{background:#976f2c;border-color:#976f2c}
 main form button[type=submit]:not([class]):disabled{opacity:.45;cursor:not-allowed}
 .product-image{background:#f0f3f5;color:#80909c}
+
+
+/* Launch identity refinement: original ASLAN charcoal/graphite with gold on section strips only.
+   Existing white/gray information surfaces stay legible and administrative controls remain unchanged. */
+main.section>.wrap>.kicker{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;color:#c5a059;padding:7px 15px;border-radius:8px;margin-bottom:14px}
+main.section>.wrap>.kicker + h1{color:#233b48}
+.section-heading{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:14px;padding:15px 20px;align-items:center}
+.section-heading h2{color:#f5f2ea}
+.section-heading .kicker,.section-heading>a{color:#c5a059}
+.section-heading p{color:#d4d7d8}
+.section-heading a:hover{color:#fff}
+@media(max-width:600px){.section-heading{padding:13px 14px}}

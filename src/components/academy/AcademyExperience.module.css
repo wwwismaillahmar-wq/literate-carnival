@@ -31,3 +31,17 @@
 .section{padding-top:42px}
 .page .btn.primary{color:#fff}
 .page .btn.secondary{color:#755622}
+
+
+/* Academy portal title strips use the original ASLAN identity colors. */
+.heading{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:14px;padding:17px 21px;align-items:center}
+.heading h2{color:#f5f2ea}
+.heading p{color:#d4d7d8}
+.heading .eyebrow{color:#c5a059}
+.heading>a:not(.btn){color:#e5c184}
+.field{border-top:3px solid #c5a059}
+.field strong{background:#1b2024;color:#f5f2ea;border-radius:8px;padding:9px 11px}
+.article{border-top:3px solid #c5a059}
+.article h3{background:#1b2024;color:#f5f2ea;border-radius:8px;padding:9px 12px}
+.course{border-top:3px solid #c5a059}
+@media(max-width:650px){.heading{padding:13px 14px}.field strong{font-size:14px}}

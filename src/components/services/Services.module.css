@@ -80,3 +80,15 @@
 @media(max-width:850px) {.hero{grid-template-columns:1fr}.catalog{grid-template-columns:190px minmax(0,1fr)}.detail{grid-template-columns:1fr}}
 @media(max-width:600px) {.topInner{gap:12px}.search{order:3;flex-basis:100%}.links{width:100%}.heroMain{padding:25px}.heroSide{padding:23px}.heroMain h1{font-size:32px}.categoryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.catalog{grid-template-columns:1fr}.filters{display:none}.filters.show{display:grid}.filterToggle{display:inline-flex}.grid{grid-template-columns:1fr}.trust{grid-template-columns:1fr}.heading h2{font-size:23px}.detailPanel{padding:22px}.visual{min-height:155px}}
 @media(prefers-reduced-motion:reduce){.card{transition:none}}
+
+
+/* Original corporate palette on service-category headings, without modifying service request behavior. */
+.heading{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:13px;padding:16px 20px}
+.heading h2{color:#f5f2ea}
+.heading p{color:#d4d7d8}
+.heading>a{color:#e5c184;font-weight:800}
+.category{border-top:3px solid #c5a059}
+.card{border-top:3px solid #c5a059}
+.cardBody h3{background:linear-gradient(108deg,#1b2024,#233b48);color:#f5f2ea;border-radius:8px;padding:10px 12px}
+.detailPanel h1{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:10px;padding:15px 18px;color:#f5f2ea}
+@media(max-width:600px){.heading{padding:13px 14px}.cardBody h3{font-size:16px}}
