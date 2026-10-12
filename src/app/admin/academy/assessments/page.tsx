@@ -17,7 +17,7 @@ export default async function AdminAssessmentsPage() {
   }
   if ((error || allowed !== true) && !staffAllowed) redirect('/');
   return <main className="section"><div className="wrap">
-    <Link href="/admin/control">← مركز التحكم</Link>
+    <Link href={staffAllowed ? '/academy/teaching' : '/admin/control'}>{staffAllowed ? '← مكتب التدريس والإشراف' : '← مركز التحكم'}</Link>
     <span className="kicker" style={{display:'block',marginTop:24}}>ACADEMY / M34</span>
     <h1>إدارة الاختبارات والتقييم</h1>
     <p className="muted">تُحفظ الإجابات الصحيحة على الخادم ولا تُرسل إلى الواجهة العامة. النشر متاح بعد إضافة سؤال واحد على الأقل.</p>
