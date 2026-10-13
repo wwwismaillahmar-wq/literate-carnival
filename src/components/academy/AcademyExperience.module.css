@@ -1,0 +1,67 @@
+.page{padding-bottom:72px}.hero{position:relative;overflow:hidden;background:radial-gradient(ellipse at 15% 35%,rgba(197,160,89,.15),transparent 55%),#13191d;border-bottom:1px solid var(--line);padding:72px 0}.heroGrid{display:grid;grid-template-columns:1.35fr 1fr;gap:48px;align-items:center}.eyebrow{color:var(--gold);font-size:12px;letter-spacing:.13em;display:block;margin-bottom:12px}.hero h1{font-size:clamp(36px,5vw,68px);line-height:1.35;margin:0 0 20px;max-width:760px}.hero p{max-width:650px;color:#c0c5c8;font-size:18px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}.feature{padding:32px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(145deg,#252e33,#182024);position:relative}.feature:before{content:'';position:absolute;inset:12px;border:1px solid rgba(197,160,89,.12);border-radius:18px;pointer-events:none}.feature h2{font-size:26px;margin:16px 0 8px}.feature p{font-size:15px}.featureIcon{width:64px;height:64px;display:grid;place-items:center;border:1px solid var(--line);border-radius:18px;color:var(--gold)}.section{padding:56px 0 0;scroll-margin-top:100px}.heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:24px}.heading h2{font-size:30px;margin:0}.heading p{color:var(--muted);margin:8px 0 0}.fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.field{padding:22px 16px;border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;gap:12px;background:#1a2024;text-decoration:none;transition:transform .2s,border-color .2s}.field:hover{transform:translateY(-4px);border-color:var(--gold)}.field svg{color:var(--gold)}.field strong{font-size:17px}.field small{color:var(--muted);font-size:12px}.field em{font-size:12px;color:var(--gold);font-style:normal;margin-top:auto}.toolbar{display:grid;grid-template-columns:2fr 1fr;gap:18px;padding:20px;background:#1a2024;border:1px solid var(--line);border-radius:16px;margin-bottom:22px}.toolbar label{font-size:13px;display:grid;gap:8px}.toolbar input,.toolbar select{min-width:0;width:100%;margin:0}.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}.course{overflow:hidden;background:#1a2024;border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column;min-width:0}.cover{height:190px;background:radial-gradient(circle at 25% 25%,rgba(197,160,89,.25),transparent 55%),linear-gradient(130deg,#24373d,#161e23);position:relative;display:flex;align-items:center;justify-content:center;color:#dfbd7a;overflow:hidden}.cover:after{content:'';position:absolute;width:150px;height:150px;border:1px solid rgba(197,160,89,.16);transform:rotate(35deg);border-radius:30px}.cover img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1}.coverLabel{position:absolute;bottom:14px;right:14px;padding:4px 10px;border-radius:20px;background:#111b20;color:#f1d6a3;font-size:12px;z-index:2}.body{padding:22px;display:flex;flex-direction:column;gap:12px;flex:1}.body h3{font-size:22px;line-height:1.5;margin:0}.body p{font-size:14px;color:var(--muted);margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.meta{display:flex;flex-wrap:wrap;gap:12px;color:#e7d0a4;font-size:13px;margin-top:auto;padding-top:10px}.cardActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.cardActions a{font-size:13px;padding:9px 13px}.empty{padding:36px;border:1px dashed var(--line);border-radius:20px;text-align:center}.empty p{color:var(--muted)}.notice{background:#272820;border:1px solid rgba(197,160,89,.35);border-radius:18px;padding:24px;display:flex;gap:18px;align-items:flex-start}.notice svg{flex-shrink:0;color:var(--gold)}.notice h2{margin:0;font-size:22px}.notice p{margin:8px 0 0;color:#d1d1c4}.editorial{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.article{padding:28px;border:1px solid var(--line);border-radius:18px;background:#181e22}.article svg{color:var(--gold)}.article h3{font-size:20px}.article p{color:var(--muted);font-size:15px}.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;counter-reset:steps}.step{padding:20px;border-top:1px solid var(--line)}.step:before{counter-increment:steps;content:'0' counter(steps);color:var(--gold);font-size:26px}.step h3{margin:10px 0}.step p{color:var(--muted);font-size:14px}.joinGrid{display:grid;grid-template-columns:1fr 1.45fr;gap:28px;margin-top:28px;align-items:flex-start}.selection{display:grid;gap:16px;padding:24px;border:1px solid var(--line);border-radius:20px;background:#1a2024}.selection label{display:grid;gap:8px}.selection select{width:100%}.selected{border-top:1px solid var(--line);padding-top:18px;overflow-wrap:anywhere}.selected h2{margin:10px 0}.selected p{color:var(--muted)}.joinSteps{display:flex;gap:12px;list-style:none;padding:0;flex-wrap:wrap}.joinSteps li{padding:8px 14px;border:1px solid var(--line);border-radius:24px;font-size:13px}.home{padding:64px 0;background:radial-gradient(ellipse at 0 10%,rgba(197,160,89,.08),transparent 50%),#131a1e;border-block:1px solid var(--line)}.homeFields{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.homeFields a{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:9px 12px;border-radius:30px;font-size:13px}.homeFields svg{color:var(--gold)}.count{color:var(--muted);font-size:13px;margin-bottom:18px}.courseDetail{padding:24px;display:grid;grid-template-columns:1fr auto;gap:20px;border:1px solid var(--line);border-radius:20px;background:#1a2024;margin:24px 0}.courseDetail p{margin:0;color:var(--muted)}.courseDetail svg{color:var(--gold)}.courseDetail h2{margin:0 0 8px}.page :is(a,button,input,select):focus-visible{outline:3px solid #dfbd7a;outline-offset:4px}
+@media(max-width:1000px){.fields{grid-template-columns:repeat(3,minmax(0,1fr))}.heroGrid{grid-template-columns:1fr 1fr;gap:24px}.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.hero{padding:40px 0}.heroGrid,.joinGrid,.editorial,.toolbar{grid-template-columns:1fr}.heroGrid{gap:28px}.hero p{font-size:16px}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.field{padding:18px 14px}.field strong{font-size:15px}.gallery{grid-template-columns:1fr}.section{padding-top:38px}.heading h2{font-size:26px}.feature{padding:24px}.courseDetail{grid-template-columns:1fr}.cover{height:210px}.steps{gap:10px}.step{padding:14px}.home{padding:42px 0}.notice{padding:20px}.joinSteps{gap:6px}.joinSteps li{font-size:12px;padding:6px 10px}}
+@media(prefers-reduced-motion:reduce){.field{transition:none}.field:hover{transform:none}}
+
+
+/* Market-inspired academy surfaces; official ASLAN blue/gold retained in the hero. */
+.page{background:#f4f6f8;color:#263743}
+.hero{color:#fff;background:radial-gradient(ellipse at 7% 12%,rgba(197,160,89,.20),transparent 47%),linear-gradient(115deg,#233b48,#111e28);border-bottom:0;padding:50px 0}
+.hero h1{font-size:clamp(32px,4.3vw,54px)}
+.hero p{color:#d5e0e6}
+.hero .feature{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(217,187,124,.35)}
+.hero .feature p{color:#d5e0e6}
+.hero .feature a{color:#eed09a}
+.feature{background:#fff;border:1px solid #dce3e8;color:#263743}
+.feature::before{border-color:#e4eaf0}
+.feature p{color:#65747f}
+.field,.toolbar,.course,.selection,.article,.courseDetail{background:#fff;border-color:#dce3e8;color:#263743;box-shadow:0 10px 27px rgba(25,48,60,.04)}
+.field:hover,.course:hover{border-color:#b48a3c}
+.toolbar :is(input,select),.selection :is(input,select){background:#fff;color:#263743}
+.meta{color:#906a2a}
+.notice{background:#fff8e9;border-color:#e8d5ae;color:#473e30}
+.notice p{color:#65747f}
+.empty{background:#fff;border-color:#dce3e8}
+.home{background:#f4f6f8;color:#263743;border-block:1px solid #dce3e8;padding:48px 0}
+.homeFields a{background:white;border-color:#dce3e8;color:#526771}
+.homeFields a:hover{border-color:#b48a3c;color:#8c682d}
+.cover{background:linear-gradient(120deg,#e7ebec,#dde8ed);color:#a57b2e}
+.coverLabel{background:#243b48;color:#fff}
+.step{border-color:#dce3e8}
+.section{padding-top:42px}
+.page .btn.primary{color:#fff}
+.page .btn.secondary{color:#755622}
+
+
+/* Academy portal title strips use the original ASLAN identity colors. */
+.heading{background:linear-gradient(108deg,#1b2024,#233b48);border-inline-start:4px solid #c5a059;border-radius:14px;padding:17px 21px;align-items:center}
+.heading h2{color:#f5f2ea}
+.heading p{color:#d4d7d8}
+.heading .eyebrow{color:#c5a059}
+.heading>a:not(.btn){color:#e5c184}
+.field{border-top:3px solid #c5a059}
+.field strong{background:#1b2024;color:#f5f2ea;border-radius:8px;padding:9px 11px}
+.article{border-top:3px solid #c5a059}
+.article h3{background:#1b2024;color:#f5f2ea;border-radius:8px;padding:9px 12px}
+.course{border-top:3px solid #c5a059}
+@media(max-width:650px){.heading{padding:13px 14px}.field strong{font-size:14px}}
+
+
+/* Academy shares the white-background ASLAN launch identity. */
+.page,.home{background:#fff}
+.hero{background:radial-gradient(ellipse at 7% 12%,rgba(197,160,89,.22),transparent 47%),linear-gradient(115deg,#203744,#142835)}
+.heading{background:linear-gradient(115deg,#203744,#2b4552);border-bottom:3px solid #c5a059;border-radius:13px;padding:16px 22px;color:#fff;align-items:center}
+.heading h2{color:#fff}
+.heading p{color:#d7e0e4}
+.heading .eyebrow{color:#e3c385}
+.heading a{color:#f1d39b}
+.field,.course,.article,.selection,.toolbar,.courseDetail,.feature{background:#fff}
+.field,.article{border-top:3px solid #203744}
+.course{border-top:3px solid #c5a059}
+.field:hover,.course:hover{border-top-color:#c5a059}
+.homeFields a{background:#fff;border-color:#d9e0e5;color:#344b56}
+.homeFields a:hover{background:#f5f7f8}
+.cover{background:linear-gradient(120deg,#eef1f3,#e1e7eb);color:#203744}
+.page .btn.primary{background:#c5a059;border-color:#c5a059;color:#203744}
+.page .btn.secondary{color:#203744}
+@media(max-width:650px){.heading{padding:13px 15px}}

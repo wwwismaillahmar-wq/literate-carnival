@@ -1,0 +1,69 @@
+// Browser scenarios against a fixture-only REST server; never touches production Supabase.
+import assert from 'node:assert/strict';import {createServer} from 'node:http';import {spawn} from 'node:child_process';import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);const {chromium}=require(process.env.ASLAN_PLAYWRIGHT_MODULE||'playwright');
+const buyer='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',seller='77777777-7777-4777-8777-777777777777',admin='44444444-4444-4444-8444-444444444444',storeId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const stores=[{id:storeId,owner_id:seller,name:'متجر شريك الاختبار',slug:'fixture-shop',description:'متجر لاختبار الربط فقط',region:'باتنة',logo_url:'',status:'approved',created_at:'2026-10-01'}];
+const products=[{id:1,name:'كرسي اختبار',slug:'fixture-chair',description:'منتج تجريبي مع تفاصيل',price_dzd:100,stock:8,active:true,category_id:1,category:{name:'الأثاث'},images:[],features:{},created_at:'2026-10-01'},
+{id:2,name:'تجهيز حسب الطلب',slug:'fixture-custom',description:'طلب تخصيص تجريبي',price_dzd:null,stock:0,active:true,category_id:2,category:{name:'التجهيز'},images:[],features:{},created_at:'2026-10-02'},
+{id:3,name:'منتج شريك اختبار',slug:'fixture-partner',description:'اختبار الحد الأدنى والمتجر',price_dzd:200,stock:6,active:true,category_id:1,category:{name:'الأثاث'},images:[],features:{market_store_id:storeId,minimum_order:2},created_at:'2026-10-03'}];
+let cartItems=[],quoteRows=[],listingRows=[],storeCounter=0;let failCatalog=false;
+const cartId='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+function actor(request){try{const token=String(request.headers.authorization||'').split(' ')[1];return JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString()).sub;}catch{return null;}}
+function filtered(rows,url){for(const [key,value] of url.searchParams){if(value.startsWith('eq.'))rows=rows.filter(row=>String(row[key])===value.slice(3));}return rows;}
+const dbServer=createServer(async(request,response)=>{
+ const url=new URL(request.url,'http://localhost');const who=actor(request);let payload=null;
+ if(['POST','PATCH','DELETE'].includes(request.method)){let raw='';for await(const chunk of request)raw+=chunk;try{payload=raw?JSON.parse(raw):{};}catch{payload={};}}
+ response.setHeader('Content-Type','application/json');const object=String(request.headers.accept).includes('vnd.pgrst.object');
+ function send(rows){response.end(JSON.stringify(object?(Array.isArray(rows)?rows[0]||null:rows):rows));}
+ const path=url.pathname;
+ if(path==='/auth/v1/user'){send({id:who,email:'fixture@example.test',aud:'authenticated',role:'authenticated',created_at:'2026-10-01',user_metadata:{}});return;}
+ if(path==='/rest/v1/rpc/has_role'){send(who===admin);return;}
+ if(path==='/rest/v1/rpc/market_seller_orders'){send([]);return;}
+ if(path==='/rest/v1/rpc/market_add_cart_item'){const product=products.find(row=>row.id===payload.p_product_id);const found=cartItems.find(row=>row.product_id===product.id);if(found)found.quantity=payload.p_replace?payload.p_quantity:found.quantity+payload.p_quantity;else cartItems.push({id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',cart_id:cartId,product_id:product.id,quantity:payload.p_quantity,unit_price:product.price_dzd});send(cartId);return;}
+ if(path==='/rest/v1/products'){if(failCatalog){response.statusCode=500;send({message:'Fixture catalogue failure'});return;}send(filtered(products,url));return;}
+ if(path==='/rest/v1/categories'){send([{id:1,name:'الأثاث',slug:'furniture'},{id:2,name:'التجهيز',slug:'equipment'}]);return;}
+ if(path==='/rest/v1/market_stores'){
+  if(request.method==='POST'){const row={...payload,id:'88888888-8888-4888-8888-888888888888',created_at:new Date().toISOString()};stores.push(row);storeCounter++;response.statusCode=201;send([row]);return;}
+  if(request.method==='PATCH'){const row=filtered(stores,url)[0];Object.assign(row,payload);send([row]);return;}
+  send(filtered(stores.filter(row=>row.status==='approved'||row.owner_id===who||who===admin),url));return;
+ }
+ if(path==='/rest/v1/market_listing_submissions'){
+  if(request.method==='POST'){const row={...payload,id:'99999999-9999-4999-8999-999999999999',review_note:'',product_id:null};listingRows.push(row);response.statusCode=201;send([row]);return;}
+  send(listingRows.filter(row=>who===admin||stores.some(store=>store.id===row.store_id&&store.owner_id===who)));return;
+ }
+ if(path==='/rest/v1/rpc/market_review_listing'){const row=listingRows.find(item=>item.id===payload.p_id);row.status=payload.p_approve?'approved':'rejected';if(payload.p_approve){row.product_id=4;products.push({id:4,name:row.name,slug:'partner-fixture',description:row.description,price_dzd:row.price_dzd,stock:row.stock,active:true,category_id:row.category_id,category:{name:'الأثاث'},images:row.images,features:{market_store_id:row.store_id,minimum_order:row.minimum_order,specifications:row.specifications},created_at:new Date().toISOString()});}send(row.product_id);return;}
+ if(path==='/rest/v1/market_quote_requests'){if(request.method==='POST'){const row={...payload,id:'ffffffff-ffff-4fff-8fff-ffffffffffff',reply:'',created_at:new Date().toISOString()};quoteRows.push(row);response.statusCode=201;send([row]);return;}send(quoteRows);return;}
+ if(path==='/rest/v1/carts'){send(who?[{id:cartId,user_id:who,status:'active',currency:'DZD',cart_items:cartItems}]:[]);return;}
+ if(path==='/rest/v1/cart_items'){if(request.method==='DELETE'){cartItems=cartItems.filter(row=>!filtered([row],url).length);response.statusCode=204;response.end();return;}send(filtered(cartItems,url));return;}
+ send([]);
+});
+await new Promise(resolve=>dbServer.listen(3301,'127.0.0.1',resolve));
+const child=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','localhost','--port','3300'],{stdio:['ignore','pipe','pipe'],env:{...process.env,NEXT_PUBLIC_SUPABASE_URL:'http://127.0.0.1:3301',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_ci_placeholder'}});
+const origin='http://localhost:3300';let browser;let count=0;function pass(label){count++;console.log('PASS',label);}
+try{
+ await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Server timeout')),25000);child.stdout.on('data',chunk=>{if(chunk.toString().includes('Ready')){clearTimeout(timer);resolve();}});child.on('exit',code=>{clearTimeout(timer);reject(new Error('Server exit '+code));});});
+ browser=await chromium.launch({headless:true,args:['--no-sandbox']});const context=await browser.newContext({viewport:{width:1440,height:1000}});await context.addInitScript(()=>sessionStorage.setItem('aslan-intro','1'));const page=await context.newPage();
+ async function login(id){const now=Math.floor(Date.now()/1000);const token=Buffer.from('{"alg":"HS256","typ":"JWT"}').toString('base64url')+'.'+Buffer.from(JSON.stringify({sub:id,exp:now+3600,aud:'authenticated',role:'authenticated'})).toString('base64url')+'.test';const session={access_token:token,refresh_token:'fixture-refresh',expires_in:3600,expires_at:now+3600,token_type:'bearer',user:{id,email:'fixture@example.test',aud:'authenticated',role:'authenticated',created_at:'2026-10-01'}};await context.addCookies([{name:'sb-127-auth-token',value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:origin}]);}
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/market/');await page.waitForLoadState('networkidle');assert.equal(await page.locator('#catalog article').count(),3);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));pass('gallery and layout at '+width+'px');
+  if(width===390)await page.getByRole('button',{name:'البحث والفلاتر'}).click();
+  await page.getByLabel('كلمة البحث',{exact:true}).fill('كرسي');assert.equal(await page.locator('#catalog article').count(),1);
+  await page.getByRole('button',{name:'مسح الفلاتر',exact:true}).click();await page.getByLabel('التوفر').selectOption('stock');assert.equal(await page.locator('#catalog article').count(),2);await page.getByRole('button',{name:'مسح الفلاتر',exact:true}).click();pass('search and availability reset at '+width+'px');
+ }
+ await page.getByRole('button',{name:'حفظ المنتج: كرسي اختبار',exact:true}).click();await page.goto(origin+'/market/saved/');await page.getByRole('heading',{name:'كرسي اختبار',exact:true}).waitFor();assert.equal(await page.locator('#catalog article').count(),1);pass('saved product persists across navigation');
+ await page.goto(origin+'/market/');await page.locator('#catalog article').filter({has:page.getByRole('heading',{name:'كرسي اختبار',exact:true})}).getByRole('button',{name:'قارن',exact:true}).click();await page.locator('#catalog article').filter({has:page.getByRole('heading',{name:'منتج شريك اختبار',exact:true})}).getByRole('button',{name:'قارن',exact:true}).click();await page.goto(origin+'/market/compare/');await page.getByRole('rowheader',{name:'السعر',exact:true}).waitFor();assert.equal(await page.locator('thead th').count(),3);pass('comparison keeps two products and factual values');
+ await page.goto(origin+'/market/stores/fixture-shop/');assert.equal(await page.locator('#catalog article').count(),1);pass('storefront includes only that store products');
+ await page.goto(origin+'/products/fixture-custom/');assert.equal(await page.getByRole('button',{name:'أضف إلى السلة'}).count(),0);pass('quote-only product cannot be purchased at invented price');
+ await page.goto(origin+'/products/fixture-chair/');await page.getByLabel('الكمية',{exact:true}).fill('2');await page.getByRole('button',{name:'أضف إلى السلة',exact:true}).click();await page.waitForURL(/login/);assert.match(new URL(page.url()).searchParams.get('next'),/fixture-chair/);pass('guest purchase returns to selected product');
+ await login(buyer);await page.goto(origin+'/products/fixture-chair/');await page.getByLabel('الكمية',{exact:true}).fill('2');await page.getByRole('button',{name:'أضف إلى السلة',exact:true}).click();await page.getByRole('heading',{name:'سلة مشترياتك'}).waitFor();assert.equal(cartItems[0].quantity,2);await page.getByLabel('الكمية',{exact:true}).fill('3');await page.getByRole('button',{name:'تحديث الكمية'}).click();await page.waitForLoadState('networkidle');assert.equal(cartItems[0].quantity,3);pass('authenticated cart adds and replaces quantity with named item');
+ await page.getByRole('link',{name:'متابعة إتمام الطلب'}).click();await page.getByRole('heading',{name:'بيانات المستلم والتوصيل'}).waitFor();assert.ok(await page.getByText('كرسي اختبار × 3',{exact:false}).count());pass('checkout reviews named products and delivery form');
+ await page.goto(origin+'/market/quote/?product=3&type=wholesale');await page.getByLabel('الاسم الكامل').fill('مشتري اختبار');await page.getByLabel('هاتف التواصل').fill('0550000000');await page.getByLabel('تفاصيل احتياجك').fill('نحتاج عرضًا لكمية من المنتجات للاختبار فقط');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'إرسال طلب عرض السعر'}).click();await page.getByRole('link',{name:'متابعة طلب السعر'}).waitFor();assert.equal(quoteRows[0].store_id,storeId);pass('product inquiry is routed to actual seller');
+ await page.getByRole('link',{name:'متابعة طلب السعر'}).click();await page.getByText('مشتري اختبار · 0550000000').waitFor();pass('request tracking shows saved inquiry');
+ await page.goto(origin+'/market/sell/');await page.getByLabel('اسم المتجر',{exact:true}).fill('متجر طلب الاختبار');await page.getByLabel('اسم رابط المتجر').fill('new-fixture-shop');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'إرسال طلب فتح المتجر'}).click();await page.getByRole('heading',{name:'متجر طلب الاختبار',exact:true}).waitFor();assert.equal(storeCounter,1);assert.equal(stores.find(row=>row.owner_id===buyer).status,'submitted');pass('seller application remains pending');
+ await login(admin);await page.goto(origin+'/admin/market/partners/');const storeCard=page.locator('article').filter({has:page.getByRole('heading',{name:'متجر طلب الاختبار',exact:true})});await storeCard.getByRole('button',{name:'اعتماد المتجر'}).click();await page.getByText('تم تحديث حالة المتجر.',{exact:true}).waitFor();assert.equal(stores.find(row=>row.owner_id===buyer).status,'approved');pass('admin approves storefront');
+ await login(buyer);await page.goto(origin+'/market/sell/');await page.getByLabel('عنوان المنتج').fill('منتج جديد للاختبار');await page.getByLabel('السعر بالدينار (اختياري)').fill('150');await page.getByLabel('المخزون المتاح').fill('4');await page.getByRole('button',{name:'إرسال المنتج لمراجعة الإدارة'}).click();await page.getByRole('heading',{name:'منتج جديد للاختبار',exact:true}).waitFor();assert.equal(listingRows[0].status,'submitted');pass('merchant product enters review without public publication');
+ await login(admin);await page.goto(origin+'/admin/market/partners/');await page.getByRole('button',{name:'اعتماد ونشر المنتج',exact:true}).click();await page.getByText('تم اعتماد المنتج ونشره وضبط مخزونه.',{exact:true}).waitFor();assert.equal(listingRows[0].status,'approved');await page.goto(origin+'/market/');assert.equal(await page.locator('#catalog article').count(),4);pass('reviewed partner product appears in public gallery');
+ await login(buyer);await page.goto(origin+'/cart/');await page.getByRole('button',{name:'إزالة',exact:true}).click();await page.getByRole('heading',{name:'السلة فارغة',exact:true}).waitFor();assert.equal(cartItems.length,0);pass('cart item removal persists');
+ failCatalog=true;await page.goto(origin+'/market/');await page.getByRole('heading',{name:'تعذر تحميل المنتجات'}).waitFor();assert.equal(await page.locator('#catalog article').count(),0);pass('catalogue failure is explicit');
+ console.log(count+' browser scenarios passed; fixture server only');
+}finally{await browser?.close();child.kill('SIGTERM');await new Promise(resolve=>dbServer.close(resolve));}

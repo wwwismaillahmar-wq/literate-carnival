@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [returnTo,setReturnTo] = useState('/');
+  useEffect(()=>{const value=new URLSearchParams(window.location.search).get('next');if(value && value.startsWith('/') && !value.startsWith('//') && !value.includes(String.fromCharCode(92)))setReturnTo(value);},[]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +24,7 @@ export default function LoginPage() {
       const next =
         requestedNext &&
         requestedNext.startsWith('/') &&
-        !requestedNext.startsWith('//')
+        !requestedNext.startsWith('//') && !requestedNext.includes(String.fromCharCode(92))
           ? requestedNext
           : '/';
 
@@ -80,7 +82,7 @@ export default function LoginPage() {
         {error && <p style={{ color: '#ef8b8b' }}>{error}</p>}
 
         <p>
-          لا تملك حسابًا؟ <Link href="/register">إنشاء حساب</Link>
+          لا تملك حسابًا؟ <Link href={'/register?next='+encodeURIComponent(returnTo)}>إنشاء حساب</Link>
         </p>
       </form>
     </main>

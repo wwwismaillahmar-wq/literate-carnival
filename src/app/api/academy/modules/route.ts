@@ -88,12 +88,12 @@ export async function PATCH(request: Request) {
       patch.sort_order = body.sortOrder;
     }
     if (body.status !== undefined) {
-      if (!['draft', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الوحدة غير صالحة.' }, { status: 400 });
+      if (!['draft', 'review', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الوحدة غير صالحة.' }, { status: 400 });
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_modules').update(patch).eq('id', id)
       .select('id,course_id,title,description,sort_order,status,updated_at').maybeSingle();
-    if (error) return NextResponse.json({ error: 'تعذر تحديث الوحدة.' }, { status: 500 });
+    if (error) return NextResponse.json({ error: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 'اعتماد المحتوى يحتاج صلاحية المشرف؛ أرسل المسودة للمراجعة.' : 'تعذر تحديث الوحدة.' }, { status: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 403 : 500 });
     if (!data) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
     return NextResponse.json({ module: data });
   } catch {

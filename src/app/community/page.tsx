@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import SocialPost, { type SocialPostData } from '@/components/SocialPost';
 import CommunityNav from '@/components/CommunityNav';
+import { SectorHero } from '@/components/SectorHero';
 
 type Post={id:string;author_id:string;title:string;content:string;visibility:string;status:string;created_at:string;published_at:string|null;featured:boolean;featured_order:number};
 
@@ -22,5 +23,5 @@ export default async function CommunityPage(){
     for(const item of media??[]){const s=await supabase.storage.from('aslan-media').createSignedUrl(item.object_path,3600);rendered.push({...item,signed_url:s.data?.signedUrl??null});}
     result.push({...post,author,avatar_url,media:rendered,viewerIsOwner:user?.id===post.author_id,viewerAuthenticated:!!user});
   }
-  return <main className="section"><div className="wrap"><span className="kicker">ASLAN COMMUNITY</span><h1>المجتمع</h1><p className="lead">مساحة اجتماعية موحدة للمحتوى المنشور الذي يسمح لك نظام الخصوصية برؤيته.</p><CommunityNav/>{result.length?<div className="grid" style={{maxWidth:760,margin:'0 auto'}}>{result.map(post=><SocialPost key={post.id} post={post as SocialPostData}/>)}</div>:<div className="card"><h2>لا توجد منشورات متاحة بعد.</h2><p className="muted">ابدأ بمنشور عام، أو أضف أصدقاء لرؤية محتوى الأصدقاء.</p>{user?<Link className="btn primary" href="/account/posts">إنشاء منشور</Link>:<Link className="btn primary" href="/login?next=/community">تسجيل الدخول</Link>}</div>}</div></main>;
+  return <main className="section"><div className="wrap"><SectorHero eyebrow="ASLAN COMMUNITY" title="مجتمع ASLAN" description="مساحة للتواصل المهني والمحتوى الذي تسمح لك إعدادات الخصوصية برؤيته." primary={{href:'/account/posts',label:'إنشاء منشور'}} secondary={{href:'/members',label:'استكشف الأعضاء'}} aside={{title:'تواصل وشارك أعمالك',description:'تابع المنشورات، وأدِر صداقاتك، وتواصل مع زملائك من حسابك.',action:{href:'/account/messages',label:'الرسائل والمحادثات'}}}/><CommunityNav/>{result.length?<div className="grid" style={{maxWidth:760,margin:'0 auto'}}>{result.map(post=><SocialPost key={post.id} post={post as SocialPostData}/>)}</div>:<div className="card"><h2>لا توجد منشورات متاحة بعد.</h2><p className="muted">ابدأ بمنشور عام، أو أضف أصدقاء لرؤية محتوى الأصدقاء.</p>{user?<Link className="btn primary" href="/account/posts">إنشاء منشور</Link>:<Link className="btn primary" href="/login?next=/community">تسجيل الدخول</Link>}</div>}</div></main>;
 }

@@ -19,6 +19,8 @@ export function AssessmentAuthoringWorkspace() {
   const [questions,setQuestions]=useState<Question[]>([]);
   const [moduleId,setModuleId]=useState('');
   const [title,setTitle]=useState('');
+  const [passScore,setPassScore]=useState(70);
+  const [maxAttempts,setMaxAttempts]=useState(5);
   const [prompt,setPrompt]=useState('');
   const [optionsText,setOptionsText]=useState('a|الخيار الأول\nb|الخيار الثاني');
   const [correct,setCorrect]=useState('a');
@@ -42,7 +44,7 @@ export function AssessmentAuthoringWorkspace() {
 
   async function createAssessment(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();if(busy||!moduleId)return;setBusy(true);setError('');setNotice('');
-    try{const result=await json<{assessment:Assessment}>(await fetch('/api/academy/assessments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId,title,passScore:70,maxAttempts:5})}));setAssessments(current=>[result.assessment,...current]);setSelected(result.assessment.id);setTitle('');setNotice('تم حفظ الاختبار كمسودة.');}
+    try{const result=await json<{assessment:Assessment}>(await fetch('/api/academy/assessments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId,title,passScore,maxAttempts})}));setAssessments(current=>[result.assessment,...current]);setSelected(result.assessment.id);setTitle('');setNotice('تم حفظ الاختبار كمسودة.');}
     catch(e){setError(e instanceof Error?e.message:'تعذر إنشاء الاختبار.');}finally{setBusy(false);}
   }
   async function addQuestion(event:React.FormEvent<HTMLFormElement>){
@@ -65,6 +67,8 @@ export function AssessmentAuthoringWorkspace() {
       <h2>إنشاء اختبار</h2>
       <label>الوحدة<select required value={moduleId} onChange={e=>setModuleId(e.target.value)}>{modules.map(m=><option key={m.id} value={m.id}>{m.title} · {m.status}</option>)}</select></label>
       <label>عنوان الاختبار<input required minLength={2} maxLength={180} value={title} onChange={e=>setTitle(e.target.value)}/></label>
+      <label>درجة النجاح (%)<input type="number" min={1} max={100} required value={passScore} onChange={e=>setPassScore(Number(e.target.value))}/></label>
+      <label>الحد الأقصى للمحاولات<input type="number" min={1} max={10} required value={maxAttempts} onChange={e=>setMaxAttempts(Number(e.target.value))}/></label>
       <button className="btn primary" disabled={busy||!modules.length}>{busy?'جارٍ الحفظ...':'إنشاء مسودة اختبار'}</button>
     </form>
     <section className="card" style={{display:'grid',gap:10}}>
@@ -72,7 +76,7 @@ export function AssessmentAuthoringWorkspace() {
       <label>اختيار الاختبار<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">اختر اختبارًا</option>{assessments.map(a=><option key={a.id} value={a.id}>{a.title} · {a.status}</option>)}</select></label>
       {assessments.filter(a=>a.id===selected).map(item=><div key={item.id} style={{display:'flex',gap:8,flexWrap:'wrap'}}>
         <span className="muted">درجة النجاح {item.pass_score}% · المحاولات {item.max_attempts}</span>
-        {item.status==='draft'&&<button type="button" disabled={busy||!questions.length} onClick={()=>void setStatus(item,'published')}>نشر الاختبار</button>}
+        {item.status==='draft'&&<button type="button" disabled={busy||!questions.length} onClick={()=>void setStatus(item,'review')}>إرسال للمراجعة</button>}{['draft','review'].includes(item.status)&&<button type="button" disabled={busy||!questions.length} onClick={()=>void setStatus(item,'published')}>اعتماد ونشر (المشرف)</button>}
         {item.status==='published'&&<button type="button" disabled={busy} onClick={()=>void setStatus(item,'archived')}>أرشفة الاختبار</button>}
       </div>)}
       {selected&&<form onSubmit={addQuestion} style={{display:'grid',gap:10}}>
