@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowUpLeft, BookOpen, BriefcaseBusiness, GraduationCap, Handshake, PackageCheck, ShieldCheck, ShoppingBag, TrendingUp, BadgePercent, UsersRound, Wrench } from 'lucide-react';
+import { ArrowLeft, ArrowUpLeft, BookOpen, BriefcaseBusiness, Handshake, PackageCheck, ShieldCheck, ShoppingBag, TrendingUp, BadgePercent, UsersRound, Wrench } from 'lucide-react';
 import styles from './HomeExperience.module.css';
 import { site } from '@/lib/config';
 import { getHomepageProducts } from '@/lib/data';
