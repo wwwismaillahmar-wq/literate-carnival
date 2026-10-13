@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowUpLeft, BookOpen, BriefcaseBusiness, GraduationCap, Handshake, PackageCheck, ShieldCheck, ShoppingBag, UsersRound, Wrench } from 'lucide-react';
+import { ArrowLeft, ArrowUpLeft, BookOpen, BriefcaseBusiness, GraduationCap, Handshake, PackageCheck, ShieldCheck, ShoppingBag, TrendingUp, BadgePercent, UsersRound, Wrench } from 'lucide-react';
 import styles from './HomeExperience.module.css';
 import { site } from '@/lib/config';
 import { getHomepageProducts } from '@/lib/data';
@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import SocialPost, { type SocialPostData } from '@/components/SocialPost';
 import { HomeAcademySection } from '@/components/academy/HomeAcademySection';
 import { HomeProductCarousel } from '@/components/HomeProductCarousel';
+import { AslanBrandMark } from '@/components/AslanBrandMark';
 
 export default async function HomePage(){
   const products=await getHomepageProducts();
@@ -45,12 +46,14 @@ export default async function HomePage(){
   const { data: publicServices } = await supabase.from('services')
     .select('id,name,slug,description').eq('active',true).order('name').limit(4);
   const portals = [
-    {href:'/market',title:'السوق والمنتجات',description:'كتالوج المنتجات والمتاجر والتفصيل حسب الطلب.',icon:ShoppingBag,label:'التسوق والأعمال'},
-    {href:'/services',title:'الخدمات',description:'اطلب خدمات مهنية وتابع عروض الأسعار والتنفيذ.',icon:Wrench,label:'الحلول الميدانية'},
-    {href:'/academy',title:'الأكاديمية',description:'استكشف الدورات والمسارات التقنية والتكوين المهني.',icon:GraduationCap,label:'التعلم والتكوين'},
-    {href:'/community',title:'المجتمع',description:'تواصل مع الأعضاء وتبادل الخبرات والمشاريع.',icon:UsersRound,label:'التواصل والتعاون'},
-    {href:'/partners',title:'الشراكات',description:'تعرّف على فرص التعاون وقدم طلب شراكة.',icon:Handshake,label:'النمو المشترك'},
-  ];
+    {href:'/market',title:'السوق',english:'MARKET',description:'منتجات جاهزة ومخصصة',icon:ShoppingBag,theme:'market'},
+    {href:'/services',title:'الخدمات',english:'SERVICES',description:'حلول تنفيذية ومهنية',icon:Wrench,theme:'services'},
+    {href:'/academy',title:'الأكاديمية',english:'ACADEMY',description:'تكوين مهني وتقني',icon:BookOpen,theme:'academy'},
+    {href:'/market/stores',title:'التسويق',english:'MARKETING',description:'متاجر وفرص انتشار الأعمال',icon:TrendingUp,theme:'marketing'},
+    {href:'/market/quote',title:'المبيعات',english:'SALES',description:'طلبات وعروض أسعار',icon:BadgePercent,theme:'sales'},
+    {href:'/partners',title:'الشراكات',english:'PARTNERSHIPS',description:'تعاون وفرص مشتركة',icon:Handshake,theme:'partners'},
+    {href:'/community',title:'المجتمع',english:'COMMUNITY',description:'خبرات ومشاريع مهنية',icon:UsersRound,theme:'community'},
+  ] as const;
 
   return <main className={styles.home}>
     {announcementText && <section className={styles.announcement} aria-label="إعلان المؤسسة">
@@ -72,15 +75,15 @@ export default async function HomePage(){
             <span><BookOpen size={16} aria-hidden="true"/> تعليم مهني</span>
           </div>
         </div>
-        <aside className={styles.heroAside}>
-          <span className={styles.sideEyebrow}>ASLAN MODELLING GROUP</span>
-          <h2>كل ما تحتاجه، في فضائه المناسب.</h2>
-          <p>اختر مسارك مباشرة. لكل قطاع أدواته، وتجمعها منظومة ASLAN بهوية واحدة.</p>
+        <aside className={styles.heroAside} aria-label="هوية مجموعة ASLAN">
+          <div className={styles.heroBrand}><AslanBrandMark size={104}/><div className={styles.heroWordmark}><strong>ASLAN</strong><span>MODELLING GROUP</span></div></div>
+          <p className={styles.heroBrandMotto}>نحوّل الحرفة إلى علامة، والتصميم إلى قيمة.</p>
+          <div className={styles.heroBrandActivities}>تصميم <i/> تنفيذ <i/> خدمات <i/> تدريب <i/> شراكات</div>
           <nav className={styles.quickRoutes} aria-label="مسارات سريعة">
-            <Link href="/market"><ShoppingBag size={18}/> منتجات ومتاجر <ArrowUpLeft size={17}/></Link>
-            <Link href="/services"><Wrench size={18}/> خدمات ومشاريع <ArrowUpLeft size={17}/></Link>
-            <Link href="/academy"><GraduationCap size={18}/> مهارات ودورات <ArrowUpLeft size={17}/></Link>
-            <Link href="/community"><UsersRound size={18}/> مجتمع مهني <ArrowUpLeft size={17}/></Link>
+            <Link href="/market"><ShoppingBag size={18}/> السوق والمنتجات <ArrowUpLeft size={17}/></Link>
+            <Link href="/services"><Wrench size={18}/> الخدمات والمشاريع <ArrowUpLeft size={17}/></Link>
+            <Link href="/academy"><BookOpen size={18}/> الأكاديمية <ArrowUpLeft size={17}/></Link>
+            <Link href="/partners"><Handshake size={18}/> الشراكات <ArrowUpLeft size={17}/></Link>
           </nav>
         </aside>
       </section>
@@ -90,12 +93,10 @@ export default async function HomePage(){
           <div><span className={styles.eyebrow}>اكتشف المجموعة</span><h2 id="portals-heading">إلى أين تريد الذهاب؟</h2><p>بوابات مستقلة بحسب ما تريد إنجازه.</p></div>
         </div>
         <div className={styles.portalGrid}>
-          {portals.map(item=>{const Icon=item.icon;return <Link href={item.href} className={styles.portalCard} key={item.href}>
-            <span className={styles.portalIcon}><Icon size={26} aria-hidden="true"/></span>
-            <span className={styles.portalLabel}>{item.label}</span>
-            <strong>{item.title}</strong>
-            <p>{item.description}</p>
-            <span className={styles.portalVisit}>ادخل الفضاء <ArrowUpLeft size={16} aria-hidden="true"/></span>
+          {portals.map(item=>{const Icon=item.icon;return <Link href={item.href} className={styles.portalCard+' '+styles['portal'+item.theme]} key={item.href}>
+            <span className={styles.portalVisual}><AslanBrandMark size={67} decorative/><Icon size={36} strokeWidth={1.8} aria-hidden="true"/></span>
+            <span className={styles.portalCopy}><strong>{item.title}</strong><span className={styles.portalEnglish}>{item.english}</span><small>{item.description}</small></span>
+            <span className={styles.portalVisit} aria-hidden="true"><ArrowLeft size={19}/></span>
           </Link>;})}
         </div>
       </section>

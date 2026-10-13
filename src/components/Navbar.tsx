@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Bell, Headset, Star } from 'lucide-react';
+import { AslanBrandMark } from '@/components/AslanBrandMark';
 
 type Profile={full_name:string|null;username:string|null;avatar_url:string|null};
 
@@ -20,7 +21,7 @@ export function Navbar(){
   const community=[['/market/sell','مكتب التاجر'],['/market/requests','طلبات عروض الأسعار'],['/guides','دليل الاستخدام'],['/guides/management','دليل الأدوار'],['/guides/rules','قواعد الاستخدام'],['/members','الأعضاء'],['/account/friends','الأصدقاء'],['/account/friend-requests','طلبات الصداقة'],['/account/messages','الرسائل'],['/notifications','الإشعارات'],['/support','الدعم والشكاوى'],['/reviews','التقييمات'],['/account/posts','منشوراتي'],['/account/contributions','مساهماتي']];
   return <header className="shell-header">
     <div className="wrap" style={{minHeight:76,display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
-      <Link href="/" className="shell-brand" onClick={()=>setOpen(false)}>{brandLogoUrl?<img src={brandLogoUrl} alt="ASLAN Modelling Group" style={{maxWidth:120,maxHeight:48,objectFit:'contain'}}/>:<span className="shell-wordmark" style={{color:brandGold}}>ASLAN</span>}<span><small style={{display:'block',fontSize:9,color:'var(--muted)',letterSpacing:'.18em'}}>MODELLING GROUP</small></span></Link>
+      <Link href="/" className="shell-brand" onClick={()=>setOpen(false)}>{brandLogoUrl?<img src={brandLogoUrl} alt="ASLAN Modelling Group" style={{maxWidth:120,maxHeight:48,objectFit:'contain'}}/>:<><AslanBrandMark size={44} decorative/><span className="shell-wordmark" style={{color:brandGold}}>ASLAN</span></>}<span><small style={{display:'block',fontSize:9,color:'var(--muted)',letterSpacing:'.18em'}}>MODELLING GROUP</small></span></Link>
       <nav className="shell-nav">{primary.map(([href,label])=><Link key={href} href={href} aria-current={active(href)?'page':undefined}>{label}</Link>)}</nav>
       <div className="shell-actions">
         {profile?<><Link href="/account/messages" className="desktop-only" aria-label="الرسائل">✉</Link><Link href="/notifications" className="desktop-only" aria-label="الإشعارات"><Bell size={18}/></Link><Link href="/support" className="desktop-only" aria-label="الدعم"><Headset size={18}/></Link><Link href="/reviews" className="desktop-only" aria-label="التقييمات"><Star size={18}/></Link><Link href="/partner-portal" className="desktop-only">بوابة الشريك</Link>{isAdmin&&<Link href="/admin/dashboard" className="btn secondary desktop-only">الإدارة</Link>}<Link href="/account" className="shell-user"><>{profile.avatar_url?<img src={profile.avatar_url} alt=""/>:<span className="shell-brand-mark" style={{width:34,height:34,fontSize:13}}>A</span>}</><span className="desktop-only">{profile.full_name||profile.username||'الحساب'}</span></Link></>:<><Link className="btn secondary desktop-only" href="/login">تسجيل الدخول</Link><Link className="btn primary" href="/register">إنشاء حساب</Link></>}

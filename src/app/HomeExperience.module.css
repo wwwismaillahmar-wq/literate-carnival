@@ -115,3 +115,34 @@
 .marketEmpty,.communityEmpty,.panel{background:#fff}
 .closing{background:linear-gradient(115deg,#203744,#142835)}
 @media(max-width:600px){.sectionHeading{padding:13px 15px;border-radius:11px}}
+
+/* ASLAN identity V2 – visual design only; the original workflows remain unchanged. */
+.heroAside{background:linear-gradient(145deg,#122535,#203c4e);border:1px solid #bd964c;color:#f7f2e9}
+.heroBrand{display:flex;flex-direction:row;gap:16px;align-items:center;justify-content:center;direction:ltr;min-width:0}
+.heroWordmark{display:grid;min-width:0;line-height:1.2;text-align:left}
+.heroWordmark strong{font:800 clamp(34px,4vw,59px) Georgia,serif;letter-spacing:.06em;color:#e9bd6e}
+.heroWordmark span{font-weight:800;letter-spacing:.18em;font-size:clamp(9px,1.3vw,14px);color:#f5f3eb}
+.heroBrandMotto{color:#fff!important;text-align:center;font-weight:700;font-size:clamp(15px,1.6vw,20px)!important;margin:17px 0 10px!important}
+.heroBrandActivities{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:750;color:#eacb8c;margin-bottom:18px}
+.heroBrandActivities i{height:4px;width:4px;background:#e9b86b;border-radius:50%}
+.heroAside .quickRoutes{grid-template-columns:repeat(2,minmax(0,1fr))}
+.heroAside .quickRoutes a{background:rgba(255,255,255,.07);border-color:rgba(225,195,132,.25);color:#fff;gap:7px;font-size:12px;min-width:0}
+.heroAside .quickRoutes a:hover{background:rgba(244,203,133,.16);border-color:#d3a855}
+.heroAside .quickRoutes a svg{flex-shrink:0}
+.heroAside .quickRoutes a svg:first-child,.heroAside .quickRoutes a svg:last-child{color:#e5ba70}
+.portalGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.portalCard,.portalCard:hover{transform:none}
+.portalCard{min-height:135px;display:flex;flex-direction:row;align-items:center;gap:12px;padding:16px;border:1px solid #e4dfd5;border-top:1px solid #e4dfd5;background:#fffaf3;border-radius:19px;box-shadow:0 8px 22px rgba(20,38,49,.055)}
+.portalVisual{display:flex;align-items:center;gap:1px;direction:ltr;flex:none;color:#b68b42}
+.portalVisual svg:first-child{flex-shrink:0}
+.portalVisual svg:last-child{color:#906b32}
+.portalCopy{display:grid;gap:1px;flex:1;min-width:0}
+.portalCard .portalCopy strong{color:#203744;background:none!important;border:0!important;padding:0!important;font-size:22px;font-weight:900;line-height:1.35}
+.portalEnglish{font-size:12px;color:#9d742c;font-weight:850;letter-spacing:.08em}
+.portalCopy small{font-size:12px;color:#5a6570;font-weight:600;line-height:1.45}
+.portalCard .portalVisit{display:grid;place-items:center;flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#c69d50;color:#fff;margin:0}
+.portalCard:hover{border-color:#d4ab63;box-shadow:0 11px 28px rgba(20,38,49,.13)}
+.portalservices{background:#eef5fa}.portalacademy{background:#fffaf0}.portalmarketing{background:#edf7ee}.portalsales{background:#fff0ee}.portalpartners{background:#f4effd}.portalcommunity{background:#f0f5f6}
+@media(max-width:1100px){.portalGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.portalCard{min-height:125px}}
+@media(max-width:650px){.heroBrand svg{width:78px;height:78px}.heroWordmark strong{font-size:34px}.heroAside .quickRoutes{grid-template-columns:1fr 1fr}.portalGrid{grid-template-columns:1fr}.portalCard{min-height:112px;padding:14px}.portalVisual svg:first-child{width:55px;height:55px}.portalVisual svg:last-child{width:29px;height:29px}.portalCard .portalCopy strong{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.portalCard{transition:none}}
