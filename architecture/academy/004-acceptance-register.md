@@ -1,6 +1,6 @@
 # ASLAN-ACADEMY-UNIFIED-004 — acceptance register
 
-**Source of truth:** approved unified specification, v1.0 (17 chapters / 70 articles).
+**Source of truth:** user-supplied `ASLAN_ACADEMY_UNIFIED_REQUIREMENTS_004.pdf` (7 pages, 17 numbered sections), dated 14 October 2026. The user's earlier conversational 70-article expanded specification is a distinct source; do not falsely claim that the PDF itself contains 70 numbered articles.
 **Scope:** development branch only. This register is NOT a declaration of acceptance.
 **Evidence rule:** a feature is complete only when code, schema, permissions, user journey, automated tests, and production-equivalent acceptance tests have passed.
 
@@ -37,7 +37,7 @@
 
 ## Mandatory release blockers
 
-1. Verify the exact text of all **70 articles**, add article-by-article traceability, and do not infer missing clauses.
+1. Trace all **17 numbered sections** of the located source PDF and reconcile the expanded **70-article conversational specification** without inventing article text.
 2. Validate migrations against actual database constraints and apply only with controlled authorization.
 3. Resolve the provider's storage plan and bucket caps; test interrupted transfers with actual 2/4/8 GiB files.
 4. Implement authenticated malware/content scanning and independent approval before setting asset status to `ready`.
@@ -46,3 +46,7 @@
 7. Preserve the user's final approval before production deployment.
 
 **Do not represent the Academy as 100% ready while any blocker remains.**
+
+## Primary source located
+
+`ASLAN_ACADEMY_UNIFIED_REQUIREMENTS_004.pdf` is available among the user's Project/Library files and has been read in full. It specifies 17 numbered sections across seven pages. The previous statement that the source was unavailable was incorrect. Actual end-to-end tests are deferred by the user until after deployment; this does not turn unverified features into passed acceptance criteria.
