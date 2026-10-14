@@ -70,7 +70,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
         ].map(([name,value])=>name+' '+encoder(value)).join(',');
         const created = await request(endpoint,'POST',{
           'Upload-Length':String(file.size),'Upload-Metadata':metadata,
-          'Content-Type':'application/offset+octet-stream','x-upsert':'false'
+          'x-upsert':'false'
         });
         const location = created.headers.get('Location');
         if (!location) throw new Error('لم يرجع التخزين عنوان متابعة الرفع.');
