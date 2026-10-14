@@ -35,7 +35,7 @@ using (
 
 -- Immutable asset identity prevents changing path, size or lesson during confirmation.
 create or replace function private.academy_guard_asset_identity()
-returns trigger language plpgsql set search_path = '' as $
+returns trigger language plpgsql set search_path = '' as $academy_guard$
 begin
   if new.id is distinct from old.id
     or new.lesson_id is distinct from old.lesson_id
@@ -48,7 +48,7 @@ begin
   then raise exception 'ACADEMY_ASSET_IMMUTABLE_FIELDS'; end if;
   return new;
 end;
-$;
+$academy_guard$;
 drop trigger if exists academy_guard_asset_identity on public.academy_lesson_assets;
 create trigger academy_guard_asset_identity before update on public.academy_lesson_assets
 for each row execute function private.academy_guard_asset_identity();
