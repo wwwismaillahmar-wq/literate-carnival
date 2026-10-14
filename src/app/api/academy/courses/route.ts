@@ -97,8 +97,27 @@ export async function PATCH(request: Request) {
     if (body.status !== undefined) {
       if (!['draft','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدورة غير صالحة.' }, { status: 400 });
       if (body.status === 'published') {
-        // Publishing exposes the course shell. Content, pricing, assessments and admissions
-        // are intentionally authored independently by the assigned academy staff.
+        // Fail closed: do not sell a course shell with no ready learning inventory.
+        const { data: existingCourse, error: courseError } = await db.from('courses')
+          .select('id,title,description,price_dzd').eq('id', id).maybeSingle();
+        if (courseError || !existingCourse) return NextResponse.json({ error: 'تعذر التحقق من الدورة.' }, { status: 404 });
+        const title = String(patch.title ?? existingCourse.title ?? '').trim();
+        const description = String(patch.description ?? existingCourse.description ?? '').trim();
+        const price = patch.price_dzd !== undefined ? patch.price_dzd : existingCourse.price_dzd;
+        if (title.length < 2 || description.length < 20 || typeof price !== 'number' || price < 0)
+          return NextResponse.json({ error: 'أكمل عنوان الدورة ووصفها وسعرها قبل النشر.' }, { status: 409 });
+        const { data: modules, error: moduleError } = await db.from('academy_modules')
+          .select('id,status').eq('course_id', id).neq('status', 'archived');
+        if (moduleError || !modules?.length || modules.some(module => module.status !== 'published'))
+          return NextResponse.json({ error: 'يلزم وجود وحدات معتمدة ومنشورة قبل نشر الدورة.' }, { status: 409 });
+        const moduleIds = modules.map(module => module.id);
+        const { data: lessons, error: lessonError } = await db.from('academy_lessons')
+          .select('id,module_id,status,body,resource_url').in('module_id', moduleIds).neq('status', 'archived');
+        if (lessonError || !lessons?.length ||
+            modules.some(module => !lessons.some(lesson => lesson.module_id === module.id)) ||
+            lessons.some(lesson => lesson.status !== 'published' ||
+              (!String(lesson.body ?? '').trim() && !String(lesson.resource_url ?? '').trim())))
+          return NextResponse.json({ error: 'كل وحدة تحتاج دروسًا منشورة ذات محتوى قبل نشر الدورة.' }, { status: 409 });
         patch.published_at = new Date().toISOString();
       } else if (body.status === 'draft') {
         patch.published_at = null;
