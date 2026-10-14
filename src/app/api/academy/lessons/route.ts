@@ -115,6 +115,12 @@ export async function PATCH(request: Request) {
     if (body.status !== undefined) {
       if (!['draft', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدرس غير صالحة.' }, { status: 400 });
       if (body.status === 'published' && !String(patch.body ?? existing.body ?? '').trim() && !String(patch.resource_url ?? existing.resource_url ?? '').trim()) return NextResponse.json({ error: 'لا يمكن نشر درس بلا محتوى.' }, { status: 409 });
+      if (body.status === 'published') {
+        const { data: assets, error: assetError } = await db.from('academy_lesson_assets')
+          .select('id,status').eq('lesson_id', id);
+        if (assetError || (assets ?? []).some(asset => asset.status !== 'ready'))
+          return NextResponse.json({ error: 'الملفات المرفقة لم تعتمد بعد.' }, { status: 409 });
+      }
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_lessons').update(patch).eq('id', id)
