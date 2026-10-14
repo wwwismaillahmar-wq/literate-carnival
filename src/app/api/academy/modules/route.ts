@@ -96,6 +96,16 @@ export async function PATCH(request: Request) {
           (!String(lesson.body ?? '').trim() && !String(lesson.resource_url ?? '').trim())))
           return NextResponse.json({ error: 'انشر جميع دروس الوحدة مع محتواها قبل نشر الوحدة.' }, { status: 409 });
       }
+      if (body.status === 'published') {
+        const { data: lessonIds, error: lessonError } = await db.from('academy_lessons')
+          .select('id').eq('module_id', id).neq('status','archived');
+        if (lessonError || !lessonIds?.length)
+          return NextResponse.json({error:'الوحدة تحتاج دروسًا منشورة.'},{status:409});
+        const { data: assets, error: assetError } = await db.from('academy_lesson_assets')
+          .select('status').in('lesson_id',lessonIds.map(lesson => lesson.id));
+        if (assetError || (assets ?? []).some(asset => asset.status !== 'ready'))
+          return NextResponse.json({error:'يوجد ملف لم يعتمد في هذه الوحدة.'},{status:409});
+      }
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_modules').update(patch).eq('id', id)
