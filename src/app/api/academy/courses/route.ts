@@ -118,6 +118,13 @@ export async function PATCH(request: Request) {
             lessons.some(lesson => lesson.status !== 'published' ||
               (!String(lesson.body ?? '').trim() && !String(lesson.resource_url ?? '').trim())))
           return NextResponse.json({ error: 'كل وحدة تحتاج دروسًا منشورة ذات محتوى قبل نشر الدورة.' }, { status: 409 });
+        // Reject unverified file references: lesson text is not proof that
+        // uploaded learning assets are reviewed and ready for learners.
+        const lessonIds = lessons.map(lesson => lesson.id);
+        const { data: assets, error: assetError } = await db.from('academy_lesson_assets')
+          .select('id,lesson_id,status').in('lesson_id', lessonIds);
+        if (assetError || (assets ?? []).some(asset => asset.status !== 'ready'))
+          return NextResponse.json({ error: 'توجد ملفات تعليمية لم تكتمل مراجعتها واعتمادها.' }, { status: 409 });
         patch.published_at = new Date().toISOString();
       } else if (body.status === 'draft') {
         patch.published_at = null;
