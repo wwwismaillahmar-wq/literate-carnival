@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { AcademyResumableUpload } from './AcademyResumableUpload';
 
 type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null };
 type Module = { id: string; course_id: string; title: string; description: string; sort_order: number; status: string };
@@ -265,6 +266,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
         {lessons.map(lesson => <article key={lesson.id} className="card" style={{ marginTop: 10 }}>
           <h3>{lesson.title}</h3><p className="muted">{lesson.lesson_type} · {lesson.duration_minutes} دقيقة · {lesson.status}</p>
           <LessonEditor lesson={lesson} disabled={busy} onSave={patch => void saveLesson(lesson, patch)} />
+          {lesson.status !== 'archived' && <AcademyResumableUpload key={lesson.id} lessonId={lesson.id} />}
           {lesson.status !== 'archived' && <button type="button" disabled={busy} onClick={() => void archiveLesson(lesson)}>أرشفة الدرس</button>}
         </article>)}
       </section>
