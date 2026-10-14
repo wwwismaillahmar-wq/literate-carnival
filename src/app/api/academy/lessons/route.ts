@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const { data, error } = await db.from('academy_lessons').insert({
       module_id: moduleId, title, lesson_type: lessonType, body: lessonBody,
       resource_url: resourceUrl || null, duration_minutes: duration, sort_order: sortOrder,
-      status: body.status === 'published' && (lessonBody || resourceUrl) ? 'published' : 'draft',
+      status: 'draft',
     }).select('id,module_id,title,lesson_type,body,resource_url,duration_minutes,sort_order,status,created_at,updated_at').single();
     if (error) return NextResponse.json({ error: 'تعذر حفظ الدرس.' }, { status: 500 });
     return NextResponse.json({ lesson: data }, { status: 201 });
