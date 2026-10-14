@@ -76,3 +76,11 @@ with check (
 );
 -- Review/approval is a separate privileged workflow, not granted here.
 -- No client DELETE policy is granted.
+
+-- Super-admin can reject a reviewed upload; approving requires a separate
+-- malware/QA attestation workflow and is intentionally not enabled.
+drop policy if exists academy_asset_admin_reject on public.academy_lesson_assets;
+create policy academy_asset_admin_reject
+on public.academy_lesson_assets for update to authenticated
+using (public.has_role('super_admin') and status = 'uploaded')
+with check (public.has_role('super_admin') and status = 'rejected');
