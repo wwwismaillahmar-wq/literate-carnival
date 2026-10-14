@@ -19,8 +19,8 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   const running = useRef(false);
   const controller = useRef<AbortController|null>(null);
   const storage = createClient();
-  const endpoint = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/,'') + '/storage/v1/upload/resumable';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
+  const endpoint = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/,'') + '/storage/v1/upload/resumable';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   const resumeKey = (f:File) => 'aslan:tus:' + lessonId + ':' + f.name + ':' + f.size + ':' + f.lastModified;
 
   useEffect(() => () => { pause.current = true; controller.current?.abort(); }, []);
