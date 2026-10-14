@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const { data, error } = await db.from('academy_lessons').insert({
       module_id: moduleId, title, lesson_type: lessonType, body: lessonBody,
       resource_url: resourceUrl || null, duration_minutes: duration, sort_order: sortOrder,
-      status: body.status === 'published' ? 'published' : 'draft',
+      status: body.status === 'published' && (lessonBody || resourceUrl) ? 'published' : 'draft',
     }).select('id,module_id,title,lesson_type,body,resource_url,duration_minutes,sort_order,status,created_at,updated_at').single();
     if (error) return NextResponse.json({ error: 'تعذر حفظ الدرس.' }, { status: 500 });
     return NextResponse.json({ lesson: data }, { status: 201 });
@@ -82,7 +82,7 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const id = typeof body.id === 'string' ? body.id.trim() : '';
     if (!validUuid.test(id)) return NextResponse.json({ error: 'معرّف الدرس غير صالح.' }, { status: 400 });
-    const { data: existing, error: existingError } = await db.from('academy_lessons').select('module_id').eq('id', id).maybeSingle();
+    const { data: existing, error: existingError } = await db.from('academy_lessons').select('module_id,body,resource_url').eq('id', id).maybeSingle();
     if (existingError || !existing) return NextResponse.json({ error: 'الدرس غير موجود.' }, { status: 404 });
     const { data: existingModule, error: existingModuleError } = await db.from('academy_modules').select('course_id').eq('id', existing.module_id).maybeSingle();
     if (existingModuleError || !existingModule) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
@@ -114,6 +114,7 @@ export async function PATCH(request: Request) {
     }
     if (body.status !== undefined) {
       if (!['draft', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدرس غير صالحة.' }, { status: 400 });
+      if (body.status === 'published' && !String(patch.body ?? existing.body ?? '').trim() && !String(patch.resource_url ?? existing.resource_url ?? '').trim()) return NextResponse.json({ error: 'لا يمكن نشر درس بلا محتوى.' }, { status: 409 });
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_lessons').update(patch).eq('id', id)
