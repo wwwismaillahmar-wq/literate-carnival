@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AcademyResumableUpload } from './AcademyResumableUpload';
+import { AcademyAssetReviewQueue } from './AcademyAssetReviewQueue';
 
 type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null };
 type Module = { id: string; course_id: string; title: string; description: string; sort_order: number; status: string };
@@ -203,6 +204,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   return <div className="grid" style={{ marginTop: 20 }}>
+    {!staffMode && <AcademyAssetReviewQueue />}
     {error && <div className="card" role="alert">{error}</div>}
     {notice && <div className="card" role="status">{notice}</div>}
     {!staffMode && <form className="card" onSubmit={createCourse} style={{ display: 'grid', gap: 10 }}>
