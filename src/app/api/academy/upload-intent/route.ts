@@ -46,11 +46,33 @@ export async function POST(request: Request) {
   const { data: allowed, error: accessError } = await db.rpc('can_manage_academy_course', { p_course_id: courseId });
   if (accessError || allowed !== true)
     return NextResponse.json({ error: 'لا تملك صلاحية رفع محتوى هذا الدرس.' }, { status: 403 });
+  // Storage RLS requires a pending asset record before any upload begins.
+  const mime: Record<string,string> = {
+    mp4:'video/mp4',webm:'video/webm',pdf:'application/pdf',
+    pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',txt:'text/plain',
+  };
+  const mimeType = mime[check.extension ?? ''];
+  if (!mimeType) return NextResponse.json({error:'امتداد الملف غير مفعّل بعد في مخزن الأكاديمية.',code:'MIME_NOT_ENABLED'},{status:409});
+  const currentStorageLimit = 50 * 1024 * 1024;
+  if (sizeBytes > currentStorageLimit) return NextResponse.json({
+    error:'حد التخزين الحالي 50 MiB؛ يجب زيادة سعة المخزن قبل رفع هذا الملف.',
+    code:'STORAGE_LIMIT',currentLimitBytes:currentStorageLimit,
+  },{status:409});
   const path = [user.id, courseId, lessonId, crypto.randomUUID() + '.' + check.extension].join('/');
+  const {data:asset,error:assetError} = await db.from('academy_lesson_assets').insert({
+    lesson_id:lessonId,owner_id:user.id,object_path:path,file_name:fileName,
+    mime_type:mimeType,file_size:sizeBytes,status:'pending',
+  }).select('id').single();
+  if (assetError || !asset) return NextResponse.json({error:'تعذر تسجيل الملف قبل رفعه.'},{status:500});
   return NextResponse.json({
+    assetId:asset.id,
+    mimeType,
     bucket: 'aslan-academy',
     objectPath: path,
-    maxBytes: ACADEMY_MAX_FILE_BYTES,
+    maxBytes: currentStorageLimit,
+    plannedMaxBytes: ACADEMY_MAX_FILE_BYTES,
     protocol: 'tus-resumable',
     note: 'يجب إتمام الرفع عبر جلسة TUS مباشرة إلى التخزين ثم تسجيل المورد والتحقق منه.',
   });
