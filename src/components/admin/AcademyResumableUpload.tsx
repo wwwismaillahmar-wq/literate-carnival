@@ -55,7 +55,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
           if (!Number.isSafeInteger(offset) || offset < 0 || offset > file.size) throw new Error('Invalid offset');
         } catch (err) {
           if (pause.current) throw err;
-          record = null; localStorage.removeItem(keyName);
+          throw new Error('تعذر التحقق من جلسة الرفع السابقة؛ احتفظ بالملف وحاول لاحقًا دون إنشاء نسخة مكررة.');
         }
       }
       if (!record) {
