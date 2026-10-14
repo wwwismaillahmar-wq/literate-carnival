@@ -48,10 +48,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'لا تملك صلاحية رفع محتوى هذا الدرس.' }, { status: 403 });
   // Storage RLS requires a pending asset record before any upload begins.
   const mime: Record<string,string> = {
-    mp4:'video/mp4',webm:'video/webm',pdf:'application/pdf',
-    pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime',m4v:'video/x-m4v',
+    mkv:'video/x-matroska',avi:'video/x-msvideo',
+    mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',aac:'audio/aac',
+    ogg:'audio/ogg',flac:'audio/flac',
+    pdf:'application/pdf',doc:'application/msword',
     docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',txt:'text/plain',
+    txt:'text/plain',rtf:'application/rtf',odt:'application/vnd.oasis.opendocument.text',
+    ppt:'application/vnd.ms-powerpoint',
+    pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    odp:'application/vnd.oasis.opendocument.presentation',
+    xls:'application/vnd.ms-excel',
+    xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    csv:'text/csv',ods:'application/vnd.oasis.opendocument.spreadsheet',
+    jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',
+    gif:'image/gif',svg:'image/svg+xml',json:'application/json',xml:'application/xml',
+    html:'text/html',css:'text/css',js:'text/javascript',zip:'application/zip',
   };
   const mimeType = mime[check.extension ?? ''];
   if (!mimeType) return NextResponse.json({error:'امتداد الملف غير مفعّل بعد في مخزن الأكاديمية.',code:'MIME_NOT_ENABLED'},{status:409});
