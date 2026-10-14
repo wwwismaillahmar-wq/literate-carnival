@@ -40,12 +40,12 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const loadCourses = useCallback(async () => {
     if (staffMode) {
       setCourses(initialCourses);
-      setCourseId(current => current || initialCourses[0]?.id || '');
+      setCourseId(current => initialCourses.some(course => course.id === current) ? current : initialCourses[0]?.id || '');
       return;
     }
     const result = await readJson<{ courses: Course[] }>(await fetch('/api/academy/courses', { cache: 'no-store' }));
     setCourses(result.courses);
-    setCourseId(current => current || result.courses[0]?.id || '');
+    setCourseId(current => result.courses.some(course => course.id === current) ? current : result.courses[0]?.id || '');
   }, [staffMode, initialCourses]);
 
   const loadModules = useCallback(async (selectedCourseId: string) => {
@@ -136,6 +136,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   async function saveModule(module: Module, patch: Partial<Module>) {
+    if (busy) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await readJson<{ module: Module }>(await fetch('/api/academy/modules', {
@@ -176,11 +177,12 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   async function saveLesson(lesson: Lesson, patch: Partial<Lesson>) {
+    if (busy) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await readJson<{ lesson: Lesson }>(await fetch('/api/academy/lessons', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: lesson.id, title: patch.title, body: patch.body, lessonType: patch.lesson_type, resourceUrl: patch.resource_url ?? '', durationMinutes: patch.duration_minutes, sortOrder: patch.sort_order, status: patch.status }),
+        body: JSON.stringify({ id: lesson.id, title: patch.title, body: patch.body, lessonType: patch.lesson_type, resourceUrl: patch.resource_url === undefined ? undefined : patch.resource_url, durationMinutes: patch.duration_minutes, sortOrder: patch.sort_order, status: patch.status }),
       }));
       setLessons(current => current.map(row => row.id === lesson.id ? { ...row, ...result.lesson } : row));
       setNotice('تم تحديث الدرس.');
