@@ -114,7 +114,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
         body: JSON.stringify({ id: courseId, status }),
       }));
       setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
-      setNotice(status === 'published' ? 'تم نشر هيكل الدورة؛ يمكن إضافة المحتوى والبيانات لاحقًا.' : 'تم تحديث حالة الدورة.');
+      setNotice(status === 'published' ? 'تم نشر الدورة بعد التحقق من جاهزية المحتوى.' : 'تم تحديث حالة الدورة.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر تحديث الدورة.'); }
     finally { setBusy(false); }
   }
