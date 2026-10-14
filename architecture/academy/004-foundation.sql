@@ -4,7 +4,7 @@
 -- This file is intentionally NOT applied to the live database.
 create table if not exists public.academy_mastery_policies (
  id uuid primary key default gen_random_uuid(),
- course_id uuid not null references public.courses(id) on delete cascade,
+ course_id text not null,
  scope text not null check (scope in ('course','module','lesson')),
  scope_id uuid not null,
  revision integer not null default 1 check (revision > 0),
@@ -17,7 +17,7 @@ create table if not exists public.academy_mastery_policies (
 );
 create table if not exists public.academy_production_items (
  id uuid primary key default gen_random_uuid(),
- course_id uuid not null references public.courses(id) on delete cascade,
+ course_id text not null,
  module_id uuid references public.academy_modules(id) on delete set null,
  lesson_id uuid references public.academy_lessons(id) on delete set null,
  title text not null check (length(trim(title)) between 2 and 200),
@@ -59,5 +59,8 @@ alter table public.academy_mastery_policies enable row level security;
 alter table public.academy_production_items enable row level security;
 alter table public.academy_assessment_versions enable row level security;
 alter table public.academy_practical_submissions enable row level security;
+-- Academy course IDs in academy_enrollments and academy_modules are TEXT,
+-- whereas public.courses.id is UUID. The academy course identifier must therefore
+-- remain TEXT; a UUID foreign key would make this migration fail.
 -- Fail closed by default: no direct client access until explicit audited RLS policies
 -- and server endpoints are added. Do not grant anon or authenticated blanket access.
