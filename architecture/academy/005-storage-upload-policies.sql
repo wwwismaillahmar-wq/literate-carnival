@@ -33,6 +33,26 @@ using (
   or (status = 'ready' and private.can_access_academy_lesson(lesson_id))
 );
 
+-- Immutable asset identity prevents changing path, size or lesson during confirmation.
+create or replace function private.academy_guard_asset_identity()
+returns trigger language plpgsql set search_path = '' as $
+begin
+  if new.id is distinct from old.id
+    or new.lesson_id is distinct from old.lesson_id
+    or new.owner_id is distinct from old.owner_id
+    or new.object_path is distinct from old.object_path
+    or new.file_name is distinct from old.file_name
+    or new.mime_type is distinct from old.mime_type
+    or new.file_size is distinct from old.file_size
+    or new.created_at is distinct from old.created_at
+  then raise exception 'ACADEMY_ASSET_IMMUTABLE_FIELDS'; end if;
+  return new;
+end;
+$;
+drop trigger if exists academy_guard_asset_identity on public.academy_lesson_assets;
+create trigger academy_guard_asset_identity before update on public.academy_lesson_assets
+for each row execute function private.academy_guard_asset_identity();
+
 -- Allow owner to mark a transferred file uploaded, but never to self-approve it.
 -- The API verifies the object exists and its size before making this transition.
 drop policy if exists academy_asset_owner_upload_confirmation on public.academy_lesson_assets;
