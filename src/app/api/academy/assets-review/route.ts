@@ -41,3 +41,18 @@ export async function PATCH(request: Request) {
   if (saveError || !saved) return NextResponse.json({error:'تعذر تسجيل قرار المراجعة.'},{status:500});
   return NextResponse.json({assetId:saved.id,status:saved.status});
 }
+
+/** Read-only review queue; never expose private object paths to non-admin users. */
+export async function GET() {
+  const db = await createClient();
+  const {data:{user}} = await db.auth.getUser();
+  if (!user) return NextResponse.json({error:'يلزم تسجيل الدخول.'},{status:401});
+  const {data:admin,error:roleError} = await db.rpc('has_role',{role_key:'super_admin'});
+  if (roleError || admin !== true) return NextResponse.json({error:'غير مصرح.'},{status:403});
+  const {data,error} = await db.from('academy_lesson_assets')
+    .select('id,lesson_id,file_name,mime_type,file_size,status,created_at')
+    .in('status',['pending','uploaded','rejected'])
+    .order('created_at',{ascending:false}).limit(100);
+  if (error) return NextResponse.json({error:'تعذر تحميل قائمة الملفات.'},{status:500});
+  return NextResponse.json({assets:data??[],approvalEnabled:false});
+}
