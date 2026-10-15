@@ -20,8 +20,9 @@ export async function POST(request:Request){
   if(courseError||!course)return NextResponse.json({error:'تعذر العثور على الدورة.'},{status:404});
   const price=Number(course.price_dzd);
   if(!Number.isFinite(price)||price<=0)return NextResponse.json({error:'حدّد الإدارة سعرًا موجبًا للدورة قبل إصدار الفاتورة.'},{status:409});
-  let {data:invoice,error:invoiceError}=await db.from('invoices').select('id,invoice_number,total_amount,status').eq('source_type','academy_admission').eq('source_id',app.id).maybeSingle();
+  const {data:existingInvoice,error:invoiceError}=await db.from('invoices').select('id,invoice_number,total_amount,status').eq('source_type','academy_admission').eq('source_id',app.id).maybeSingle();
   if(invoiceError)return NextResponse.json({error:'تعذر التحقق من الفاتورة الحالية.'},{status:500});
+  let invoice=existingInvoice;
   if(!invoice){
    const invoiceNumber='ASL-ACAD-'+new Date().toISOString().slice(0,10).replaceAll('-','')+'-'+app.id.replaceAll('-','').slice(0,8).toUpperCase();
    const created=await db.from('invoices').insert({invoice_number:invoiceNumber,customer_id:app.user_id,source_type:'academy_admission',source_id:app.id,currency:'DZD',subtotal:price,tax_amount:0,total_amount:price,status:'issued'}).select('id,invoice_number,total_amount,status').single();
