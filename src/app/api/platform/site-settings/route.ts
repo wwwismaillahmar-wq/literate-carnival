@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+import { validPresentation, validAcademyLink } from '@/lib/academy/presentation-validation';
+
 export const dynamic = 'force-dynamic';
 const settingRules: Record<string, { max: number; pattern?: RegExp }> = {
+  academy_hero_title: { max: 180 },
+  academy_hero_body: { max: 1000 },
+  academy_announcement_title: { max: 180 },
+  academy_announcement_body: { max: 1000 },
+  academy_promo_title: { max: 180 },
+  academy_promo_body: { max: 1000 },
+  academy_promo_link: { max: 500 },
+  academy_article_1_title: { max: 180 },
+  academy_article_1_body: { max: 1000 },
+  academy_article_2_title: { max: 180 },
+  academy_article_2_body: { max: 1000 },
+  academy_article_3_title: { max: 180 },
+  academy_article_3_body: { max: 1000 },
+  academy_catalog: { max: 150000 },
   brand_tagline: { max: 180 },
   brand_gold: { max: 20, pattern: /^#[0-9a-f]{6}$/i },
   home_eyebrow: { max: 100 },
@@ -38,6 +54,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const origin=request.headers.get('origin');
+  if(origin && origin!==new URL(request.url).origin) return NextResponse.json({error:'مصدر الطلب غير مسموح.'},{status:403});
   try {
     const db = await createClient();
     const { user, allowed } = await admin(db);
@@ -45,7 +63,7 @@ export async function PATCH(request: Request) {
     if (!allowed) return NextResponse.json({ error: 'تعديل إعدادات الموقع للإدارة العليا فقط.' }, { status: 403 });
     const body = await request.json();
     const values = body && typeof body === 'object' && body.settings && typeof body.settings === 'object' ? body.settings as Record<string, unknown> : null;
-    if (!values || !Object.keys(values).length || Object.keys(values).length > 30) {
+    if (!values || Array.isArray(values) || !Object.keys(values).length || Object.keys(values).length > 30) {
       return NextResponse.json({ error: 'قائمة الإعدادات غير صالحة.' }, { status: 400 });
     }
     const rows: { setting_key: string; setting_value: string; is_public: boolean; updated_by: string; updated_at: string }[] = [];
@@ -55,6 +73,9 @@ export async function PATCH(request: Request) {
       const value = rawValue.trim();
       if (value.length > rule.max || (value && rule.pattern && !rule.pattern.test(value))) {
         return NextResponse.json({ error: 'قيمة الإعداد غير صالحة: ' + key }, { status: 400 });
+      }
+      if ((key === 'academy_catalog' && !validPresentation(value)) || (key === 'academy_promo_link' && !validAcademyLink(value))) {
+        return NextResponse.json({error:'بيانات عرض الأكاديمية غير صالحة.'},{status:400});
       }
       rows.push({ setting_key: key, setting_value: value, is_public: true, updated_by: user.id, updated_at: new Date().toISOString() });
     }

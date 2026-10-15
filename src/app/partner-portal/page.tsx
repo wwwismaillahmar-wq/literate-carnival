@@ -41,6 +41,7 @@ export default async function PartnerPortalPage() {
         return <article className="card" key={org.id}><span className="kicker">PARTNER ORGANIZATION</span><h2>{org.name}</h2><p className="muted">/{org.slug} · {org.status}</p><p>دور العضوية: {Array.isArray(item.roles) ? item.roles[0]?.name : item.roles?.name || 'عضو'}</p></article>;
       })}
     </section>
+    <section className="card" style={{marginTop:24}}><h2>مكتب التاجر في السوق</h2><p>قدّم متجرًا ومنتجاتك للمراجعة، وتابع طلبات عروض الأسعار الواردة. اعتماد متجر السوق مسار مستقل عن العضوية المؤسسية.</p><Link className="btn primary" href="/market/sell">فتح مكتب التاجر</Link></section>
     <h2 style={{marginTop:32}}>طلباتي</h2>
     {applicationError && <div className="card" role="alert">تعذر تحميل طلبات الشراكة.</div>}
     <section className="grid two" style={{marginTop:16}}>

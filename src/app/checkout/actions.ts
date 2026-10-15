@@ -15,7 +15,7 @@ export async function submitCheckout(formData: FormData): Promise<never> {
   const address = textValue(formData, 'address');
   const notes = textValue(formData, 'notes');
 
-  if (!recipientName || !phone || !wilaya || !address) {
+  if (recipientName.length < 2 || recipientName.length > 160 || phone.length < 6 || phone.length > 30 || !wilaya || wilaya.length > 120 || commune.length > 120 || address.length < 5 || address.length > 2000 || notes.length > 2000) {
     redirect('/checkout?error=' + encodeURIComponent('أكمل اسم المستلم والهاتف والولاية والعنوان.'));
   }
 
@@ -51,6 +51,7 @@ export async function submitCheckout(formData: FormData): Promise<never> {
       SHIPPING_ADDRESS_REQUIRED: 'بيانات التوصيل غير مكتملة.',
       INVENTORY_NOT_CONFIGURED: 'أحد المنتجات لم يتم ضبط مخزونه بعد.',
       INSUFFICIENT_STOCK: 'الكمية المطلوبة غير متوفرة في المخزون.',
+      MINIMUM_ORDER_REQUIRED: 'إحدى الكميات أقل من الحد الأدنى المطلوب للمنتج.',
       PRODUCT_INACTIVE: 'أحد المنتجات لم يعد متاحًا.',
       AUTH_REQUIRED: 'يجب تسجيل الدخول أولًا.',
     };
