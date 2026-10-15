@@ -1,32 +1,7 @@
-import { listMyOrders } from '@/domains/commerce/orders';
-
-type OrderRow = {
-  id: string;
-  order_number: string;
-  status: string;
-  total_amount: number;
-  currency: string;
-};
-
-export default async function OrdersPage({ searchParams }: { searchParams?: Promise<{ created?: string }> }) {
-  const params = searchParams ? await searchParams : {};
-  const rows = (await listMyOrders()) as OrderRow[];
-  return (
-    <main className="section">
-      <div className="wrap">
-        <span className="kicker">M14 / ORDERS</span>
-        <h1>طلباتي</h1>
-        {params.created && <section className="card" role="status" style={{ marginBottom:20 }}><h2>تم إنشاء الطلب</h2><p>مرجع الطلب: {params.created}</p><p className="muted">تم إنشاء الطلب وحجز المخزون. لم يُعتبر الدفع مؤكدًا؛ تابع تعليمات الدفع المعتمدة.</p></section>}
-        <div className="grid">
-          {rows.map((o) => (
-            <article className="card" key={o.id}>
-              <h2>{o.order_number}</h2>
-              <p>{o.status} · {o.total_amount} {o.currency}</p>
-            </article>
-          ))}
-          {!rows.length && <article className="card"><p>لا توجد طلبات بعد.</p></article>}
-        </div>
-      </div>
-    </main>
-  );
+import Link from 'next/link';import {redirect} from 'next/navigation';import {createClient} from '@/lib/supabase/server';import {listMyOrders} from '@/domains/commerce/orders';import {getMarketCatalog} from '@/lib/market/catalog.server';import {money} from '@/lib/market/catalog';import {MarketHeader} from '@/components/market/MarketHeader';import styles from '@/components/market/Market.module.css';
+export const dynamic='force-dynamic';
+const labels:Record<string,string>={pending:'بانتظار المعالجة',pending_payment:'بانتظار الدفع',confirmed:'مؤكد',processing:'قيد التجهيز',paid:'مدفوع',shipped:'تم الشحن',delivered:'تم التسليم',cancelled:'ملغى'};
+export default async function OrdersPage({searchParams}:{searchParams:Promise<{created?:string}>}){
+ const db=await createClient();const {data:{user}}=await db.auth.getUser();if(!user)redirect('/login?next=/orders');const [rows,catalog,params]=await Promise.all([listMyOrders(),getMarketCatalog(),searchParams]);
+ return <main className={styles.page}><MarketHeader/><div className={styles.wrap}><section className={styles.section}><div className={styles.heading}><h1>طلبات مشترياتك</h1><Link href="/invoices">فواتيري وتعليمات الدفع ←</Link></div>{params.created&&<p className={styles.notice} role="status">تم إنشاء الطلب وحجز المخزون. راجع الفاتورة وتعليمات الدفع من حسابك.</p>}{rows.length?<div className={styles.studioGrid}>{rows.map(order=><article className={styles.panel} key={order.id}><h2>{order.order_number}</h2><p>{labels[order.status]||order.status} · {new Date(order.created_at).toLocaleDateString('ar-DZ')}</p>{(order.order_items||[]).map((item:{product_id:number;quantity:number;line_total:number},index:number)=><p key={index}>{catalog.products.find(product=>product.id===item.product_id)?.name||'المنتج رقم '+item.product_id} × {item.quantity} · {money(Number(item.line_total))}</p>)}<strong className={styles.price}>{money(Number(order.total_amount))}</strong><div className={styles.actions}><Link className={styles.secondary} href="/invoices">الفواتير والدفع</Link><Link href="/support">استفسار بشأن الطلب</Link></div></article>)}</div>:<div className={styles.empty}><h2>لم تسجل طلب شراء بعد</h2><Link className={styles.primary} href="/market">استكشف السوق</Link></div>}</section></div></main>;
 }

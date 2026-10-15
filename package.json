@@ -6,11 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:academy:db": "node scripts/test-academy-db.mjs",
+    "test:academy:api": "node --experimental-vm-modules scripts/test-academy-api.mjs",
+    "test:academy:http": "node scripts/test-academy-http.mjs",
+    "test:academy": "node --test tests/academy/*.test.cjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "latest",
-    "@supabase/supabase-js": "latest",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.116.0",
     "@vercel/speed-insights": "^2.0.0",
     "lucide-react": "0.468.0",
     "next": "15.1.11",
@@ -23,6 +28,8 @@
     "@types/react-dom": "latest",
     "eslint": "9.20.1",
     "eslint-config-next": "15.1.11",
-    "typescript": "5.8.2"
+    "typescript": "5.8.2",
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-pgtap": "0.0.9"
   }
 }

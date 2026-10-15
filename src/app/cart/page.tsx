@@ -1,39 +1,10 @@
-import Link from 'next/link';
-import { getActiveCart } from '@/domains/commerce/cart';
-
-type CartItemRow = {
-  id: string;
-  product_id: number;
-  quantity: number;
-  unit_price: number;
-};
-
-type CartRow = {
-  cart_items: CartItemRow[];
-};
-
-export default async function CartPage() {
-  const cart = (await getActiveCart()) as CartRow | null;
-  return (
-    <main className="section">
-      <div className="wrap">
-        <span className="kicker">M14 / CART</span>
-        <h1>السلة</h1>
-        {!cart ? (
-          <article className="card"><p>سجل الدخول لعرض السلة.</p></article>
-        ) : (
-          <div className="grid">
-            {cart.cart_items.map((x) => (
-              <article className="card" key={x.id}>
-                <h2>Product #{x.product_id}</h2>
-                <p>الكمية: {x.quantity} · السعر: {x.unit_price} DZD</p>
-              </article>
-            ))}
-            {!cart.cart_items.length && <article className="card"><p>السلة فارغة.</p></article>}
-            {!!cart.cart_items.length && <article className="card"><h2>الانتقال إلى الشراء</h2><p className="muted">راجع عنوان التسليم قبل إنشاء الطلب.</p><Link className="btn primary" href="/checkout">إتمام الطلب</Link></article>}
-          </div>
-        )}
-      </div>
-    </main>
-  );
+import Image from 'next/image';import Link from 'next/link';import {getActiveCart} from '@/domains/commerce/cart';import {getMarketCatalog} from '@/lib/market/catalog.server';import {money} from '@/lib/market/catalog';import {MarketHeader} from '@/components/market/MarketHeader';import {changeCartItem} from './actions';import styles from '@/components/market/Market.module.css';
+export const dynamic='force-dynamic';
+export default async function CartPage({searchParams}:{searchParams:Promise<{error?:string;added?:string;updated?:string}>}){
+ const [cart,catalog,params]=await Promise.all([getActiveCart(),getMarketCatalog(),searchParams]);const items=cart?.cart_items||[];const total=items.reduce((sum,item)=>sum+Number(item.unit_price)*item.quantity,0);
+ const invalid=items.some(item=>{const product=catalog.products.find(value=>value.id===item.product_id);return !product||product.stock<item.quantity||product.minimumOrder>item.quantity;});
+ return <main className={styles.page}><MarketHeader/><div className={styles.wrap}><div className={styles.breadcrumbs}><Link href="/market">السوق</Link> / السلة</div><h1>سلة مشترياتك</h1><div className={styles.steps}><span>١ · مراجعة السلة</span><span>٢ · بيانات الطلب</span><span>٣ · الفاتورة والدفع</span></div>
+ {params.error&&<p className={styles.notice} role="alert">{params.error}</p>}{(params.added||params.updated)&&<p className={styles.notice} role="status">{params.added?'تمت إضافة المنتج إلى السلة.':'تم تحديث السلة.'}</p>}
+ {!cart?<div className={styles.empty}><h2>سجل الدخول لمراجعة السلة</h2><Link className={styles.primary} href="/login?next=/cart">تسجيل الدخول</Link></div>:!items.length?<div className={styles.empty}><h2>السلة فارغة</h2><p>اختر منتجاتك من السوق ثم أضف الكميات المناسبة.</p><Link className={styles.primary} href="/market">ابدأ التسوق</Link></div>:<div className={styles.cartLayout}><div>{items.map(item=>{const product=catalog.products.find(value=>value.id===item.product_id);const store=catalog.stores.find(value=>value.id===product?.storeId);return <article className={styles.cartItem} key={item.id}><div>{product?.images[0]&&<Image src={product.images[0]} alt="" width={90} height={90} unoptimized/>}</div><div><h2>{product?<Link href={'/products/'+product.slug}>{product.name}</Link>:'منتج لم يعد متاحًا في السوق'}</h2><p className={styles.small}>{store?.name}</p><p>{money(Number(item.unit_price))} × {item.quantity} = <strong>{money(Number(item.unit_price)*item.quantity)}</strong></p><form action={changeCartItem}><input type="hidden" name="item_id" value={item.id}/><label className={styles.small}>الكمية<input type="number" name="quantity" min={product?.minimumOrder||1} max={Math.max(product?.stock||0,item.quantity)} defaultValue={item.quantity} required/></label><div className={styles.actions}><button name="action" value="quantity" className={styles.secondary} disabled={!product}>تحديث الكمية</button><button name="action" value="remove" className={styles.secondary} formNoValidate>إزالة</button></div></form></div></article>;})}</div><aside className={styles.panel}><h2>ملخص السلة</h2><p>{items.reduce((sum,item)=>sum+item.quantity,0)} قطعة · {items.length} منتج</p><p>إجمالي المنتجات: <strong className={styles.price}>{money(total)}</strong></p><p className={styles.small}>راجع تكاليف وشروط التوصيل وتفاصيل الفاتورة قبل الدفع.</p>{invalid?<p role="alert" className={styles.notice}>راجع الكميات أو أزل المنتجات التي لم تعد متاحة قبل متابعة الطلب.</p>:<Link className={styles.primary} href="/checkout">متابعة إتمام الطلب</Link>}<p><Link href="/market">متابعة التسوق ←</Link></p><Link className={styles.small} href="/guides/rules#transactions">قواعد المعاملات</Link></aside></div>}
+ </div></main>;
 }

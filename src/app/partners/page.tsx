@@ -1,13 +1,11 @@
-import Link from 'next/link';
 import { PartnerApplicationForm } from '@/components/PartnerApplicationForm';
+import { SectorHero } from '@/components/SectorHero';
 
 export default function Partners() {
   return (
-    <main className="section dark">
+    <main className="section">
       <div className="wrap">
-        <span className="kicker">PARTNERS / M36</span>
-        <h1>الشراكات</h1>
-        <p><Link className="btn" href="/partners/portal">فضاء الشركاء ومتابعة الطلبات ↗</Link></p>
+        <SectorHero eyebrow="ASLAN PARTNERS" title="الشراكات والتعاون" description="بوابة مهنية لتقديم طلبات الشراكة والتوريد والتكوين وتنفيذ المشاريع." primary={{href:'/partners/portal',label:'فضاء الشركاء'}} secondary={{href:'/guides/rules',label:'قواعد التعاون'}} aside={{title:'لنطور الفرص معًا',description:'قدّم طلبك بالمعلومات المطلوبة، وتابع نتيجة المراجعة داخل فضاء الشريك.',action:{href:'/partners/portal',label:'متابعة طلبات الشراكة'}}}/>
         <div className="grid two" style={{ marginTop: 24, alignItems: 'start' }}>
           <section className="card">
             <h2>ابنِ شراكة مع ASLAN</h2>

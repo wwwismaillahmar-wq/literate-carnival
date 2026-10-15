@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (!course) return NextResponse.json({ error: 'الدورة غير موجودة.' }, { status: 404 });
     const { data, error } = await db.from('academy_modules').insert({
       course_id: courseId, title, description, sort_order: sortOrder,
-      status: body.status === 'published' ? 'published' : 'draft', created_by: user.id,
+      status: 'draft', created_by: user.id,
     }).select('id,course_id,title,description,sort_order,status,created_at,updated_at').single();
     if (error) return NextResponse.json({ error: 'تعذر حفظ الوحدة.' }, { status: 500 });
     return NextResponse.json({ module: data }, { status: 201 });
@@ -88,12 +88,29 @@ export async function PATCH(request: Request) {
       patch.sort_order = body.sortOrder;
     }
     if (body.status !== undefined) {
-      if (!['draft', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الوحدة غير صالحة.' }, { status: 400 });
+      if (!['draft', 'review', 'published', 'archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الوحدة غير صالحة.' }, { status: 400 });
+      if (body.status === 'published') {
+        const { data: lessons, error: lessonError } = await db.from('academy_lessons')
+          .select('id,status,body,resource_url').eq('module_id', id).neq('status', 'archived');
+        if (lessonError || !lessons?.length || lessons.some(lesson => lesson.status !== 'published' ||
+          (!String(lesson.body ?? '').trim() && !String(lesson.resource_url ?? '').trim())))
+          return NextResponse.json({ error: 'انشر جميع دروس الوحدة مع محتواها قبل نشر الوحدة.' }, { status: 409 });
+      }
+      if (body.status === 'published') {
+        const { data: lessonIds, error: lessonError } = await db.from('academy_lessons')
+          .select('id').eq('module_id', id).neq('status','archived');
+        if (lessonError || !lessonIds?.length)
+          return NextResponse.json({error:'الوحدة تحتاج دروسًا منشورة.'},{status:409});
+        const { data: assets, error: assetError } = await db.from('academy_lesson_assets')
+          .select('status').in('lesson_id',lessonIds.map(lesson => lesson.id));
+        if (assetError || (assets ?? []).some(asset => asset.status !== 'ready'))
+          return NextResponse.json({error:'يوجد ملف لم يعتمد في هذه الوحدة.'},{status:409});
+      }
       patch.status = body.status;
     }
     const { data, error } = await db.from('academy_modules').update(patch).eq('id', id)
       .select('id,course_id,title,description,sort_order,status,updated_at').maybeSingle();
-    if (error) return NextResponse.json({ error: 'تعذر تحديث الوحدة.' }, { status: 500 });
+    if (error) return NextResponse.json({ error: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 'اعتماد المحتوى يحتاج صلاحية المشرف؛ أرسل المسودة للمراجعة.' : 'تعذر تحديث الوحدة.' }, { status: error.message.includes('PUBLISH_REVIEW_REQUIRED') ? 403 : 500 });
     if (!data) return NextResponse.json({ error: 'الوحدة غير موجودة.' }, { status: 404 });
     return NextResponse.json({ module: data });
   } catch {

@@ -1,8 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { AcademyLessonAssets } from './AcademyLessonAssets';
+import { AcademyResumableUpload } from './AcademyResumableUpload';
+import { AcademyAssetReviewQueue } from './AcademyAssetReviewQueue';
 
-type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null };
+type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null; lesson_release_mode?: string };
 type Module = { id: string; course_id: string; title: string; description: string; sort_order: number; status: string };
 type Lesson = { id: string; module_id: string; title: string; lesson_type: string; body: string; resource_url: string | null; duration_minutes: number; sort_order: number; status: string };
 
@@ -12,7 +16,8 @@ async function readJson<T>(response: Response): Promise<T> {
   return result;
 }
 
-export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = [] }: { staffMode?: boolean; initialCourses?: Course[] }) {
+const emptyCourses: Course[] = [];
+export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = emptyCourses }: { staffMode?: boolean; initialCourses?: Course[] }) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
@@ -22,6 +27,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const [editCourseTitle, setEditCourseTitle] = useState('');
   const [editCourseDescription, setEditCourseDescription] = useState('');
   const [editCourseDuration, setEditCourseDuration] = useState('');
+  const [releaseMode, setReleaseMode] = useState('sequential');
   const [editCoursePrice, setEditCoursePrice] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
   const [moduleId, setModuleId] = useState('');
@@ -40,12 +46,12 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const loadCourses = useCallback(async () => {
     if (staffMode) {
       setCourses(initialCourses);
-      setCourseId(current => current || initialCourses[0]?.id || '');
+      setCourseId(current => initialCourses.some(course => course.id === current) ? current : initialCourses[0]?.id || '');
       return;
     }
     const result = await readJson<{ courses: Course[] }>(await fetch('/api/academy/courses', { cache: 'no-store' }));
     setCourses(result.courses);
-    setCourseId(current => current || result.courses[0]?.id || '');
+    setCourseId(current => result.courses.some(course => course.id === current) ? current : result.courses[0]?.id || '');
   }, [staffMode, initialCourses]);
 
   const loadModules = useCallback(async (selectedCourseId: string) => {
@@ -68,6 +74,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
     setEditCourseTitle(course.title);
     setEditCourseDescription(course.description);
     setEditCourseDuration(course.duration ?? '');
+    setReleaseMode(course.lesson_release_mode ?? 'sequential');
     setEditCoursePrice(course.price_dzd == null ? '' : String(course.price_dzd));
   }, [courseId, courses]);
   useEffect(() => { void loadModules(courseId).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الوحدات.')); }, [courseId, loadModules]);
@@ -97,7 +104,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
     try {
       const result = await readJson<{ course: Course }>(await fetch('/api/academy/courses', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: courseId, title: editCourseTitle, description: editCourseDescription, duration: editCourseDuration, priceDzd: editCoursePrice }),
+        body: JSON.stringify({ id: courseId, title: editCourseTitle, description: editCourseDescription, duration: editCourseDuration, priceDzd: editCoursePrice, lessonReleaseMode: releaseMode }),
       }));
       setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
       setNotice('تم حفظ بيانات الدورة.');
@@ -114,7 +121,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
         body: JSON.stringify({ id: courseId, status }),
       }));
       setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
-      setNotice(status === 'published' ? 'تم نشر هيكل الدورة؛ يمكن إضافة المحتوى والبيانات لاحقًا.' : 'تم تحديث حالة الدورة.');
+      setNotice(status === 'published' ? 'تم نشر الدورة بعد التحقق من جاهزية المحتوى.' : 'تم تحديث حالة الدورة.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر تحديث الدورة.'); }
     finally { setBusy(false); }
   }
@@ -136,6 +143,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   async function saveModule(module: Module, patch: Partial<Module>) {
+    if (busy) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await readJson<{ module: Module }>(await fetch('/api/academy/modules', {
@@ -176,11 +184,12 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   async function saveLesson(lesson: Lesson, patch: Partial<Lesson>) {
+    if (busy) return;
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await readJson<{ lesson: Lesson }>(await fetch('/api/academy/lessons', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: lesson.id, title: patch.title, body: patch.body, lessonType: patch.lesson_type, resourceUrl: patch.resource_url ?? '', durationMinutes: patch.duration_minutes, sortOrder: patch.sort_order, status: patch.status }),
+        body: JSON.stringify({ id: lesson.id, title: patch.title, body: patch.body, lessonType: patch.lesson_type, resourceUrl: patch.resource_url === undefined ? undefined : patch.resource_url, durationMinutes: patch.duration_minutes, sortOrder: patch.sort_order, status: patch.status }),
       }));
       setLessons(current => current.map(row => row.id === lesson.id ? { ...row, ...result.lesson } : row));
       setNotice('تم تحديث الدرس.');
@@ -200,6 +209,8 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   return <div className="grid" style={{ marginTop: 20 }}>
+    {!staffMode && <AcademyAssetReviewQueue />}
+      <Link className="btn secondary" href="/admin/academy/assessments">أدوات الاختبارات والتقييم</Link>
     {error && <div className="card" role="alert">{error}</div>}
     {notice && <div className="card" role="status">{notice}</div>}
     {!staffMode && <form className="card" onSubmit={createCourse} style={{ display: 'grid', gap: 10 }}>
@@ -220,6 +231,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
           <label>العنوان<input required minLength={2} maxLength={180} value={editCourseTitle} onChange={e => setEditCourseTitle(e.target.value)} /></label>
           <label>الوصف<textarea maxLength={10000} rows={3} value={editCourseDescription} onChange={e => setEditCourseDescription(e.target.value)} /></label>
           <label>المدة<input required maxLength={160} value={editCourseDuration} onChange={e => setEditCourseDuration(e.target.value)} /></label>
+          <label>فتح الدروس<select value={releaseMode} onChange={e => setReleaseMode(e.target.value)}><option value="sequential">تدريجي حسب ترتيب الدروس</option><option value="open">جميع الدروس بعد التسجيل</option></select></label>
           <label>السعر بالدينار الجزائري<input type="number" min={0} max={1000000000} value={editCoursePrice} onChange={e => setEditCoursePrice(e.target.value)} /></label>
           <button className="btn secondary" disabled={busy}>حفظ بيانات الدورة</button>
         </form>
@@ -263,6 +275,8 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
         {lessons.map(lesson => <article key={lesson.id} className="card" style={{ marginTop: 10 }}>
           <h3>{lesson.title}</h3><p className="muted">{lesson.lesson_type} · {lesson.duration_minutes} دقيقة · {lesson.status}</p>
           <LessonEditor lesson={lesson} disabled={busy} onSave={patch => void saveLesson(lesson, patch)} />
+          <AcademyLessonAssets lessonId={lesson.id} />
+          {lesson.status !== 'archived' && <AcademyResumableUpload key={lesson.id} lessonId={lesson.id} />}
           {lesson.status !== 'archived' && <button type="button" disabled={busy} onClick={() => void archiveLesson(lesson)}>أرشفة الدرس</button>}
         </article>)}
       </section>
@@ -279,7 +293,7 @@ function ModuleEditor({ module, disabled, onSave }: { module: Module; disabled: 
     <label>العنوان<input required minLength={2} maxLength={180} value={title} onChange={e => setTitle(e.target.value)} /></label>
     <label>الوصف<textarea maxLength={2000} value={description} onChange={e => setDescription(e.target.value)} /></label>
     <label>الترتيب<input type="number" min={0} max={100000} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} /></label>
-    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشور</option><option value="archived">مؤرشف</option></select></label>
+    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="review">إرسال للمراجعة</option><option value="published">اعتماد ونشر (المشرف)</option><option value="archived">مؤرشف</option></select></label>
     <button className="btn primary" disabled={disabled}>حفظ</button>
   </form></details>;
 }
@@ -299,7 +313,7 @@ function LessonEditor({ lesson, disabled, onSave }: { lesson: Lesson; disabled: 
     <label>الرابط<input type="url" maxLength={2048} value={resourceUrl} onChange={e => setResourceUrl(e.target.value)} /></label>
     <label>المدة بالدقائق<input type="number" min={0} max={1440} value={duration} onChange={e => setDuration(Number(e.target.value))} /></label>
     <label>الترتيب<input type="number" min={0} max={100000} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} /></label>
-    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشور</option><option value="archived">مؤرشف</option></select></label>
+    <label>الحالة<select value={status} onChange={e => setStatus(e.target.value)}><option value="draft">مسودة</option><option value="review">إرسال للمراجعة</option><option value="published">اعتماد ونشر (المشرف)</option><option value="archived">مؤرشف</option></select></label>
     <button className="btn primary" disabled={disabled}>حفظ</button>
   </form></details>;
 }
