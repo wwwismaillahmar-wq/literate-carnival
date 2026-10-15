@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test:academy:db": "node scripts/test-academy-db.mjs",
     "test:academy:api": "node --experimental-vm-modules scripts/test-academy-api.mjs",
-    "test:academy:http": "node scripts/test-academy-http.mjs"
+    "test:academy:http": "node scripts/test-academy-http.mjs",
+    "test:academy": "node --test tests/academy/*.test.cjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
