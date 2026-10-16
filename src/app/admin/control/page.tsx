@@ -6,6 +6,7 @@ import LogoutButton from '@/components/LogoutButton';
 export const dynamic = 'force-dynamic';
 
 const areas = [
+  { href: '/admin/archive', title: 'محرك الأرشفة', eyebrow: 'ARCHIVE / ASLAN', description: 'مراقبة مهام الأرشفة ومحاولات الإرسال إلى Notion وحالات الفشل.' },
   { href: '/admin/site-settings', title: 'إعدادات هوية الموقع', eyebrow: 'BRAND / M39', description: 'تحرير إعدادات الشعار والنصوص والألوان وبيانات التواصل المخزنة.' },
   { href: '/admin/academy/assessments', title: 'إدارة الاختبارات والتقييم', eyebrow: 'ACADEMY / M34', description: 'إنشاء الاختبارات الاختيارية، حفظ مفاتيح التصحيح في الخادم، ونشرها للدورات.' },
   { href: '/admin/academy', title: 'إدارة محتوى الأكاديمية', eyebrow: 'ACADEMY / M33–M34', description: 'إدارة وحدات الدورات والدروس على السجلات الموجودة في كتالوج الدورات.' },
