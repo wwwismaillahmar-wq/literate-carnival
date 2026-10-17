@@ -49,7 +49,8 @@ export async function GET() {
   if (error) return NextResponse.json({ error: 'تعذر تحميل إعدادات الموقع.' }, { status: 500 });
   const settings = Object.fromEntries((data ?? []).map(row => [row.setting_key, row.setting_value]));
   const logoPath = typeof settings.brand_logo_path === 'string' ? settings.brand_logo_path.trim() : '';
-  const brandLogoUrl = logoPath ? db.storage.from('aslan-media').getPublicUrl(logoPath).data.publicUrl : null;
+  const signedLogo = logoPath ? await db.storage.from('aslan-media').createSignedUrl(logoPath, 7 * 24 * 60 * 60) : null;
+  const brandLogoUrl = signedLogo?.data?.signedUrl ?? null;
   return NextResponse.json({ settings, brandLogoUrl, admin: allowed });
 }
 

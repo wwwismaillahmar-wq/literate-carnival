@@ -9,7 +9,7 @@ export async function GET(){
  let storeQuery=db.from('market_stores').select('*').order('created_at',{ascending:false});if(!admin)storeQuery=storeQuery.eq('owner_id',user.id);
  const stores=await storeQuery;const listings=await db.from('market_listing_submissions').select('*').order('created_at',{ascending:false}).limit(200);
  const categories=await db.from('categories').select('id,name').order('name');const orders=await db.rpc('market_seller_orders');
- if(stores.error||listings.error||orders.error)return NextResponse.json({error:'تعذر تحميل مكتب السوق.'},{status:500});
+ if(stores.error||listings.error||categories.error||orders.error)return NextResponse.json({error:'تعذر تحميل مكتب السوق.'},{status:500});
  return NextResponse.json({stores:stores.data||[],listings:listings.data||[],categories:categories.data||[],orders:orders.data||[],admin});
 }
 export async function POST(request:Request){

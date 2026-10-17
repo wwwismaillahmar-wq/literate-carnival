@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const { error } = await db.storage.from(bucket).remove([oldPath]);
     oldAssetCleanupWarning = Boolean(error);
   }
-  const url = db.storage.from(bucket).getPublicUrl(objectPath).data.publicUrl;
+  const { data: signedLogo } = await db.storage.from(bucket).createSignedUrl(objectPath, 7 * 24 * 60 * 60);
+  const url = signedLogo?.signedUrl ?? null;
   return NextResponse.json({ logoPath: objectPath, logoUrl: url, oldAssetCleanupWarning });
 }
