@@ -13,15 +13,15 @@ const liveMimeTypes = [
 ];
 
 function parseAllowedMimeTypes() {
-  const match = route.match(/const enabledStorageMimeTypes = new Set\\(\\[([\\s\\S]*?)\\]\\);/);
+  const match = route.match(/const enabledStorageMimeTypes = new Set\(\[([\s\S]*?)\]\);/);
   assert.ok(match, 'expected a preflight allowlist');
   return [...match[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
 }
 
 function parseMimeMap() {
-  const match = route.match(/const mime: Record<string,string> = \\{([\\s\\S]*?)\\n  \\};/);
+  const match = route.match(/const mime: Record<string,string> = \{([\s\S]*?)\n  \};/);
   assert.ok(match, 'expected an extension-to-MIME map');
-  return Object.fromEntries([...match[1].matchAll(/(\\w+):'([^']+)'/g)].map(m => [m[1],m[2]]));
+  return Object.fromEntries([...match[1].matchAll(/(\w+):'([^']+)'/g)].map(m => [m[1],m[2]]));
 }
 
 test('preflight MIME allowlist matches the reviewed live bucket snapshot', () => {
@@ -45,13 +45,13 @@ test('unsupported MIME and oversize checks occur before pending asset insertion'
   const insert = route.indexOf(".from('academy_lesson_assets').insert(");
   assert.ok(mimeGuard > 0 && sizeGuard > mimeGuard && insert > sizeGuard);
   assert.match(route, /code: 'STORAGE_MIME_NOT_ENABLED'/);
-  assert.match(route, /50 \\* 1024 \\* 1024/);
+  assert.match(route, /50 \* 1024 \* 1024/);
 });
 
 test('planned 37-extension and 8-GiB policy remain intact', () => {
-  const categories = policy.match(/export const ACADEMY_FILE_CATEGORIES = \\{([\\s\\S]*?)\\} as const;/);
+  const categories = policy.match(/export const ACADEMY_FILE_CATEGORIES = \{([\s\S]*?)\} as const;/);
   assert.ok(categories);
   const extensions = [...categories[1].matchAll(/'([a-z0-9]+)'/g)].map(m => m[1]);
   assert.equal(extensions.length, 37);
-  assert.match(policy, /ACADEMY_MAX_FILE_BYTES = 8 \\* 1024 \\*\\* 3/);
+  assert.match(policy, /ACADEMY_MAX_FILE_BYTES = 8 \* 1024 \*\* 3/);
 });
