@@ -1,0 +1,81 @@
+name: ASLAN Contabo Remote Build
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aslan-contabo-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aslan-contabo-remote-build
+  cancel-in-progress: false
+jobs:
+  remote-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OPS_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
+          echo "OPS_USER=$OPS_USER" >> "$GITHUB_ENV"
+      - name: Transfer source to isolated Contabo workspace
+        run: |
+          set -euo pipefail
+          tar --exclude=.git --exclude=node_modules --exclude=.next -czf /tmp/aslan-source.tgz .
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "$OPS_USER@$OPS_HOST" 'mkdir -p "$HOME/aslan-builds"'
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes /tmp/aslan-source.tgz "$OPS_USER@$OPS_HOST:aslan-builds/source.tgz"
+      - name: Execute remote dependency installation and build
+        env:
+          ASLAN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" "ASLAN_SHA='$ASLAN_SHA' bash -se" <<'REMOTE' | tee /tmp/aslan-build-report.txt
+          set -Eeuo pipefail
+          workspace="$HOME/aslan-builds/$ASLAN_SHA"
+          mkdir -p "$workspace"
+          tar -xzf "$HOME/aslan-builds/source.tgz" -C "$workspace"
+          cd "$workspace"
+          echo "ASLAN remote workspace: $workspace"
+          echo "User: $(id -un)"
+          echo "Node: $(command -v node || echo missing)"
+          echo "NPM: $(command -v npm || echo missing)"
+          if ! command -v node >/dev/null || ! command -v npm >/dev/null; then
+            echo "BLOCKED: Node.js/npm missing on Contabo; source transferred successfully"
+            exit 4
+          fi
+          node --version
+          npm --version
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm run build
+          echo "ASLAN_REMOTE_BUILD_PASS"
+          REMOTE
+          grep -Fxq 'ASLAN_REMOTE_BUILD_PASS' /tmp/aslan-build-report.txt
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo '## ASLAN Contabo remote build'
+            echo 'Status: ${{ job.status }}'
+            echo 'Target: isolated aslan-ops home workspace (not production)'
+            echo 'Commit: ${{ github.sha }}'
+            if [ -f /tmp/aslan-build-report.txt ]; then
+              echo 'Remote build tail:'
+              echo '~~~'
+              tail -n 35 /tmp/aslan-build-report.txt
+              echo '~~~'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
