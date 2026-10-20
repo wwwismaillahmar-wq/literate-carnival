@@ -1,5 +1,9 @@
 name: ASLAN Contabo Health Monitor
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aslan-contabo-monitor.yml'
   workflow_dispatch:
   schedule:
     - cron: '17 5,11,17,23 * * *'
