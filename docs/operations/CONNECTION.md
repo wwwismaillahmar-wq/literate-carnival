@@ -1,5 +1,5 @@
 # Secure Contabo operations channel — activation guide
-State: files staged on development branch; NOT activated on VPS.
+State (2026-10-21): merged into main; first GitHub Actions ASLAN Contabo Health Monitor #1 completed successfully (user-supplied run details: 13 seconds, check passed). Dedicated VPS account and health script were installed by operator. A subsequent workflow revision requires explicit `RESULT: PASS` from the server; that revision's result must be verified separately. This is a restricted READ-ONLY monitoring channel, not a general deployment shell. SSH private key was exposed in prior screenshots and requires rotation before long-term production trust.
 
 Architecture: scheduled GitHub Actions -> pinned-host-key SSH -> dedicated non-root aslan-ops account -> sudo allowlisted read-only health script -> Actions run summary and failure status.
 
