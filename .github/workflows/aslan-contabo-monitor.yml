@@ -1,0 +1,41 @@
+name: ASLAN Contabo Health Monitor
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5,11,17,23 * * *'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify required configuration
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY" || { echo 'BLOCKED: Missing SSH connection secrets'; exit 2; }
+      - name: Establish pinned SSH host key
+        env:
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+      - name: Run read-only health check
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+        run: |
+          umask 077
+          printf '%s\n' "$OPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 "$OPS_USER@$OPS_HOST" 'sudo -n /opt/aslan-ops/health.sh' | tee health-report.txt
+      - name: Publish health report
+        if: always()
+        run: |
+          { echo '## ASLAN Contabo health'; echo ''; echo 'Workflow status: ${{ job.status }}'; echo ''; if [ -f health-report.txt ]; then cat health-report.txt; else echo 'No server report: connection/configuration failed.'; fi; } >> "$GITHUB_STEP_SUMMARY"
