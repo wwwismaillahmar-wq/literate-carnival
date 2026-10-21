@@ -1,0 +1,58 @@
+name: ASLAN Contabo TUS readiness (isolated)
+on:
+  push:
+    branches: [aslan-tus-gateway-stage2]
+    paths: ['.github/workflows/aslan-tus-readiness.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contabo-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Configure pinned SSH identity
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          umask 077
+          mkdir -p ~/.ssh
+          python3 - <<'PY'
+          import os,re,textwrap,pathlib,sys
+          raw=os.environ['OPS_KEY'].strip().replace(chr(13),'').replace(chr(92)+'n',chr(10))
+          m=re.search('-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----',raw,re.S)
+          if not m: sys.exit('Invalid SSH private key')
+          body=''.join(m.group(1).split())
+          if not re.fullmatch('[A-Za-z0-9+/=]+',body): sys.exit('Invalid SSH private key encoding')
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text('-----BEGIN OPENSSH PRIVATE KEY-----\n'+'\n'.join(textwrap.wrap(body,70))+'\n-----END OPENSSH PRIVATE KEY-----\n')
+          PY
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 >/dev/null
+          echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
+          echo "OPS_USER=$OPS_USER" >> "$GITHUB_ENV"
+      - name: Inspect Contabo without altering production
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "$OPS_USER@$OPS_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          echo "CONTABO_SSH_PASS"
+          command -v docker >/dev/null && echo "DOCKER_CLI_PRESENT" || echo "DOCKER_CLI_MISSING"
+          if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
+            echo "DOCKER_DAEMON_ACCESS_PASS"
+          else
+            echo "DOCKER_DAEMON_ACCESS_MISSING"
+          fi
+          command -v curl >/dev/null && echo "CURL_PRESENT" || echo "CURL_MISSING"
+          if curl --fail --silent --max-time 3 -o /dev/null http://127.0.0.1:1080/files/; then
+            echo "TUS_LOOPBACK_HTTP_RESPONDS"
+          else
+            echo "TUS_LOOPBACK_NOT_READY"
+          fi
+          df -h "$HOME" | tail -n 1
+          REMOTE
