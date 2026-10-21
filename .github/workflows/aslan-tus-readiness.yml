@@ -54,5 +54,23 @@ jobs:
           else
             echo "TUS_LOOPBACK_NOT_READY"
           fi
+          echo "DOCKER_DIAGNOSTICS_BEGIN"
+          id
+          if command -v systemctl >/dev/null; then
+            systemctl is-active docker 2>/dev/null || true
+            systemctl is-enabled docker 2>/dev/null || true
+          fi
+          if [ -S /var/run/docker.sock ]; then
+            stat -c 'DOCKER_SOCKET_MODE=%a OWNER=%U GROUP=%G' /var/run/docker.sock
+            if [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ]; then
+              echo "DOCKER_SOCKET_USER_ACCESS_YES"
+            else
+              echo "DOCKER_SOCKET_USER_ACCESS_NO"
+            fi
+          else
+            echo "DOCKER_SOCKET_ABSENT"
+          fi
+          docker version --format 'DOCKER_SERVER_VERSION={{.Server.Version}}' 2>&1 | tail -n 3 || true
+          echo "DOCKER_DIAGNOSTICS_END"
           df -h "$HOME" | tail -n 1
           REMOTE
