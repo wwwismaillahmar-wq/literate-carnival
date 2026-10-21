@@ -52,7 +52,10 @@ jobs:
           set -euo pipefail
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" 'bash -se' <<'REMOTE'
           set -euo pipefail
-          docker info >/dev/null 2>&1 || { echo 'BLOCKED_DOCKER_ACCESS: grant the SSH deployment user permission before retrying'; exit 41; }
+          echo "SSH_IDENTITY=$(id -un)"
+          id -nG | tr ' ' '\n' | grep -qx docker || { echo 'BLOCKED_DOCKER_GROUP_MEMBERSHIP'; exit 40; }
+          docker info >/dev/null 2>&1 || { echo 'BLOCKED_DOCKER_ACCESS: SSH account cannot access daemon'; exit 41; }
+          echo 'CONTABO_DOCKER_WRITE_CHANNEL_READY'
           cd "$HOME/aslan-tus-staging"
           docker compose -f docker-compose.yml config -q
           # The manually installed staging container uses the same localhost port.
