@@ -67,6 +67,22 @@ export async function POST(request: Request) {
   };
   const mimeType = mime[check.extension ?? ''];
   if (!mimeType) return NextResponse.json({error:'امتداد الملف غير مفعّل بعد في مخزن الأكاديمية.',code:'MIME_NOT_ENABLED'},{status:409});
+
+  // Temporary preflight matching the verified aslan-academy bucket MIME allowlist
+  // (20 Oct 2026). This does not replace the planned 37-extension policy.
+  // Reconcile with storage.buckets before changing the live bucket configuration.
+  const enabledStorageMimeTypes = new Set([
+    'video/mp4', 'video/webm', 'application/pdf',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/jpeg', 'image/png', 'image/webp', 'text/plain',
+  ]);
+  if (!enabledStorageMimeTypes.has(mimeType)) {
+    return NextResponse.json({
+      error: 'صيغة الملف مدعومة في خطة الأكاديمية، لكنها غير مفعّلة في التخزين الحالي.',
+      code: 'STORAGE_MIME_NOT_ENABLED',
+    }, { status: 409 });
+  }
   // This value is a deployment configuration ceiling, not a promise that the provider accepts 8 GiB.
   // Keep at the verified live 50 MiB cap until the provider and bucket are upgraded.
   const currentStorageLimit = 50 * 1024 * 1024;
