@@ -57,13 +57,19 @@ jobs:
           docker info >/dev/null 2>&1 || { echo 'BLOCKED_DOCKER_ACCESS: SSH account cannot access daemon'; exit 41; }
           echo 'CONTABO_DOCKER_WRITE_CHANNEL_READY'
           cd "$HOME/aslan-tus-staging"
-          docker compose -f docker-compose.yml config -q
+          # Docker Compose is optional when the manually installed isolated tusd exists.
+          # Validate existing service before requiring Compose or changing containers.
           # The manually installed staging container uses the same localhost port.
           # Never delete or replace it automatically: doing so could orphan uploads.
           if docker container inspect aslan-tusd-staging >/dev/null 2>&1; then
             echo 'EXISTING_STAGING_CONTAINER_PRESERVED'
             [ "$(docker inspect -f '{{.State.Running}}' aslan-tusd-staging)" = true ] || { echo 'STAGING_CONTAINER_STOPPED'; exit 42; }
           else
+            if ! docker compose version >/dev/null 2>&1; then
+              echo 'BLOCKED_COMPOSE_V2_MISSING: install docker-compose-plugin before first managed deployment'
+              exit 43
+            fi
+            docker compose -f docker-compose.yml config -q
             docker compose -p aslan-tus-staging -f docker-compose.yml up -d --no-build
             echo 'STAGING_COMPOSE_DEPLOYED'
           fi
