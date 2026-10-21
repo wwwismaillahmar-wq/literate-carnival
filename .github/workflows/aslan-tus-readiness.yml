@@ -157,9 +157,9 @@ jobs:
           if not m: sys.exit('Invalid SSH private key')
           body=''.join(m.group(1).split())
           if not re.fullmatch('[A-Za-z0-9+/=]+',body): sys.exit('Invalid SSH private key encoding')
-          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text('-----BEGIN OPENSSH PRIVATE KEY-----\\n'+'\\n'.join(textwrap.wrap(body,70))+'\\n-----END OPENSSH PRIVATE KEY-----\\n')
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text('-----BEGIN OPENSSH PRIVATE KEY-----\n'+'\n'.join(textwrap.wrap(body,70))+'\n-----END OPENSSH PRIVATE KEY-----\n')
           PY
-          printf '%s\\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
           ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 >/dev/null
           echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
