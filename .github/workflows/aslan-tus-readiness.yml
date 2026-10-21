@@ -8,6 +8,7 @@ on:
       - 'infra/uploads/**'
       - 'scripts/test-tus-resume.mjs'
       - 'tests/uploads/**'
+      - '.github/workflows/aslan-tus-deploy.yml'
   workflow_dispatch:
 permissions:
   contents: read
