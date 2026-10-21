@@ -72,14 +72,37 @@ jobs:
       - name: Execute remote dependency installation and build
         env:
           ASLAN_SHA: ${{ github.sha }}
+          ASLAN_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.ASLAN_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
+          # Fail before transfer if the public/publishable key has not been configured.
+          if [ -z "${ASLAN_SUPABASE_PUBLISHABLE_KEY:-}" ]; then
+            echo "BLOCKED: add GitHub Actions secret ASLAN_SUPABASE_PUBLISHABLE_KEY (publishable key, not service_role)."
+            exit 7
+          fi
+          case "$ASLAN_SUPABASE_PUBLISHABLE_KEY" in
+            sb_publishable_*) ;;
+            *) echo "BLOCKED: expected a Supabase sb_publishable_ key, not a secret/service_role key."; exit 8 ;;
+          esac
+          # Never print the key, include it in a command argument, or commit it.
+          umask 077
+          keyfile=$(mktemp)
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$ASLAN_SUPABASE_PUBLISHABLE_KEY" > "$keyfile"
+          scp -q -o BatchMode=yes -o StrictHostKeyChecking=yes "$keyfile" "$OPS_USER@$OPS_HOST:aslan-builds/.publishable-$ASLAN_SHA"
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" "ASLAN_SHA='$ASLAN_SHA' bash -se" <<'REMOTE' | tee /tmp/aslan-build-report.txt
           set -Eeuo pipefail
           workspace="$HOME/aslan-builds/$ASLAN_SHA"
           mkdir -p "$workspace"
           tar -xzf "$HOME/aslan-builds/source.tgz" -C "$workspace"
           cd "$workspace"
+          # Use only public build-time configuration; remove the temporary key file immediately.
+          export NEXT_PUBLIC_SUPABASE_URL='https://zyenfobyorjfwkdgeube.supabase.co'
+          key_path="$HOME/aslan-builds/.publishable-$ASLAN_SHA"
+          trap 'rm -f "$key_path"' EXIT
+          test -s "$key_path" || { echo "BLOCKED: missing temporary Supabase publishable key"; exit 9; }
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(cat "$key_path")"
+          rm -f "$key_path"
           echo "ASLAN remote workspace: $workspace"
           echo "User: $(id -un)"
           echo "Node: $(command -v node || echo missing)"
