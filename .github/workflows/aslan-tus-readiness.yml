@@ -91,7 +91,7 @@ jobs:
           if [ "$code" != 201 ]; then
             echo "TUS_CREATE_FAILED_HTTP_$code"; exit 31
           fi
-          location=$(awk 'tolower($1)=="location:" {print $2}' "$header" | tr -d '\\r' | tail -n 1)
+          location=$(awk 'tolower($1)=="location:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
           case "$location" in
             /files/*) upload="http://127.0.0.1:1080$location" ;;
             http://127.0.0.1:1080/files/*) upload="$location" ;;
@@ -104,20 +104,20 @@ jobs:
           trap cleanup EXIT
           head_code=$(curl -sS --max-time 10 -D "$header" -o /dev/null -w '%{http_code}' -I -H 'Tus-Resumable: 1.0.0' "$upload")
           [ "$head_code" = 200 ] || { echo "TUS_HEAD_FAILED_HTTP_$head_code"; exit 33; }
-          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\\r' | tail -n 1)
+          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
           [ "$offset" = 0 ] || { echo "TUS_INITIAL_OFFSET_INVALID"; exit 34; }
           half=$((size / 2))
           head -c "$half" "$payload" | curl -sS --max-time 15 -o /dev/null -w '%{http_code}' -X PATCH \
             -H 'Tus-Resumable: 1.0.0' -H 'Content-Type: application/offset+octet-stream' \
             -H 'Upload-Offset: 0' --data-binary @- "$upload" | grep -qx 204 || { echo 'TUS_PATCH_FIRST_FAILED'; exit 35; }
           curl -sS --max-time 10 -D "$header" -o /dev/null -I -H 'Tus-Resumable: 1.0.0' "$upload"
-          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\\r' | tail -n 1)
+          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
           [ "$offset" = "$half" ] || { echo 'TUS_RESUME_OFFSET_INVALID'; exit 36; }
           tail -c "+$((half+1))" "$payload" | curl -sS --max-time 15 -o /dev/null -w '%{http_code}' -X PATCH \
             -H 'Tus-Resumable: 1.0.0' -H 'Content-Type: application/offset+octet-stream' \
             -H "Upload-Offset: $half" --data-binary @- "$upload" | grep -qx 204 || { echo 'TUS_PATCH_SECOND_FAILED'; exit 37; }
           curl -sS --max-time 10 -D "$header" -o /dev/null -I -H 'Tus-Resumable: 1.0.0' "$upload"
-          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\\r' | tail -n 1)
+          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
           [ "$offset" = "$size" ] || { echo 'TUS_FINAL_OFFSET_INVALID'; exit 38; }
           echo 'TUS_LOCAL_CREATE_PATCH_RESUME_PASS'
           echo "TUS_PROTOCOL_SMOKE_END"
