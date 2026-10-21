@@ -30,19 +30,20 @@ jobs:
           mkdir -p ~/.ssh
           python3 - <<'PY'
           import os, re, textwrap, pathlib, sys
-          raw = os.environ["OPS_KEY"].strip().replace("\\r", "")
-          raw = raw.replace("\\n", "\n")
-          match = re.search(r"-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----", raw, re.S)
+          raw = os.environ['OPS_KEY'].strip().replace(chr(13), '')
+          raw = raw.replace(chr(92) + 'n', chr(10))
+          match = re.search('-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----', raw, re.S)
           if not match:
-              print("KEY_FORMAT_ERROR: Missing OpenSSH private key markers. No key material printed.")
+              print('KEY_FORMAT_ERROR: Missing key markers; no secret displayed')
               sys.exit(20)
-          body = re.sub(r"\\s+", "", match.group(1))
-          if not re.fullmatch(r"[A-Za-z0-9+/=]+", body):
-              print("KEY_FORMAT_ERROR: Invalid characters in key body. No key material printed.")
+          body = ''.join(match.group(1).split())
+          if not re.fullmatch('[A-Za-z0-9+/=]+', body):
+              print('KEY_FORMAT_ERROR: Invalid encoded body; no secret displayed')
               sys.exit(21)
-          formatted = "-----BEGIN OPENSSH PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 70)) + "\n-----END OPENSSH PRIVATE KEY-----\n"
-          pathlib.Path.home().joinpath(".ssh/id_ed25519").write_text(formatted)
-          print("KEY_FORMAT_NORMALIZED")
+          newline = chr(10)
+          formatted = '-----BEGIN OPENSSH PRIVATE KEY-----' + newline + newline.join(textwrap.wrap(body, 70)) + newline + '-----END OPENSSH PRIVATE KEY-----' + newline
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text(formatted)
+          print('KEY_FORMAT_NORMALIZED')
           PY
           printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
