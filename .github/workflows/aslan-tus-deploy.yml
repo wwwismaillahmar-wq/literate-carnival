@@ -1,0 +1,75 @@
+name: ASLAN Contabo TUS staging deploy
+on:
+  push:
+    branches: [aslan-tus-gateway-stage2]
+    paths:
+      - '.github/workflows/aslan-tus-deploy.yml'
+      - 'infra/uploads/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aslan-contabo-tus-staging-deploy
+  cancel-in-progress: false
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure pinned SSH identity
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          umask 077
+          mkdir -p ~/.ssh
+          python3 - <<'PY'
+          import os,re,textwrap,pathlib,sys
+          raw=os.environ['OPS_KEY'].strip().replace(chr(13),'').replace(chr(92)+'n',chr(10))
+          m=re.search('-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----',raw,re.S)
+          if not m: sys.exit('Invalid SSH key')
+          body=''.join(m.group(1).split())
+          if not re.fullmatch('[A-Za-z0-9+/=]+',body): sys.exit('Invalid SSH key encoding')
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text('-----BEGIN OPENSSH PRIVATE KEY-----\n'+'\n'.join(textwrap.wrap(body,70))+'\n-----END OPENSSH PRIVATE KEY-----\n')
+          PY
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 >/dev/null
+          echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
+          echo "OPS_USER=$OPS_USER" >> "$GITHUB_ENV"
+      - name: Transfer approved staging compose
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" 'mkdir -p "$HOME/aslan-tus-staging" && chmod 700 "$HOME/aslan-tus-staging"'
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes infra/uploads/docker-compose.yml "$OPS_USER@$OPS_HOST:aslan-tus-staging/docker-compose.yml"
+      - name: Deploy or validate isolated staging service
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          docker info >/dev/null 2>&1 || { echo 'BLOCKED_DOCKER_ACCESS: grant the SSH deployment user permission before retrying'; exit 41; }
+          cd "$HOME/aslan-tus-staging"
+          docker compose -f docker-compose.yml config -q
+          # The manually installed staging container uses the same localhost port.
+          # Never delete or replace it automatically: doing so could orphan uploads.
+          if docker container inspect aslan-tusd-staging >/dev/null 2>&1; then
+            echo 'EXISTING_STAGING_CONTAINER_PRESERVED'
+            [ "$(docker inspect -f '{{.State.Running}}' aslan-tusd-staging)" = true ] || { echo 'STAGING_CONTAINER_STOPPED'; exit 42; }
+          else
+            docker compose -p aslan-tus-staging -f docker-compose.yml up -d --no-build
+            echo 'STAGING_COMPOSE_DEPLOYED'
+          fi
+          curl --fail --silent --show-error --max-time 10 -X OPTIONS -H 'Tus-Resumable: 1.0.0' http://127.0.0.1:1080/files/ -o /dev/null
+          echo 'STAGING_TUS_LOOPBACK_PASS'
+          REMOTE
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo '## ASLAN TUS isolated staging' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Job: ${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Production and public uploads remain unchanged.' >> "$GITHUB_STEP_SUMMARY"
