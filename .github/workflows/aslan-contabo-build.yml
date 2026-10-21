@@ -45,6 +45,15 @@ jobs:
           pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text(formatted)
           print('KEY_FORMAT_NORMALIZED')
           PY
+          # Host key must be a public known_hosts entry, never a private key.
+          if printf '%s' "$OPS_HOST_KEY" | grep -q -- 'PRIVATE KEY'; then
+            echo 'HOST_KEY_FORMAT_ERROR: ASLAN_OPS_HOST_KEY contains private-key material'
+            exit 23
+          fi
+          if ! printf '%s\n' "$OPS_HOST_KEY" | ssh-keygen -lf - >/dev/null 2>&1; then
+            echo 'HOST_KEY_FORMAT_ERROR: expected an SSH public host-key entry'
+            exit 24
+          fi
           printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
           if ! ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 > /dev/null 2>/dev/null; then
