@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   if (!payload || typeof payload !== 'object')
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
-  const result = await authorizeUpload(payload as Record<string, unknown>);
+  const result = await authorizeUpload({ service: (payload as Record<string, unknown>).service, resourceId: (payload as Record<string, unknown>).resourceId, fileName: (payload as Record<string, unknown>).fileName, sizeBytes: (payload as Record<string, unknown>).sizeBytes });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({
     error: 'Resumable upload gateway is not activated yet',
