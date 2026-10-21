@@ -1,0 +1,14 @@
+# Staging only. No public port is exposed; front with an authenticated gateway before enabling uploads.
+services:
+  tusd:
+    image: tusproject/tusd:v2.8.0
+    restart: unless-stopped
+    command: ["-upload-dir=/data", "-base-path=/files/", "-max-size=8589934592", "-behind-proxy", "-hooks-http=http://host.docker.internal:9191/hooks"]
+    ports:
+      - "127.0.0.1:1080:8080"
+    volumes:
+      - aslan_uploads:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+volumes:
+  aslan_uploads:
