@@ -98,7 +98,7 @@ jobs:
           if [ "$code" != 201 ]; then
             echo "TUS_CREATE_FAILED_HTTP_$code"; exit 31
           fi
-          location=$(awk 'tolower($1)=="location:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
+          location=$(awk 'tolower($1)=="location:" {gsub(/\r/, "", $2); print $2}' "$header" | tail -n 1)
           case "$location" in
             /files/*) upload="http://127.0.0.1:1080$location" ;;
             http://127.0.0.1:1080/files/*) upload="$location" ;;
