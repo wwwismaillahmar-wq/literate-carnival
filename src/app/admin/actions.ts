@@ -249,6 +249,8 @@ export async function saveProduct(formData: FormData) {
   revalidatePath('/products/' + slug);
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
+  revalidatePath('/admin/products');
+  revalidatePath('/market');
 
   const auditWarning = await auditWithWarning(db,user.id,id?'UPDATE':'CREATE','product',String(productId),{mediaCount:files.length});
   console.log('[M04 saveProduct] success', { productId, userId: user.id, mediaCount: files.length });
