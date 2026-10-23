@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'feat/**'
+      - 'chore/capacity-toolchain-*'
   workflow_dispatch:
 
 permissions:
