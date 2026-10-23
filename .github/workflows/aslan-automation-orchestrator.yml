@@ -1,0 +1,68 @@
+name: ASLAN Automation Orchestrator
+# Safe initial control plane: no production deploys or live database mutations.
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Validation scope'
+        required: true
+        default: platform
+        type: choice
+        options:
+          - platform
+          - academy
+          - market
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'supabase/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/aslan-automation-orchestrator.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aslan-orchestrator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate code and build in isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      ESLINT_USE_FLAT_CONFIG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Static type verification
+        run: npx tsc --noEmit
+      - name: Academy API tests
+        run: npm run test:academy:api
+      - name: Academy experience tests
+        run: node scripts/test-academy-experience.mjs
+      - name: Market tests
+        run: node scripts/test-market.mjs
+      - name: Production build with nonproduction placeholders
+        run: npm run build
+      - name: Write execution summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## ASLAN automated validation'
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Branch/ref: ${GITHUB_REF}"
+            echo 'Scope: safe isolated code validation'
+            echo 'No deployment, remote SSH, production data mutation, or secrets are used.'
+            echo 'See individual step results for pass/fail evidence.'
+          } >> "${GITHUB_STEP_SUMMARY}"
