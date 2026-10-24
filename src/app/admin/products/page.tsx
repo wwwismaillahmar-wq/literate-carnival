@@ -41,11 +41,32 @@ export default async function AdminProducts({ searchParams }: {
   ]);
   const products = (productResult.data ?? []) as Product[];
   const categories = (categoryResult.data ?? []) as Category[];
-  const media: Media[] = await Promise.all((mediaResult.data ?? []).map(async (row) => {
-    const bucket = row.bucket_id ?? 'aslan-media';
-    const { data } = await db.storage.from(bucket).createSignedUrl(row.object_path, 3600);
-    return { ...row, bucket_id: bucket, url: data?.signedUrl ?? null } as Media;
+  // Batch signed URLs by bucket rather than issuing one request per media item.
+  const mediaRows = mediaResult.data ?? [];
+  const mediaByBucket = new Map<string, typeof mediaRows>();
+  for (const row of mediaRows) {
+    const bucket = row.bucket_id || 'aslan-media';
+    mediaByBucket.set(bucket, [...(mediaByBucket.get(bucket) ?? []), row]);
+  }
+  const signedUrls = new Map<string, string>();
+  await Promise.all(Array.from(mediaByBucket.entries()).map(async ([bucket, rows]) => {
+    // Keep batches bounded so a large catalogue does not produce oversized requests.
+    for (let start = 0; start < rows.length; start += 100) {
+      const batch = rows.slice(start, start + 100);
+      const { data, error } = await db.storage.from(bucket).createSignedUrls(batch.map(row => row.object_path), 3600);
+      if (error) {
+        console.error('[ASLAN product media] signed URL batch failed', { bucket, count: batch.length, message: error.message });
+        continue;
+      }
+      for (const item of data ?? []) {
+        if (item.signedUrl) signedUrls.set(bucket + ':' + item.path, item.signedUrl);
+      }
+    }
   }));
+  const media: Media[] = mediaRows.map(row => {
+    const bucket = row.bucket_id || 'aslan-media';
+    return { ...row, bucket_id: bucket, url: signedUrls.get(bucket + ':' + row.object_path) ?? null } as Media;
+  });
 
   const loadErrors = [
     productResult.error ? 'المنتجات: ' + productResult.error.message : null,
@@ -89,8 +110,8 @@ export default async function AdminProducts({ searchParams }: {
                   <ProductMediaUploader productId={product.id} />
                   <div className="grid three" style={{marginTop:12}}>
                     {productMedia.map((item) => <div className="card" key={item.id}>
-                      {item.url && item.media_type === 'image' ? <img src={item.url} alt={product.name} style={{width:'100%',height:180,objectFit:'contain',borderRadius:8}} /> : null}
-                      {item.url && item.media_type === 'video' ? <video src={item.url} controls style={{width:'100%',maxHeight:220,borderRadius:8}} /> : null}
+                      {item.url && item.media_type === 'image' ? <img loading="lazy" decoding="async" src={item.url} alt={product.name} style={{width:'100%',height:180,objectFit:'contain',borderRadius:8}} /> : null}
+                      {item.url && item.media_type === 'video' ? <video preload="none" src={item.url} controls style={{width:'100%',maxHeight:220,borderRadius:8}} /> : null}
                       {!item.url && <p className="muted">تعذر إنشاء رابط معاينة للملف.</p>}
                       <small className="muted">{item.media_type} · {Math.ceil(item.file_size / 1024)} KB</small>
                       <form action={deleteProductMedia} style={{marginTop:8}}>
