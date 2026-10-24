@@ -151,13 +151,13 @@ export async function saveProduct(formData: FormData) {
   let productId: number;
 
   if (productIdInput) {
-    const { error } = await db.from('products').update(payload).eq('id', productIdInput);
-    if (error) dbError('تعذر تعديل المنتج', error, returnTo);
-
+    // RETURNING verifies the mutation affected an authorized row. A separate
+    // SELECT can return an unchanged row when an UPDATE matched zero rows.
     const { data: saved, error: verifyError } = await db
       .from('products')
-      .select('id,name,slug,price_dzd,stock,active,category_id,ad_priority,home_featured')
+      .update(payload)
       .eq('id', productIdInput)
+      .select('id,name,slug,price_dzd,stock,active,category_id,ad_priority,home_featured')
       .maybeSingle();
 
     if (verifyError) dbError('تمت محاولة تعديل المنتج لكن تعذر التحقق من النتيجة', verifyError, returnTo);
@@ -246,6 +246,7 @@ export async function saveProduct(formData: FormData) {
 
   revalidatePath('/');
   revalidatePath('/products');
+  revalidatePath('/market');
   revalidatePath('/products/' + slug);
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');

@@ -17,5 +17,5 @@ export function useAslanLanguage(){
  return {language,change,t:(key:string)=>translations[language][key]||translations.ar[key]||key};
 }
 export function LocalePicker({language,change}:{language:Language;change:(next:Language)=>void}){
- return <label style={{display:'inline-flex',alignItems:'center',gap:5}}><span aria-hidden="true">🌐</span><select aria-label="Language / اللغة" value={language} onChange={e=>{const next=languages.find(item=>item===e.target.value);if(next)change(next);}}>{languages.map(item=><option key={item} value={item}>{languageNames[item]}</option>)}</select></label>;
+ return <label className="aslan-locale-picker" style={{display:"inline-flex",alignItems:"center",gap:6}}><span aria-hidden="true">🌐</span><span className="sr-only">Language / اللغة</span><select aria-label="Language / اللغة" title={languageNames[language]} value={language} onChange={e=>{const next=languages.find(item=>item===e.target.value);if(next)change(next);}}>{languages.map(item=><option key={item} value={item}>{languageNames[item]}</option>)}</select></label>;
 }
