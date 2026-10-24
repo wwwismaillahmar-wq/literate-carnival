@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
 import {validUuid,sameOrigin,academyAssetTypes,academyAssetLimit} from '@/lib/academy/requests';
 export const dynamic='force-dynamic';
+import { contaboAssetRequest } from '@/lib/academy/contabo-storage';
 const bucket='aslan-academy';
 async function staffAccess(db:Awaited<ReturnType<typeof createClient>>,lessonId:string){
  const {data,error}=await db.from('academy_lessons').select('module_id').eq('id',lessonId).maybeSingle();
@@ -17,7 +18,7 @@ export async function GET(request:Request){
  if(!user)return NextResponse.json({error:'يجب تسجيل الدخول.'},{status:401});
  const lessonId=new URL(request.url).searchParams.get('lessonId')??'';
  if(!validUuid.test(lessonId))return NextResponse.json({error:'معرّف الدرس غير صالح.'},{status:400});
- const {data,error}=await db.from('academy_lesson_assets').select('id,file_name,mime_type,file_size,status').eq('lesson_id',lessonId).order('created_at');
+ const {data,error}=await db.from('academy_lesson_assets').select('id,file_name,mime_type,file_size,status,storage_backend').eq('lesson_id',lessonId).order('created_at');
  if(error)return NextResponse.json({error:'تعذر تحميل الملفات.'},{status:500});
  return NextResponse.json({assets:data??[]});
 }
@@ -52,6 +53,11 @@ export async function PATCH(request:Request){
  if(error||!asset)return NextResponse.json({error:'الملف غير موجود.'},{status:404});
  if(!await staffAccess(db,asset.lesson_id))return NextResponse.json({error:'لا تملك صلاحية إدارة الملف.'},{status:403});
  if(asset.status==='archived')return NextResponse.json({error:'الملف مؤرشف.'},{status:409});
+ if(asset.storage_backend==='contabo'){
+  const info=await contaboAssetRequest(db,asset.id,'verify');
+  if(!info||info.size!==Number(asset.file_size)||info.mimeType!==asset.mime_type)return NextResponse.json({error:'فشل التحقق من ملف الخادم.'},{status:409});
+  return NextResponse.json({error:'تأكيد النقل يتم عبر بوابة الرفع، والاعتماد يتطلب مراجعة المحتوى.',code:'CONTENT_REVIEW_REQUIRED'},{status:409});
+ }
  const info=await db.storage.from(bucket).info(asset.object_path);
  if(info.error||!info.data)return NextResponse.json({error:'لم يكتمل الرفع بعد.'},{status:409});
  if((info.data.size??info.data.metadata?.size)!==asset.file_size||(info.data.contentType??info.data.metadata?.mimetype)!==asset.mime_type)
@@ -68,10 +74,15 @@ export async function DELETE(request:Request){
  if(!user)return NextResponse.json({error:'يجب تسجيل الدخول.'},{status:401});
  const id=new URL(request.url).searchParams.get('assetId')??'';
  if(!validUuid.test(id))return NextResponse.json({error:'معرّف الملف غير صالح.'},{status:400});
- const {data:asset}=await db.from('academy_lesson_assets').select('lesson_id,object_path').eq('id',id).maybeSingle();
+ const {data:asset}=await db.from('academy_lesson_assets').select('id,lesson_id,object_path,storage_backend').eq('id',id).maybeSingle();
  if(!asset||!await staffAccess(db,asset.lesson_id))return NextResponse.json({error:'لا تملك صلاحية إدارة الملف.'},{status:403});
  const archived=await db.from('academy_lesson_assets').update({status:'archived',updated_at:new Date().toISOString()}).eq('id',id);
  if(archived.error)return failure(archived.error,'تعذر أرشفة الملف.');
+ if(asset.storage_backend==='contabo'){
+  const removed=await contaboAssetRequest(db,asset.id,'purge');
+  if(!removed?.deleted)return NextResponse.json({error:'أُوقف عرض الملف؛ تعذر تنظيف بياناته على الخادم.'},{status:503});
+  return NextResponse.json({ok:true});
+ }
  const removed=await db.storage.from(bucket).remove([asset.object_path]);
  if(removed.error)return NextResponse.json({error:'أُوقف عرض الملف، لكن تعذر حذف محتواه؛ أعد محاولة الحذف.'},{status:500});
  return NextResponse.json({ok:true});

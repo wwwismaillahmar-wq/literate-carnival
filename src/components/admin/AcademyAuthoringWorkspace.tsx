@@ -32,6 +32,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const [modules, setModules] = useState<Module[]>([]);
   const [moduleId, setModuleId] = useState('');
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [assetRefresh, setAssetRefresh] = useState(0);
   const [moduleTitle, setModuleTitle] = useState('');
   const [moduleDescription, setModuleDescription] = useState('');
   const [lessonTitle, setLessonTitle] = useState('');
@@ -275,8 +276,8 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
         {lessons.map(lesson => <article key={lesson.id} className="card" style={{ marginTop: 10 }}>
           <h3>{lesson.title}</h3><p className="muted">{lesson.lesson_type} · {lesson.duration_minutes} دقيقة · {lesson.status}</p>
           <LessonEditor lesson={lesson} disabled={busy} onSave={patch => void saveLesson(lesson, patch)} />
-          <AcademyLessonAssets lessonId={lesson.id} />
-          {lesson.status !== 'archived' && <AcademyResumableUpload key={lesson.id} lessonId={lesson.id} />}
+          <AcademyLessonAssets lessonId={lesson.id} refreshKey={assetRefresh} />
+          {lesson.status !== 'archived' && <AcademyResumableUpload key={lesson.id} lessonId={lesson.id} onComplete={() => setAssetRefresh(value => value + 1)} />}
           {lesson.status !== 'archived' && <button type="button" disabled={busy} onClick={() => void archiveLesson(lesson)}>أرشفة الدرس</button>}
         </article>)}
       </section>
