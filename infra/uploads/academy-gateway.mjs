@@ -126,13 +126,24 @@ export async function createGateway({ directory, authorize, origins = [], signin
         if (req.method !== 'GET' && req.method !== 'HEAD') throw fail(405, 'Method not allowed');
         const token = url.searchParams.get('token') || '';
         if (token.length > 2048) throw fail(403, 'Invalid download token');
-        const [payload, signature] = token.split('.');
+        const parts = token.split('.');
+        if (parts.length !== 2) throw fail(403, 'Invalid download token');
+        const [payload, signature] = parts;
         const expected = Buffer.from(sign(payload || ''));
         const actual = Buffer.from(signature || '');
         if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw fail(403, 'Invalid download token');
-        const grant = JSON.parse(Buffer.from(payload, 'base64url').toString());
-        if (grant.id !== id || !Number.isSafeInteger(grant.expires) || grant.expires < Date.now()) throw fail(403, 'Download expired');
-        const size = await sizeOf(id);
+        let grant;
+        try { grant = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); }
+        catch { throw fail(403, 'Invalid download token'); }
+        if (!grant || grant.id !== id || !Number.isSafeInteger(grant.expires) || grant.expires < Date.now() ||
+            !Number.isSafeInteger(grant.size) || grant.size <= 0 || grant.size > MAX_BYTES ||
+            !/^[a-f0-9]{64}$/.test(grant.sha256) || typeof grant.mimeType !== 'string' ||
+            typeof grant.name !== 'string') throw fail(403, 'Invalid or expired download token');
+        // Bind the signed URL to the exact bytes verified at issuance. A replaced
+        // or modified file must never be served under an older valid signature.
+        const current = await verify(id, { file_size: grant.size, mime_type: grant.mimeType });
+        if (current.sha256 !== grant.sha256) throw fail(409, 'Download content changed');
+        const size = current.size;
         res.setHeader('Content-Type', 'application/octet-stream');
         res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(grant.name));
         res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
@@ -146,8 +157,11 @@ export async function createGateway({ directory, authorize, origins = [], signin
       const length = Number(asset.file_size);
       if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_BYTES) throw fail(413, 'File exceeds 8 GiB');
       if (action === 'download-token' && req.method === 'POST') {
-        await verify(id, asset);
-        const payload = Buffer.from(JSON.stringify({ id, name: asset.file_name, expires: Date.now() + 300000 })).toString('base64url');
+        const verified = await verify(id, asset);
+        const payload = Buffer.from(JSON.stringify({
+          id, name: asset.file_name, expires: Date.now() + 300000,
+          size: verified.size, sha256: verified.sha256, mimeType: verified.mimeType,
+        })).toString('base64url');
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ path: '/download/' + id + '?token=' + payload + '.' + sign(payload) })); return;
       }
       if (kind === 'assets' && action === 'purge' && req.method === 'POST') {
@@ -187,6 +201,7 @@ export async function createGateway({ directory, authorize, origins = [], signin
         res.writeHead(201).end(); return;
       }
       const offset = await sizeOf(id);
+      if (offset > length) throw fail(409, 'Stored upload exceeds declared length');
       res.setHeader('Upload-Length', String(length));
       res.setHeader('Upload-Offset', String(offset));
       if (req.method === 'HEAD') { res.writeHead(200).end(); return; }

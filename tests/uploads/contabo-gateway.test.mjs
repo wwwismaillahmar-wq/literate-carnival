@@ -92,6 +92,11 @@ test('offset conflicts, duplicate creation, restart, exact completion, signed do
     assert.equal(await download.text(), 'helloworld');
     assert.match(download.headers.get('Content-Disposition'), /^attachment/);
     assert.equal((await fetch(f.base + signed.path.replace('token=', 'token=x'))).status, 403);
+    assert.equal((await fetch(f.base + signed.path + '.extra')).status, 403);
+    // A signed URL must not serve changed bytes even while its TTL is valid.
+    await writeFile(path.join(f.directory, id + '.data'), 'XXXXXXXXXX');
+    assert.equal((await fetch(f.base + signed.path)).status, 409);
+    assert.equal((await fetch(f.base + signed.path, { method: 'HEAD' })).status, 409);
     f.setAsset({ status: 'archived' });
     assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 403);
   } finally { await f.close(); }
@@ -146,6 +151,21 @@ test('SHA-256 receipt rejects same-size disk tampering and symlink substitution'
     await symlink('/etc/hosts', diskFile);
     assert.equal((await verify()).status, 409);
     assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 409);
+  } finally { await f.close(); }
+});
+
+test('HEAD and PATCH fail closed when on-disk bytes exceed declared upload length', async () => {
+  const f = await fixture(4);
+  try {
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
+    })).status, 201);
+    await writeFile(path.join(f.directory, id + '.data'), 'oversized');
+    assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 409);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '9',
+        'Content-Type': 'application/offset+octet-stream' }, body: 'x',
+    })).status, 409);
   } finally { await f.close(); }
 });
 
