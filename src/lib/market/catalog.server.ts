@@ -12,5 +12,5 @@ export async function getMarketCatalog(){
  const images=new Map<number,string[]>();
  await Promise.all((media.data||[]).map(async item=>{const result=await db.storage.from(item.bucket_id||'aslan-media').createSignedUrl(item.object_path,3600);if(result.data?.signedUrl){const urls=images.get(item.product_id)||[];urls.push(result.data.signedUrl);images.set(item.product_id,urls);}}));
  const catalog=(products.data||[]).map(row=>normalizeMarketProduct(row as Record<string,unknown>,images.get(row.id))).filter(product=>approved.some(store=>store.id===product.storeId));
- return {products:catalog,categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
+ return {products:catalog,categories:categories.data||[],stores:approved,error:Boolean(products.error || categories.error || ('error' in media && media.error)),storesError:Boolean(stores.error)};
 }
