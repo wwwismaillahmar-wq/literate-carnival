@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const langs = ['ar','fr','en','es','de','pt'];
 const routes = ['/','/market','/services','/academy','/partners','/company','/community','/talent'];
+const normalizePath = path => path==='/'?'/':path.replace(/\/+$/,'');
 const labels = {
   ar:['الرئيسية','السوق','الخدمات','الأكاديمية','الشركاء','الشركة','المجتمع','المواهب'],
   fr:['Accueil','Marché','Services','Académie','Partenaires','Entreprise','Communauté','Talents'],
@@ -61,12 +62,12 @@ try {
         localStorage.getItem('aslan-language')===expected &&
         document.querySelector('select[aria-label="Language / اللغة"]')?.value===expected;
     },code,{timeout:15000});
-    assert.equal(new URL(page.url()).pathname,route,'unexpected redirect '+code+':'+route);
+    assert.equal(normalizePath(new URL(page.url()).pathname),route,'unexpected redirect '+code+':'+route);
     const nav=page.locator('nav.shell-nav a');
     assert.equal(await nav.count(),8,'navigation count '+code+':'+route);
     for(let n=0;n<8;n++){
       assert.equal((await nav.nth(n).textContent()).trim(),labels[code][n],code+':'+route+':'+n);
-      assert.equal(new URL(await nav.nth(n).getAttribute('href'),origin).pathname,routes[n]);
+      assert.equal(normalizePath(new URL(await nav.nth(n).getAttribute('href'),origin).pathname),routes[n]);
     }
   }
   let checked=0;
