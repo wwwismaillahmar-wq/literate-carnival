@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { constants as fsConstants, createReadStream, createWriteStream } from 'node:fs';
+import { constants as fsConstants, createReadStream } from 'node:fs';
 import { lstat, mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
@@ -231,17 +231,38 @@ export async function createGateway({ directory, authorize, origins = [], signin
       if (!Number.isSafeInteger(contentLength) || contentLength <= 0 || contentLength > CHUNK_BYTES || offset + contentLength > length) throw fail(413, 'Invalid chunk size');
       const disk = await statfs(base, { bigint: true });
       if (disk.bavail * disk.bsize < BigInt(contentLength) + BigInt(reserveBytes)) throw fail(507, 'Insufficient disk capacity');
+      // Open the exact verified inode, not the path again via createWriteStream.
+      // O_NOFOLLOW prevents a symlink swap from redirecting a PATCH to another file.
+      const beforePatch = await diskState(id);
+      if (Number(beforePatch.size) !== offset) throw fail(409, 'Upload changed before PATCH');
       let received = 0;
       const limiter = new Transform({ transform(chunk, encoding, callback) {
         received += chunk.length;
         callback(received > contentLength ? fail(413, 'Chunk too large') : null, chunk);
       } });
+      let handle;
       try {
-        await pipeline(req, limiter, createWriteStream(file(id), { flags: 'r+', start: offset, mode: 0o600 }));
+        try {
+          handle = await open(file(id), fsConstants.O_RDWR | fsConstants.O_NOFOLLOW);
+        } catch (error) {
+          if (error.code === 'ELOOP' || error.code === 'ENOENT') throw fail(409, 'Upload file changed');
+          throw error;
+        }
+        const opened = await handle.stat({ bigint: true });
+        if (!opened.isFile() || opened.nlink !== 1n ||
+            JSON.stringify(fingerprint(opened)) !== JSON.stringify(fingerprint(beforePatch)))
+          throw fail(409, 'Upload file changed before PATCH');
+        await pipeline(req, limiter, handle.createWriteStream({ start: offset, autoClose: false }));
         if (received !== contentLength) throw fail(400, 'Truncated chunk');
-        const handle = await open(file(id), 'r+'); try { await handle.sync(); } finally { await handle.close(); }
+        await handle.sync();
+        const onDisk = await diskState(id);
+        const written = await handle.stat({ bigint: true });
+        if (Number(written.size) !== offset + contentLength ||
+            JSON.stringify(fingerprint(onDisk)) !== JSON.stringify(fingerprint(written)))
+          throw fail(409, 'Upload file changed during PATCH');
       } finally {
-        // Persist actual bytes, including an interrupted PATCH; HEAD is authoritative.
+        await handle?.close();
+        // Interrupted PATCH bytes remain resumable; HEAD reports the real offset.
         res.setHeader('Upload-Offset', String(await sizeOf(id)));
       }
       res.writeHead(204).end();

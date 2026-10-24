@@ -128,6 +128,35 @@ test('signed download refuses symlink and hardlink substitution after grant issu
   } finally { await f.close(); }
 });
 
+test('PATCH refuses symlink and hardlink paths without modifying their targets', async () => {
+  const f = await fixture(8);
+  const diskFile = path.join(f.directory, id + '.data');
+  const outside = path.join(f.directory, 'unrelated-file');
+  const patch = () => fetch(f.base + '/files/' + id, {
+    method: 'PATCH', headers: { ...headers, 'Upload-Offset': '4',
+      'Content-Type': 'application/offset+octet-stream' }, body: 'ZZZZ',
+  });
+  try {
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'POST', headers: { ...headers, 'Upload-Length': '8' },
+    })).status, 201);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0',
+        'Content-Type': 'application/offset+octet-stream' }, body: 'abcd',
+    })).status, 204);
+    await writeFile(outside, 'SAFE');
+    await rm(diskFile);
+    await symlink(outside, diskFile);
+    assert.equal((await patch()).status, 409);
+    assert.equal(await (await import('node:fs/promises')).readFile(outside, 'utf8'), 'SAFE');
+    await rm(diskFile);
+    await writeFile(diskFile, 'abcd');
+    await link(diskFile, path.join(f.directory, 'hardlink'));
+    assert.equal((await patch()).status, 409);
+    assert.equal(await (await import('node:fs/promises')).readFile(diskFile, 'utf8'), 'abcd');
+  } finally { await f.close(); }
+});
+
 test('duplicate POST resumes an existing upload even when a new upload would fail disk reserve', async () => {
   const f = await fixture(10);
   const post = () => fetch(f.base + '/files/' + id, {
