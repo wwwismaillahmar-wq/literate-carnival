@@ -87,7 +87,7 @@ try {
       const form=page.locator('form.card');
       const fields=form.locator('label');
       assert.equal(await fields.count(),6,'partner form field count '+code);
-      for(let i=0;i<6;i++) assert.equal((await fields.nth(i).textContent()).trim(),partnerFormLabels[code][i],code+':partner field '+i);
+      for(let i=0;i<6;i++) assert.equal(await fields.nth(i).evaluate(el=>el.firstChild?.textContent?.trim()),partnerFormLabels[code][i],code+':partner field '+i);
       const options=form.locator('select option');
       assert.equal(await options.count(),6,'partner type count '+code);
       for(let i=0;i<6;i++) assert.equal((await options.nth(i).textContent()).trim(),partnerTypeLabels[code][i],code+':partner type '+i);
