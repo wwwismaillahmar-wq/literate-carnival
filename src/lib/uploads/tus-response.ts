@@ -27,6 +27,7 @@ export async function recoverTusOffset(
   fileSize: number,
   previousOffset: number,
   head: (url: string) => Promise<Pick<Response, 'headers' | 'status'>>,
+  maxExpectedOffset: number = fileSize,
 ): Promise<number> {
   const response = await head(url);
   // Never trust offset headers from an unauthorized, missing or failed HEAD.
@@ -37,6 +38,12 @@ export async function recoverTusOffset(
   const offset = parseTusOffset(response.headers, fileSize);
   if (!Number.isSafeInteger(previousOffset) || previousOffset < 0 || offset < previousOffset) {
     throw new Error('TUS server offset regressed');
+  }
+  // A retry can only recover bytes from the one PATCH whose ACK was lost.
+  // Refuse a server-reported jump that could silently skip untransferred bytes.
+  if (!Number.isSafeInteger(maxExpectedOffset) || maxExpectedOffset > fileSize ||
+      maxExpectedOffset < previousOffset || offset > maxExpectedOffset) {
+    throw new Error('TUS server offset advanced beyond the expected PATCH');
   }
   return offset;
 }

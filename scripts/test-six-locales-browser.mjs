@@ -12,6 +12,7 @@ const langs = ['ar','fr','en','es','de','pt'];
 const routes = ['/','/market','/services','/academy','/partners','/company','/community','/talent'];
 const normalizePath = path => path==='/'?'/':path.replace(/\/+$/,'');
 const talentHeadings = {ar:'الكفاءات المهنية الموثقة',fr:'Talents professionnels vérifiés',en:'Verified professional talent',es:'Talento profesional verificado',de:'Verifizierte Fachkräfte',pt:'Talentos profissionais verificados'};
+const partnerHeadings = {ar:'الشراكات والتعاون',fr:'Partenariats et collaboration',en:'Partnerships and collaboration',es:'Alianzas y colaboración',de:'Partnerschaften und Zusammenarbeit',pt:'Parcerias e colaboração'};
 const labels = {
   ar:['الرئيسية','السوق','الخدمات','الأكاديمية','الشركاء','الشركة','المجتمع','المواهب'],
   fr:['Accueil','Marché','Services','Académie','Partenaires','Entreprise','Communauté','Talents'],
@@ -65,6 +66,7 @@ try {
     },code,{timeout:15000});
     assert.equal(normalizePath(new URL(page.url()).pathname),route,'unexpected redirect '+code+':'+route);
     if(route==='/talent') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,talentHeadings[code],{timeout:15000});
+    if(route==='/partners') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,partnerHeadings[code],{timeout:15000});
     const nav=page.locator('nav.shell-nav a');
     assert.equal(await nav.count(),8,'navigation count '+code+':'+route);
     for(let n=0;n<8;n++){

@@ -98,14 +98,15 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
               'Content-Type':'application/offset+octet-stream',
             },chunk);
             const next = parseTusOffset(response.headers,file.size);
-            if (next <= offset)
+            if (next <= offset || next > offset + chunk.size)
               throw new Error('استجابة تقدم غير صالحة من الخادم.');
             offset = next; setPercent(Math.round(offset/file.size*100)); break;
           } catch (err) {
             if (pause.current) { setState('paused'); return; }
             if (++attempts >= 5) throw err;
             await wait(Math.min(1000*2**attempts,16000));
-            offset = await recoverTusOffset(record.url,file.size,offset,url=>request(url,'HEAD'));
+            offset = await recoverTusOffset(record.url,file.size,offset,url=>request(url,'HEAD'),
+              Math.min(offset + CHUNK,file.size));
             // The server may have stored the last PATCH even if its ACK was lost.
             if (offset === file.size) { setPercent(100); break; }
           }

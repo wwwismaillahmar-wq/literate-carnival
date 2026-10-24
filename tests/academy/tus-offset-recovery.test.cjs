@@ -71,3 +71,26 @@ test('TUS protocol offset parser handles 8 GiB boundaries without truncation', (
   assert.doesNotThrow(() => assertTusLength(headers({ 'Upload-Length': String(size) }), size));
   assert.throws(() => parseTusOffset(headers({ 'Upload-Offset': String(size + 1) }), size), /TUS/);
 });
+
+
+test('TUS retry refuses forged HEAD offset that skips beyond the last transmitted chunk', async () => {
+  const size = 8 * 1024 ** 3;
+  const before = 1024 * 1024 * 1024;
+  const chunk = 6 * 1024 * 1024;
+  const fakeHead = async () => ({
+    status: 200,
+    headers: headers({ 'Upload-Length': String(size), 'Upload-Offset': String(before + chunk + 1) }),
+  });
+  await assert.rejects(
+    recoverTusOffset('/files/id', size, before, fakeHead, before + chunk),
+    /advanced beyond the expected PATCH/,
+  );
+  assert.equal(await recoverTusOffset('/files/id', size, before, async () => ({
+    status: 200,
+    headers: headers({ 'Upload-Length': String(size), 'Upload-Offset': String(before + chunk) }),
+  }), before + chunk), before + chunk);
+  await assert.rejects(
+    recoverTusOffset('/files/id', size, before, fakeHead, size + 1),
+    /advanced beyond the expected PATCH/,
+  );
+});
