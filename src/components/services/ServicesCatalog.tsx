@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import {useAslanLanguage} from '@/components/AslanLocale';
+const serviceCopy={
+ ar:{search:'ابحث عن خدمة',placeholder:'ابحث عن الكهرباء أو التنجيد أو التكييف...',submit:'بحث',requests:'طلباتي',help:'المساعدة',nav:'روابط الخدمات',hero:'خدمات احترافية. من الطلب إلى الإنجاز.',intro:'اكتشف خدمات المؤسسة المهنية، حدّد احتياجك، واطلب دراسة وعرض سعر.',explore:'استكشف الخدمات',request:'تقديم طلب خدمة'},
+ fr:{search:'Rechercher un service',placeholder:'Électricité, tapisserie, climatisation...',submit:'Rechercher',requests:'Mes demandes',help:'Aide',nav:'Liens services',hero:'Services professionnels, de la demande à la réalisation.',intro:'Explorez nos services et demandez un devis.',explore:'Découvrir les services',request:'Demander un service'},
+ en:{search:'Find a service',placeholder:'Electrical, upholstery, air conditioning...',submit:'Search',requests:'My requests',help:'Help',nav:'Service links',hero:'Professional services, from request to delivery.',intro:'Explore our professional services and request a quote.',explore:'Explore services',request:'Request a service'},
+ es:{search:'Buscar servicio',placeholder:'Electricidad, tapicería, climatización...',submit:'Buscar',requests:'Mis solicitudes',help:'Ayuda',nav:'Enlaces de servicios',hero:'Servicios profesionales, de la solicitud a la entrega.',intro:'Explora nuestros servicios y solicita presupuesto.',explore:'Explorar servicios',request:'Solicitar servicio'},
+ de:{search:'Dienst suchen',placeholder:'Elektrik, Polsterei, Klimaanlagen...',submit:'Suchen',requests:'Meine Anfragen',help:'Hilfe',nav:'Service-Links',hero:'Professionelle Dienstleistungen von Anfrage bis Lieferung.',intro:'Entdecken Sie unsere Leistungen und fordern Sie ein Angebot an.',explore:'Leistungen entdecken',request:'Service anfragen'},
+ pt:{search:'Buscar serviço',placeholder:'Elétrica, estofamento, ar-condicionado...',submit:'Buscar',requests:'Meus pedidos',help:'Ajuda',nav:'Links de serviços',hero:'Serviços profissionais, do pedido à entrega.',intro:'Explore os nossos serviços e solicite orçamento.',explore:'Explorar serviços',request:'Solicitar serviço'}
+} as const;
 import {
   Armchair, CalendarDays, CheckCircle2, ClipboardList, Droplets, Factory,
   Grid3X3, MapPin, Search, Scissors, SlidersHorizontal, Snowflake, Wrench, Zap,
@@ -26,6 +35,7 @@ const iconsBySlug: Record<string, LucideIcon> = {
 export function ServicesCatalog({ services, initialQuery = '', initialCategory = '', error = false }: {
   services: AslanService[]; initialQuery?: string; initialCategory?: string; error?: boolean;
 }) {
+  const {language}=useAslanLanguage();const copy=serviceCopy[language];
   const initial = serviceCategories.some(item => item.id === initialCategory) ? initialCategory as ServiceCategory : 'all';
   const [category, setCategory] = useState<ServiceCategory>(initial);
   const [query, setQuery] = useState(initialQuery.slice(0, 120));
@@ -48,12 +58,12 @@ export function ServicesCatalog({ services, initialQuery = '', initialCategory =
           <Link href="/services" className={styles.brand}><strong>ASLAN</strong> SERVICES</Link>
           <form role="search" className={styles.search} action="/services">
             <input type="search" name="q" defaultValue={initialQuery} maxLength={120}
-              placeholder="ابحث عن الكهرباء أو التنجيد أو التكييف..." aria-label="ابحث عن خدمة" />
-            <button type="submit"><Search size={17} style={{display:'inline',verticalAlign:'middle'}} aria-hidden="true"/> بحث</button>
+              placeholder={copy.placeholder} aria-label={copy.search} />
+            <button type="submit"><Search size={17} style={{display:'inline',verticalAlign:'middle'}} aria-hidden="true"/> {copy.submit}</button>
           </form>
-          <nav className={styles.links} aria-label="روابط الخدمات">
-            <Link href="/service-requests"><ClipboardList size={18} aria-hidden="true"/> طلباتي</Link>
-            <Link href="/support">المساعدة</Link>
+          <nav className={styles.links} aria-label={copy.nav}>
+            <Link href="/service-requests"><ClipboardList size={18} aria-hidden="true"/> {copy.requests}</Link>
+            <Link href="/support">{copy.help}</Link>
           </nav>
         </div>
       </div>
@@ -63,11 +73,11 @@ export function ServicesCatalog({ services, initialQuery = '', initialCategory =
       <section className={styles.hero} aria-label="اكتشف خدمات ASLAN">
         <div className={styles.heroMain}>
           <span className={styles.eyebrow}>ASLAN SERVICES · حلول مهنية لمشاريعك</span>
-          <h1>خدمات احترافية.<br/>من الطلب إلى الإنجاز.</h1>
-          <p>اكتشف خدمات المؤسسة المهنية، حدّد احتياجك، واطلب دراسة وعرض سعر قبل الاتفاق على نطاق العمل والمواعيد.</p>
+          <h1>{copy.hero}</h1>
+          <p>{copy.intro}</p>
           <div className={styles.actions}>
-            <a className={styles.primary} href="#catalog">استكشف الخدمات</a>
-            <Link className={styles.secondary} href="/service-requests">تقديم طلب خدمة</Link>
+            <a className={styles.primary} href="#catalog">{copy.explore}</a>
+            <Link className={styles.secondary} href="/service-requests">{copy.request}</Link>
           </div>
         </div>
         <aside className={styles.heroSide}>
