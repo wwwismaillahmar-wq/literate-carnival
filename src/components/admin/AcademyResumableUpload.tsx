@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { assertTusLength, parseTusOffset } from '@/lib/uploads/tus-response';
+import { parseTusOffset, recoverTusOffset } from '@/lib/uploads/tus-response';
 
 type Intent = { assetId: string; objectPath: string; bucket: string; mimeType: string; maxBytes: number };
 type UploadState = 'idle'|'uploading'|'paused'|'done'|'error';
@@ -60,9 +60,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
       if (record) {
         try {
           if (!isTusUrl(record.url)) throw new Error('Invalid TUS URL');
-          const head = await request(record.url,'HEAD');
-          assertTusLength(head.headers,file.size);
-          offset = parseTusOffset(head.headers,file.size);
+          offset = await recoverTusOffset(record.url,file.size,0,url=>request(url,'HEAD'));
         } catch (err) {
           if (pause.current) throw err;
           throw new Error('تعذر التحقق من جلسة الرفع السابقة؛ احتفظ بالملف وحاول لاحقًا دون إنشاء نسخة مكررة.');
@@ -107,11 +105,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
             if (pause.current) { setState('paused'); return; }
             if (++attempts >= 5) throw err;
             await wait(Math.min(1000*2**attempts,16000));
-            const head = await request(record.url,'HEAD');
-            assertTusLength(head.headers,file.size);
-            const serverOffset = parseTusOffset(head.headers,file.size);
-            if (serverOffset < offset) throw new Error('موضع الرفع تراجع على الخادم؛ يلزم التحقق من سلامة الجلسة.');
-            offset = serverOffset;
+            offset = await recoverTusOffset(record.url,file.size,offset,url=>request(url,'HEAD'));
             // The server may have stored the last PATCH even if its ACK was lost.
             if (offset === file.size) { setPercent(100); break; }
           }
