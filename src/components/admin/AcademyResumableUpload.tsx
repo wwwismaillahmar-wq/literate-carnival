@@ -9,7 +9,7 @@ const CHUNK = 6 * 1024 * 1024;
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /** TUS directly to ASLAN's Contabo disk. No file bytes pass through Next.js/Vercel. */
-export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
+export function AcademyResumableUpload({lessonId,onComplete}:{lessonId:string;onComplete?:()=>void}) {
   const [file,setFile] = useState<File|null>(null);
   const [state,setState] = useState<UploadState>('idle');
   const [percent,setPercent] = useState(0);
@@ -116,6 +116,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
       if (!confirmed.ok) throw new Error(result.error || 'فشل تأكيد اكتمال الملف.');
       localStorage.removeItem(keyName);
       setState('done'); setMessage('اكتمل نقل الملف، وينتظر مراجعة الإدارة قبل النشر.');
+      onComplete?.();
     } catch (err) {
       if (pause.current) setState('paused');
       else {setState('error');setMessage(err instanceof Error?err.message:'فشل غير معروف.');}
@@ -123,7 +124,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   }
 
   return <section className="card" style={{display:'grid',gap:8}}>
-    <h4>رفع ملف الدرس (قابل للاستئناف)</h4>
+    <h4>رفع ملف الدرس حتى 8 GiB (قابل للاستئناف)</h4>
     <input type="file" disabled={state==='uploading'} onChange={event=>{
       setFile(event.target.files?.[0]??null);setPercent(0);setState('idle');setMessage('');
     }}/>

@@ -18,7 +18,7 @@ export async function GET(request:Request){
  if(!user)return NextResponse.json({error:'يجب تسجيل الدخول.'},{status:401});
  const lessonId=new URL(request.url).searchParams.get('lessonId')??'';
  if(!validUuid.test(lessonId))return NextResponse.json({error:'معرّف الدرس غير صالح.'},{status:400});
- const {data,error}=await db.from('academy_lesson_assets').select('id,file_name,mime_type,file_size,status').eq('lesson_id',lessonId).order('created_at');
+ const {data,error}=await db.from('academy_lesson_assets').select('id,file_name,mime_type,file_size,status,storage_backend').eq('lesson_id',lessonId).order('created_at');
  if(error)return NextResponse.json({error:'تعذر تحميل الملفات.'},{status:500});
  return NextResponse.json({assets:data??[]});
 }
