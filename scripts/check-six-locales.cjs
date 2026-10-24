@@ -24,7 +24,7 @@ const ids=[...fields.matchAll(/\{ id: '([a-z]+)', title:/g)].map(match=>match[1]
 assert.equal(ids.length,5,'Unexpected academy field count: update locale acceptance checks');
 const fieldBlock=academy.slice(academy.indexOf('const fieldNames:'));
 for(const code of ['ar','fr','en','es','de','pt']){
- const line=fieldBlock.split('\\n').find(line=>line.trimStart().startsWith(code+':{'));
+ const line=fieldBlock.split('\n').find(line=>line.trimStart().startsWith(code+':{'));
  assert.ok(line,'Missing academy field locale '+code);
  for(const id of ids) assert.ok(line.includes(id+':'),'Missing academy field '+id+' in '+code);
 }
