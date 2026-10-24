@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { constants as fsConstants, createReadStream } from 'node:fs';
+import { constants as fsConstants } from 'node:fs';
 import { lstat, mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
@@ -86,11 +86,35 @@ export async function createGateway({ directory, authorize, origins = [], signin
         return { size, mimeType: old.mimeType, sha256: old.sha256 };
       }
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    // Hash bytes from a pinned, no-follow file descriptor. A path swap between
+    // lstat and stream creation must never make us hash a different file.
     const hash = createHash('sha256');
-    for await (const chunk of createReadStream(file(id))) hash.update(chunk);
-    // Fail closed if another process changes the file while hashing.
-    if (JSON.stringify(fingerprint(await diskState(id))) !== JSON.stringify(identity))
-      throw fail(409, 'Upload changed during verification');
+    let handle;
+    try {
+      try {
+        handle = await open(file(id), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+      } catch (error) {
+        if (error.code === 'ELOOP' || error.code === 'ENOENT') throw fail(409, 'Upload file changed');
+        throw error;
+      }
+      const opened = await handle.stat({ bigint: true });
+      if (!opened.isFile() || opened.nlink !== 1n ||
+          JSON.stringify(fingerprint(opened)) !== JSON.stringify(identity))
+        throw fail(409, 'Upload changed before verification');
+      const buffer = Buffer.allocUnsafe(1024 * 1024);
+      let position = 0;
+      while (position < size) {
+        const { bytesRead } = await handle.read(buffer, 0, Math.min(buffer.length, size - position), position);
+        if (bytesRead === 0) throw fail(409, 'Upload truncated during verification');
+        hash.update(buffer.subarray(0, bytesRead));
+        position += bytesRead;
+      }
+      if (JSON.stringify(fingerprint(await handle.stat({ bigint: true }))) !== JSON.stringify(identity) ||
+          JSON.stringify(fingerprint(await diskState(id))) !== JSON.stringify(identity))
+        throw fail(409, 'Upload changed during verification');
+    } finally {
+      await handle?.close();
+    }
     const result = { size, mimeType: asset.mime_type, sha256: hash.digest('hex') };
     await atomicJSON(receipt(id), { ...result, fingerprint: identity });
     return result;

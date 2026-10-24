@@ -209,6 +209,31 @@ test('SHA-256 receipt rejects same-size disk tampering and symlink substitution'
   } finally { await f.close(); }
 });
 
+test('SHA-256 verification rejects hardlinked upload files and recovers after unlink', async () => {
+  const f = await fixture(4);
+  const diskFile = path.join(f.directory, id + '.data');
+  const extraLink = path.join(f.directory, 'untrusted-hardlink');
+  try {
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
+    })).status, 201);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0',
+        'Content-Type': 'application/offset+octet-stream' }, body: 'abcd',
+    })).status, 204);
+    await link(diskFile, extraLink);
+    assert.equal((await fetch(f.base + '/assets/' + id + '/verify', {
+      method: 'POST', headers,
+    })).status, 409);
+    await rm(extraLink);
+    const response = await fetch(f.base + '/assets/' + id + '/verify', {
+      method: 'POST', headers,
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).sha256, createHash('sha256').update('abcd').digest('hex'));
+  } finally { await f.close(); }
+});
+
 test('HEAD and PATCH fail closed when on-disk bytes exceed declared upload length', async () => {
   const f = await fixture(4);
   try {
