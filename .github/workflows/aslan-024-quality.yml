@@ -23,6 +23,8 @@ jobs:
         run: node scripts/check-six-locales.cjs
       - name: Academy unit tests
         run: npm run test:academy
+      - name: Contabo TUS gateway isolated acceptance (24 MiB, auth, restart, SHA-256)
+        run: node --test tests/uploads/contabo-gateway.test.mjs
       - name: Production build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://zyenfobyorjfwkdgeube.supabase.co
