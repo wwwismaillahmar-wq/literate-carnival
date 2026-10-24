@@ -1,0 +1,185 @@
+name: ASLAN Contabo TUS readiness (isolated)
+on:
+  push:
+    branches: [aslan-tus-gateway-stage2]
+    paths:
+      - '.github/workflows/aslan-tus-readiness.yml'
+      - 'src/lib/uploads/**'
+      - 'infra/uploads/**'
+      - 'scripts/test-tus-resume.mjs'
+      - 'tests/uploads/**'
+      - '.github/workflows/aslan-tus-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      large_transfer_gib:
+        description: 'Run isolated real TUS transfer: 2 or 8 GiB (writes disk temporarily)'
+        required: false
+        type: choice
+        default: 'none'
+        options: ['none', '2', '8']
+permissions:
+  contents: read
+jobs:
+  contabo-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Configure pinned SSH identity
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          umask 077
+          mkdir -p ~/.ssh
+          python3 - <<'PY'
+          import os,re,textwrap,pathlib,sys
+          raw=os.environ['OPS_KEY'].strip().replace(chr(13),'').replace(chr(92)+'n',chr(10))
+          m=re.search('-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----',raw,re.S)
+          if not m: sys.exit('Invalid SSH private key')
+          body=''.join(m.group(1).split())
+          if not re.fullmatch('[A-Za-z0-9+/=]+',body): sys.exit('Invalid SSH private key encoding')
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text('-----BEGIN OPENSSH PRIVATE KEY-----\n'+'\n'.join(textwrap.wrap(body,70))+'\n-----END OPENSSH PRIVATE KEY-----\n')
+          PY
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 >/dev/null
+          echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
+          echo "OPS_USER=$OPS_USER" >> "$GITHUB_ENV"
+      - name: Inspect Contabo without altering production
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 "$OPS_USER@$OPS_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          echo "CONTABO_SSH_PASS"
+          command -v docker >/dev/null && echo "DOCKER_CLI_PRESENT" || echo "DOCKER_CLI_MISSING"
+          if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
+            echo "DOCKER_DAEMON_ACCESS_PASS"
+          else
+            echo "DOCKER_DAEMON_ACCESS_MISSING"
+          fi
+          command -v curl >/dev/null && echo "CURL_PRESENT" || echo "CURL_MISSING"
+          if curl --fail --silent --max-time 3 -o /dev/null http://127.0.0.1:1080/files/; then
+            echo "TUS_LOOPBACK_HTTP_RESPONDS"
+          else
+            echo "TUS_LOOPBACK_NOT_READY"
+          fi
+          echo "DOCKER_DIAGNOSTICS_BEGIN"
+          id
+          if command -v systemctl >/dev/null; then
+            systemctl is-active docker 2>/dev/null || true
+            systemctl is-enabled docker 2>/dev/null || true
+          fi
+          if [ -S /var/run/docker.sock ]; then
+            stat -c 'DOCKER_SOCKET_MODE=%a OWNER=%U GROUP=%G' /var/run/docker.sock
+            if [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ]; then
+              echo "DOCKER_SOCKET_USER_ACCESS_YES"
+            else
+              echo "DOCKER_SOCKET_USER_ACCESS_NO"
+            fi
+          else
+            echo "DOCKER_SOCKET_ABSENT"
+          fi
+          docker version --format 'DOCKER_SERVER_VERSION={{.Server.Version}}' 2>&1 | tail -n 3 || true
+          echo "DOCKER_DIAGNOSTICS_END"
+          df -h "$HOME" | tail -n 1
+          echo "TUS_PROTOCOL_SMOKE_BEGIN"
+          endpoint='http://127.0.0.1:1080/files/'
+          header=$(mktemp)
+          payload=$(mktemp)
+          trap 'rm -f "$header" "$payload"' EXIT
+          printf 'ASLAN-STAGING-RESUME-PROBE' > "$payload"
+          size=$(wc -c < "$payload" | tr -d ' ')
+          code=$(curl -sS --max-time 15 -D "$header" -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Tus-Resumable: 1.0.0' -H "Upload-Length: $size" "$endpoint")
+          if [ "$code" != 201 ]; then
+            echo "TUS_CREATE_FAILED_HTTP_$code"; exit 31
+          fi
+          location=$(awk 'tolower($1)=="location:" {gsub(/\r/, "", $2); print $2}' "$header" | tail -n 1)
+          case "$location" in
+            /files/*) upload="http://127.0.0.1:1080$location" ;;
+            http://127.0.0.1:1080/files/*) upload="$location" ;;
+            *) echo 'TUS_LOCATION_INVALID'; exit 32 ;;
+          esac
+          cleanup() {
+            curl -sS --max-time 10 -o /dev/null -X DELETE -H 'Tus-Resumable: 1.0.0' "$upload" || true
+            rm -f "$header" "$payload"
+          }
+          trap cleanup EXIT
+          head_code=$(curl -sS --max-time 10 -D "$header" -o /dev/null -w '%{http_code}' -I -H 'Tus-Resumable: 1.0.0' "$upload")
+          [ "$head_code" = 200 ] || { echo "TUS_HEAD_FAILED_HTTP_$head_code"; exit 33; }
+          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
+          [ "$offset" = 0 ] || { echo "TUS_INITIAL_OFFSET_INVALID"; exit 34; }
+          half=$((size / 2))
+          head -c "$half" "$payload" | curl -sS --max-time 15 -o /dev/null -w '%{http_code}' -X PATCH \
+            -H 'Tus-Resumable: 1.0.0' -H 'Content-Type: application/offset+octet-stream' \
+            -H 'Upload-Offset: 0' --data-binary @- "$upload" | grep -qx 204 || { echo 'TUS_PATCH_FIRST_FAILED'; exit 35; }
+          curl -sS --max-time 10 -D "$header" -o /dev/null -I -H 'Tus-Resumable: 1.0.0' "$upload"
+          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
+          [ "$offset" = "$half" ] || { echo 'TUS_RESUME_OFFSET_INVALID'; exit 36; }
+          tail -c "+$((half+1))" "$payload" | curl -sS --max-time 15 -o /dev/null -w '%{http_code}' -X PATCH \
+            -H 'Tus-Resumable: 1.0.0' -H 'Content-Type: application/offset+octet-stream' \
+            -H "Upload-Offset: $half" --data-binary @- "$upload" | grep -qx 204 || { echo 'TUS_PATCH_SECOND_FAILED'; exit 37; }
+          curl -sS --max-time 10 -D "$header" -o /dev/null -I -H 'Tus-Resumable: 1.0.0' "$upload"
+          offset=$(awk 'tolower($1)=="upload-offset:" {print $2}' "$header" | tr -d '\r' | tail -n 1)
+          [ "$offset" = "$size" ] || { echo 'TUS_FINAL_OFFSET_INVALID'; exit 38; }
+          echo 'TUS_LOCAL_CREATE_PATCH_RESUME_PASS'
+          echo "TUS_PROTOCOL_SMOKE_END"
+          REMOTE
+
+  large-transfer:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.large_transfer_gib != 'none' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: aslan-contabo-large-tus
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure pinned SSH identity
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          umask 077
+          mkdir -p ~/.ssh
+          python3 - <<'PY'
+          import os,re,textwrap,pathlib,sys
+          raw=os.environ['OPS_KEY'].strip().replace(chr(13),'').replace(chr(92)+'n',chr(10))
+          m=re.search('-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----',raw,re.S)
+          if not m: sys.exit('Invalid SSH private key')
+          body=''.join(m.group(1).split())
+          if not re.fullmatch('[A-Za-z0-9+/=]+',body): sys.exit('Invalid SSH private key encoding')
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text('-----BEGIN OPENSSH PRIVATE KEY-----\n'+'\n'.join(textwrap.wrap(body,70))+'\n-----END OPENSSH PRIVATE KEY-----\n')
+          PY
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 >/dev/null
+          echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
+          echo "OPS_USER=$OPS_USER" >> "$GITHUB_ENV"
+      - name: Transfer isolated test script
+        run: |
+          set -euo pipefail
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes scripts/test-tus-large.sh "$OPS_USER@$OPS_HOST:~/aslan-tus-staging/test-tus-large.sh"
+      - name: Execute real loopback transfer and resume
+        env:
+          SIZE_GIB: ${{ inputs.large_transfer_gib }}
+        run: |
+          set -euo pipefail
+          case "$SIZE_GIB" in 2|8) ;; *) exit 2;; esac
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" "bash -s -- '$SIZE_GIB'" <<'REMOTE'
+          set -euo pipefail
+          size_gib="$1"
+          available=$(df -PB1 "$HOME" | awk 'NR==2 {print $4}')
+          required=$((size_gib * 1024 * 1024 * 1024 + 5 * 1024 * 1024 * 1024))
+          [ "$available" -gt "$required" ] || { echo 'INSUFFICIENT_FREE_DISK'; exit 51; }
+          curl -fsS -X OPTIONS -H 'Tus-Resumable: 1.0.0' http://127.0.0.1:1080/files/ -o /dev/null
+          bash "$HOME/aslan-tus-staging/test-tus-large.sh" "$size_gib"
+          REMOTE
