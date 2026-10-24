@@ -5,12 +5,14 @@ on:
     paths:
       - 'scripts/ops/aslan-command-intake.mjs'
       - 'scripts/ops/aslan-execution-engine.mjs'
+      - 'scripts/ops/aslan-result-approval.mjs'
       - 'tests/ops/**'
       - '.github/workflows/aslan-execution-engine.yml'
   pull_request:
     paths:
       - 'scripts/ops/aslan-command-intake.mjs'
       - 'scripts/ops/aslan-execution-engine.mjs'
+      - 'scripts/ops/aslan-result-approval.mjs'
       - 'tests/ops/**'
       - '.github/workflows/aslan-execution-engine.yml'
   workflow_dispatch:
@@ -31,6 +33,7 @@ jobs:
         run: |
           node --check scripts/ops/aslan-command-intake.mjs
           node --check scripts/ops/aslan-execution-engine.mjs
+          node --check scripts/ops/aslan-result-approval.mjs
       - name: Publish verification summary
         if: always()
         run: |
