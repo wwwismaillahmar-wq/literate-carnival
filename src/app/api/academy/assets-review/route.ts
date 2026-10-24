@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+import { contaboAssetRequest } from '@/lib/academy/contabo-storage';
 export const dynamic = 'force-dynamic';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -24,12 +25,15 @@ export async function PATCH(request: Request) {
       !['approve','reject'].includes(String(body.decision)))
     return NextResponse.json({error:'بيانات المراجعة غير صالحة.'},{status:400});
   const {data:asset,error} = await db.from('academy_lesson_assets')
-    .select('id,object_path,file_size,status').eq('id',body.assetId).maybeSingle();
+    .select('id,object_path,file_size,status,storage_backend').eq('id',body.assetId).maybeSingle();
   if (error || !asset) return NextResponse.json({error:'الملف غير موجود.'},{status:404});
   if (asset.status !== 'uploaded')
     return NextResponse.json({error:'لا يمكن مراجعة ملف لم يكتمل رفعه.'},{status:409});
   if (body.decision === 'approve') {
-    const {data:object,error:storageError} = await db.storage.from('aslan-academy').info(asset.object_path);
+    const checked = asset.storage_backend === 'contabo'
+      ? {data: await contaboAssetRequest(db,asset.id,'verify'),error:null}
+      : await db.storage.from('aslan-academy').info(asset.object_path);
+    const {data:object,error:storageError} = checked;
     if (storageError || !object || Number(object.size) !== Number(asset.file_size))
       return NextResponse.json({error:'فشل التحقق من وجود الملف وحجمه.'},{status:409});
     // Malware scanning and content QA must be enforced before production enablement.
