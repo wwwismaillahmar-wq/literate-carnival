@@ -81,8 +81,15 @@ async function auditWithWarning(
     await audit(db, userId, action, resourceType, resourceId, metadata);
     return null;
   } catch (cause) {
-    const detail = cause instanceof Error ? cause.message : String(cause);
-    console.error('[ASLAN admin audit] mutation completed but audit write failed', { action, resourceType, resourceId, detail });
+    const detail = cause instanceof Error
+      ? cause.message
+      : cause && typeof cause === 'object' && 'message' in cause && typeof cause.message === 'string'
+        ? cause.message
+        : 'Unknown audit storage error';
+    const code = cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string'
+      ? cause.code
+      : undefined;
+    console.error('[ASLAN admin audit] mutation completed but audit write failed', { action, resourceType, resourceId, detail, code });
     return 'تم حفظ التغيير، لكن تعذر تسجيله في سجل التدقيق: ' + detail;
   }
 }
