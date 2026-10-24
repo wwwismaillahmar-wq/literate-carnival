@@ -241,6 +241,7 @@ export async function createGateway({ directory, authorize, origins = [], signin
         callback(received > contentLength ? fail(413, 'Chunk too large') : null, chunk);
       } });
       let handle;
+      let writer;
       try {
         try {
           handle = await open(file(id), fsConstants.O_RDWR | fsConstants.O_NOFOLLOW);
@@ -252,7 +253,8 @@ export async function createGateway({ directory, authorize, origins = [], signin
         if (!opened.isFile() || opened.nlink !== 1n ||
             JSON.stringify(fingerprint(opened)) !== JSON.stringify(fingerprint(beforePatch)))
           throw fail(409, 'Upload file changed before PATCH');
-        await pipeline(req, limiter, handle.createWriteStream({ start: offset, autoClose: false }));
+        writer = handle.createWriteStream({ start: offset, autoClose: false });
+        await pipeline(req, limiter, writer);
         if (received !== contentLength) throw fail(400, 'Truncated chunk');
         await handle.sync();
         const onDisk = await diskState(id);
@@ -261,6 +263,9 @@ export async function createGateway({ directory, authorize, origins = [], signin
             JSON.stringify(fingerprint(onDisk)) !== JSON.stringify(fingerprint(written)))
           throw fail(409, 'Upload file changed during PATCH');
       } finally {
+        // FileHandle.close waits for active streams. Explicitly release the writer
+        // after pipeline before closing the descriptor (including aborted PATCHes).
+        writer?.destroy();
         await handle?.close();
         // Interrupted PATCH bytes remain resumable; HEAD reports the real offset.
         res.setHeader('Upload-Offset', String(await sizeOf(id)));
