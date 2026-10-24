@@ -120,9 +120,10 @@ jobs:
           # Let the OS allocate an unused localhost port; avoid collisions with other builds.
           smoke_port=$(node -e 'const s=require("net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')
           test -n "$smoke_port"
-          PORT="$smoke_port" HOSTNAME=127.0.0.1 npm run start -- -p "$smoke_port" > "$workspace/staging-http.log" 2>&1 &
+          HOSTNAME=127.0.0.1 ./node_modules/.bin/next start -H 127.0.0.1 -p "$smoke_port" > "$workspace/staging-http.log" 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          cleanup_smoke() { kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true; }
+          trap cleanup_smoke EXIT
           ready=0
           for attempt in $(seq 1 30); do
             if ! kill -0 "$app_pid" 2>/dev/null; then

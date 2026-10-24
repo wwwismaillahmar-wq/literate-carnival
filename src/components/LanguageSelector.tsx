@@ -4,12 +4,12 @@ export const languages=['ar','fr','en','es','de','pt'] as const;
 export type Language=typeof languages[number];
 export const languageNames:Record<Language,string>={ar:'العربية',fr:'Français',en:'English',es:'Español',de:'Deutsch',pt:'Português'};
 export const navLabels:Record<Language,string[]>={
-ar:['الرئيسية','السوق','الخدمات','الأكاديمية','الشركاء','الشركة','المجتمع'],
-fr:['Accueil','Marché','Services','Académie','Partenaires','Entreprise','Communauté'],
-en:['Home','Market','Services','Academy','Partners','Company','Community'],
-es:['Inicio','Mercado','Servicios','Academia','Socios','Empresa','Comunidad'],
-de:['Startseite','Markt','Dienstleistungen','Akademie','Partner','Unternehmen','Community'],
-pt:['Início','Mercado','Serviços','Academia','Parceiros','Empresa','Comunidade']};
+ar:['الرئيسية','السوق','الخدمات','الأكاديمية','الشركاء','الشركة','المجتمع','المواهب'],
+fr:['Accueil','Marché','Services','Académie','Partenaires','Entreprise','Communauté','Talents'],
+en:['Home','Market','Services','Academy','Partners','Company','Community','Talent'],
+es:['Inicio','Mercado','Servicios','Academia','Socios','Empresa','Comunidad','Talento'],
+de:['Startseite','Markt','Dienstleistungen','Akademie','Partner','Unternehmen','Community','Talente'],
+pt:['Início','Mercado','Serviços','Academia','Parceiros','Empresa','Comunidade','Talentos']};
 export function LanguageSelector({onLanguageChange}:{onLanguageChange?:(language:Language)=>void}){
  const [language,setLanguage]=useState<Language>('ar');
  useEffect(()=>{
