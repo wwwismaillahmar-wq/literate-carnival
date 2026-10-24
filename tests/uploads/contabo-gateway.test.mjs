@@ -42,8 +42,9 @@ async function fixture(bytes, separateProcess = false) {
   }
   let asset = { id, owner_id: 'owner', file_size: bytes, file_name: 'test.txt', mime_type: 'text/plain', status: 'pending' };
   let server;
+  let reserveBytes = 0;
   const start = async () => {
-    server = await createGateway({ directory, reserveBytes: 0, signingKey: 'a'.repeat(48), origins: ['https://academy.example'], authorize: async (req, assetId) => {
+    server = await createGateway({ directory, reserveBytes, signingKey: 'a'.repeat(48), origins: ['https://academy.example'], authorize: async (req, assetId) => {
       if (req.headers.authorization !== 'Bearer owner' || assetId !== id || asset.status === 'archived') throw Object.assign(new Error('Denied'), { status: 403 });
       return asset;
     } });
@@ -52,7 +53,7 @@ async function fixture(bytes, separateProcess = false) {
   };
   let base = await start();
   const stop = () => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); });
-  return { directory, get base() { return base; }, setAsset: value => { asset = { ...asset, ...value }; }, restart: async () => { await stop(); base = await start(); }, close: async () => { await stop(); await rm(directory, { recursive: true, force: true }); } };
+  return { directory, get base() { return base; }, setAsset: value => { asset = { ...asset, ...value }; }, restart: async (options = {}) => { await stop(); reserveBytes = options.reserveBytes ?? reserveBytes; base = await start(); }, close: async () => { await stop(); await rm(directory, { recursive: true, force: true }); } };
 }
 
 test('Contabo enforces ownership, maximum length and configured CORS before disk allocation', async () => {
@@ -93,6 +94,33 @@ test('offset conflicts, duplicate creation, restart, exact completion, signed do
     assert.equal((await fetch(f.base + signed.path.replace('token=', 'token=x'))).status, 403);
     f.setAsset({ status: 'archived' });
     assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 403);
+  } finally { await f.close(); }
+});
+
+test('duplicate POST resumes an existing upload even when a new upload would fail disk reserve', async () => {
+  const f = await fixture(10);
+  const post = () => fetch(f.base + '/files/' + id, {
+    method: 'POST', headers: { ...headers, 'Upload-Length': '10' },
+  });
+  try {
+    assert.equal((await post()).status, 201);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH',
+      headers: { ...headers, 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' },
+      body: 'hello',
+    })).status, 204);
+    await f.restart({ reserveBytes: Number.MAX_SAFE_INTEGER });
+    const resumed = await post();
+    assert.equal(resumed.status, 201);
+    assert.equal(resumed.headers.get('Upload-Offset'), '5');
+    assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).headers.get('Upload-Offset'), '5');
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH',
+      headers: { ...headers, 'Upload-Offset': '5', 'Content-Type': 'application/offset+octet-stream' },
+      body: 'world',
+    })).status, 507); // the new PATCH still respects disk reserve
+    assert.equal((await fetch(f.base + '/files/' + id, { method: 'DELETE', headers })).status, 204);
+    assert.equal((await post()).status, 507); // a genuinely new upload is rejected
   } finally { await f.close(); }
 });
 

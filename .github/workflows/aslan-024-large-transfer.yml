@@ -6,6 +6,8 @@ on:
       - feat/aslan-web-exec-2026-024
     paths:
       - .github/workflows/aslan-024-large-transfer.yml
+      - infra/uploads/academy-gateway.mjs
+      - tests/uploads/contabo-gateway.test.mjs
   workflow_dispatch:
 
 permissions:

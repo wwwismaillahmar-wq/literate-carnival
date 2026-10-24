@@ -168,10 +168,20 @@ export async function createGateway({ directory, authorize, origins = [], signin
       locked.add(id); lockId = id;
       if (req.method === 'POST') {
         if (req.headers['upload-length'] !== String(length)) throw fail(400, 'Declared length does not match asset');
-        const disk = await statfs(base, { bigint: true });
-        if (disk.bavail * disk.bsize < BigInt(length) + BigInt(reserveBytes)) throw fail(507, 'Insufficient disk capacity');
-        try { const handle = await open(file(id), 'wx', 0o600); await handle.close(); }
-        catch (error) { if (error.code !== 'EEXIST') throw error; } // idempotent create for the same authenticated asset
+        // Resuming an existing upload must not reserve its full size again.
+        // In particular, an almost-complete 8 GiB upload may leave less than
+        // 8 GiB free; a duplicate POST is still an idempotent operation.
+        let existingSize;
+        try { existingSize = await sizeOf(id); }
+        catch (error) { if (error.status !== 404) throw error; }
+        if (existingSize !== undefined) {
+          if (existingSize > length) throw fail(409, 'Stored upload exceeds declared length');
+        } else {
+          const disk = await statfs(base, { bigint: true });
+          if (disk.bavail * disk.bsize < BigInt(length) + BigInt(reserveBytes)) throw fail(507, 'Insufficient disk capacity');
+          try { const handle = await open(file(id), 'wx', 0o600); await handle.close(); }
+          catch (error) { if (error.code !== 'EEXIST') throw error; }
+        }
         res.setHeader('Location', '/files/' + id);
         res.setHeader('Upload-Offset', String(await sizeOf(id)));
         res.writeHead(201).end(); return;
