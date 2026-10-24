@@ -22,6 +22,7 @@ export function LanguageSelector({onLanguageChange}:{onLanguageChange?:(language
   const next=languages.find(item=>item===value);if(!next)return;
   setLanguage(next);window.localStorage.setItem('aslan-language',next);
   document.documentElement.lang=next;document.documentElement.dir=next==='ar'?'rtl':'ltr';
+  window.dispatchEvent(new Event('aslan:language-change'));
   onLanguageChange?.(next);
  }
  return <label style={{display:'inline-flex',alignItems:'center',gap:5}}>
