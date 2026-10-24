@@ -26,9 +26,13 @@ export async function recoverTusOffset(
   url: string,
   fileSize: number,
   previousOffset: number,
-  head: (url: string) => Promise<Pick<Response, 'headers'>>,
+  head: (url: string) => Promise<Pick<Response, 'headers' | 'status'>>,
 ): Promise<number> {
   const response = await head(url);
+  // Never trust offset headers from an unauthorized, missing or failed HEAD.
+  if (response.status !== 200 && response.status !== 204) {
+    throw new Error('TUS HEAD failed with status ' + response.status);
+  }
   assertTusLength(response.headers, fileSize);
   const offset = parseTusOffset(response.headers, fileSize);
   if (!Number.isSafeInteger(previousOffset) || previousOffset < 0 || offset < previousOffset) {

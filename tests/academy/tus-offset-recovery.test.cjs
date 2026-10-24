@@ -34,7 +34,7 @@ test('lost final PATCH acknowledgement recovers completed upload without sending
   const offset = await recoverTusOffset('/files/upload-id', size, 12 * 1024 * 1024, async url => {
     assert.equal(url, '/files/upload-id');
     headCalls++;
-    return { headers: headers({ 'Upload-Length': String(size), 'Upload-Offset': String(size) }) };
+    return { status: 200, headers: headers({ 'Upload-Length': String(size), 'Upload-Offset': String(size) }) };
   });
   assert.equal(headCalls, 1);
   assert.equal(offset, size);
@@ -43,9 +43,31 @@ test('lost final PATCH acknowledgement recovers completed upload without sending
 
 test('recovery rejects server regression and inconsistent upload identity', async () => {
   const recover = (offset, length) => recoverTusOffset('/files/id', 100, 50, async () => ({
-    headers: headers({ 'Upload-Length': length, 'Upload-Offset': offset }),
+    status: 200, headers: headers({ 'Upload-Length': length, 'Upload-Offset': offset }),
   }));
   await assert.rejects(recover('49', '100'), /regressed/);
   await assert.rejects(recover('100', '99'), /length/);
   await assert.rejects(recover('missing', '100'), /offset/i);
+});
+
+test('recovery rejects forged offset headers on failed or unauthorized HEAD responses', async () => {
+  for (const status of [301, 401, 403, 404, 409, 500]) {
+    await assert.rejects(
+      recoverTusOffset('/files/id', 100, 50, async () => ({
+        status, headers: headers({ 'Upload-Length': '100', 'Upload-Offset': '100' }),
+      })),
+      /TUS HEAD failed/,
+      'HEAD status ' + status + ' must not be trusted',
+    );
+  }
+  assert.equal(await recoverTusOffset('/files/id', 100, 50, async () => ({
+    status: 204, headers: headers({ 'Upload-Length': '100', 'Upload-Offset': '100' }),
+  })), 100);
+});
+
+test('TUS protocol offset parser handles 8 GiB boundaries without truncation', () => {
+  const size = 8 * 1024 ** 3;
+  assert.equal(parseTusOffset(headers({ 'Upload-Offset': String(size) }), size), size);
+  assert.doesNotThrow(() => assertTusLength(headers({ 'Upload-Length': String(size) }), size));
+  assert.throws(() => parseTusOffset(headers({ 'Upload-Offset': String(size + 1) }), size), /TUS/);
 });
