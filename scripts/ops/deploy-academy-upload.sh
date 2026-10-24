@@ -154,7 +154,30 @@ NODE
     exit 56
   fi
 fi
-if ! docker container inspect aslan-academy-upload-tls >/dev/null 2>&1; then
+mkdir -p "$base/caddy-data" "$base/caddy-config"
+tls_existed=0
+tls_uid=0
+tls_gid=0
+docker pull caddy:2.10.2-alpine >/dev/null
+caddy_image=$(docker image inspect caddy:2.10.2-alpine --format '{{index .RepoDigests 0}}')
+if docker container inspect aslan-academy-upload-tls >/dev/null 2>&1; then
+  [[ "$(docker inspect -f '{{index .Config.Labels "aslan.managed"}}' aslan-academy-upload-tls)" = academy-upload-tls ]] || { echo 'BLOCKED_UNMANAGED_TLS_CONTAINER'; exit 59; }
+  tls_existed=1
+  tls_uid=$(docker exec aslan-academy-upload-tls id -u)
+  tls_gid=$(docker exec aslan-academy-upload-tls id -g)
+fi
+tls_repair=0
+if [[ "$(stat -c '%u:%g' "$base/caddy-data")" != "$tls_uid:$tls_gid" ]] || \
+   [[ "$(stat -c '%u:%g' "$base/caddy-config")" != "$tls_uid:$tls_gid" ]]; then
+  # Initialize only these service-owned bind mounts. The running proxy keeps
+  # CAP_DAC_OVERRIDE dropped; it must own its persistent certificate storage.
+  docker run --rm --user 0:0 --cap-drop ALL --cap-add CHOWN \
+    --security-opt no-new-privileges:true --entrypoint chown \
+    -v "$base/caddy-data:/data" -v "$base/caddy-config:/config" \
+    "$caddy_image" "$tls_uid:$tls_gid" /data /config
+  tls_repair=1
+fi
+if [[ "$tls_existed" = 0 ]]; then
   if ss -lntH | awk '{print $4}' | grep -Eq ':(80|443)$'; then
     echo 'BLOCKED_EXISTING_TLS_PROXY_NEEDS_UPLOAD_ROUTE'
     echo "SERVER_HOSTNAME=$candidate"
@@ -180,9 +203,6 @@ $candidate {
 }
 CADDY
   fi
-  mkdir -p "$base/caddy-data" "$base/caddy-config"
-  docker pull caddy:2.10.2-alpine >/dev/null
-  caddy_image=$(docker image inspect caddy:2.10.2-alpine --format '{{index .RepoDigests 0}}')
   docker run --rm --read-only -v "$base/Caddyfile:/etc/caddy/Caddyfile:ro" \
     -v "$base/caddy-data:/data" -v "$base/caddy-config:/config" \
     "$caddy_image" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
@@ -191,6 +211,10 @@ CADDY
     --cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges:true \
     -v "$base/Caddyfile:/etc/caddy/Caddyfile:ro" \
     -v "$base/caddy-data:/data" -v "$base/caddy-config:/config" "$caddy_image" >/dev/null
+fi
+if [[ "$tls_existed" = 1 && "$tls_repair" = 1 ]]; then
+  docker restart --time 15 aslan-academy-upload-tls >/dev/null
+  echo 'TLS_CERTIFICATE_STORAGE_OWNERSHIP_REPAIRED'
 fi
 docker logs --tail 35 aslan-academy-upload-tls 2>&1 | tail -n 35
 for attempt in $(seq 1 30); do
