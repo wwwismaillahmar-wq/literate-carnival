@@ -6,6 +6,8 @@ on:
       - 'src/components/AslanLocale.tsx'
       - 'src/components/LanguageSelector.tsx'
       - 'src/components/Navbar.tsx'
+      - 'src/components/PartnerApplicationForm.tsx'
+      - 'src/lib/i18n/partner-form.ts'
       - 'src/app/**'
       - 'scripts/test-six-locales-browser.mjs'
       - '.github/workflows/aslan-024-browser-acceptance.yml'

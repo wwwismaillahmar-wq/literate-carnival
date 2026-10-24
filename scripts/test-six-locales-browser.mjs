@@ -13,6 +13,22 @@ const routes = ['/','/market','/services','/academy','/partners','/company','/co
 const normalizePath = path => path==='/'?'/':path.replace(/\/+$/,'');
 const talentHeadings = {ar:'الكفاءات المهنية الموثقة',fr:'Talents professionnels vérifiés',en:'Verified professional talent',es:'Talento profesional verificado',de:'Verifizierte Fachkräfte',pt:'Talentos profissionais verificados'};
 const partnerHeadings = {ar:'الشراكات والتعاون',fr:'Partenariats et collaboration',en:'Partnerships and collaboration',es:'Alianzas y colaboración',de:'Partnerschaften und Zusammenarbeit',pt:'Parcerias e colaboração'};
+const partnerFormLabels = {
+  ar:['اسم جهة الاتصال','رقم الهاتف','البريد الإلكتروني (اختياري)','اسم الشركة أو المؤسسة','مجال الشراكة','تفاصيل الطلب'],
+  fr:['Nom du contact','Téléphone','E-mail (facultatif)','Nom de l’entreprise ou organisation','Type de partenariat','Détails de la demande'],
+  en:['Contact name','Phone number','Email (optional)','Company or organization','Partnership type','Request details'],
+  es:['Nombre de contacto','Teléfono','Correo electrónico (opcional)','Empresa u organización','Tipo de colaboración','Detalles de la solicitud'],
+  de:['Kontaktperson','Telefonnummer','E-Mail (optional)','Unternehmen oder Organisation','Art der Partnerschaft','Anfragedetails'],
+  pt:['Nome do contacto','Telefone','E-mail (opcional)','Empresa ou organização','Tipo de parceria','Detalhes do pedido'],
+};
+const partnerTypeLabels = {
+  ar:['توريد','تكوين وتدريب','تنفيذ الخدمات','تعاون تجاري','فرص عمل وكفاءات','نوع آخر'],
+  fr:['Fourniture','Formation','Prestations de services','Collaboration commerciale','Emploi et talents','Autre'],
+  en:['Supply','Training','Service delivery','Business collaboration','Jobs and talent','Other'],
+  es:['Suministro','Formación','Prestación de servicios','Colaboración comercial','Empleo y talento','Otro'],
+  de:['Lieferung','Schulung','Dienstleistungen','Geschäftliche Zusammenarbeit','Stellen und Talente','Sonstiges'],
+  pt:['Fornecimento','Formação','Prestação de serviços','Colaboração comercial','Emprego e talentos','Outro'],
+};
 const labels = {
   ar:['الرئيسية','السوق','الخدمات','الأكاديمية','الشركاء','الشركة','المجتمع','المواهب'],
   fr:['Accueil','Marché','Services','Académie','Partenaires','Entreprise','Communauté','Talents'],
@@ -67,6 +83,15 @@ try {
     assert.equal(normalizePath(new URL(page.url()).pathname),route,'unexpected redirect '+code+':'+route);
     if(route==='/talent') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,talentHeadings[code],{timeout:15000});
     if(route==='/partners') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,partnerHeadings[code],{timeout:15000});
+    if(route==='/partners') {
+      const form=page.locator('form.card');
+      const fields=form.locator('label');
+      assert.equal(await fields.count(),6,'partner form field count '+code);
+      for(let i=0;i<6;i++) assert.equal((await fields.nth(i).textContent()).trim(),partnerFormLabels[code][i],code+':partner field '+i);
+      const options=form.locator('select option');
+      assert.equal(await options.count(),6,'partner type count '+code);
+      for(let i=0;i<6;i++) assert.equal((await options.nth(i).textContent()).trim(),partnerTypeLabels[code][i],code+':partner type '+i);
+    }
     const nav=page.locator('nav.shell-nav a');
     assert.equal(await nav.count(),8,'navigation count '+code+':'+route);
     for(let n=0;n<8;n++){
@@ -83,12 +108,37 @@ try {
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForFunction(expected=>document.documentElement.lang===expected && document.querySelector('select[aria-label="Language / اللغة"]')?.value===expected,code);
   }
+  // Real browser submission acceptance with a mocked local API: no external writes.
+  await page.goto(origin+'/partners',{waitUntil:'domcontentloaded'});
+  await page.locator(picker).selectOption('en');
+  const partnerForm=page.locator('form.card');
+  await partnerForm.locator('input[autocomplete="name"]').fill('Example Partner');
+  await partnerForm.locator('input[autocomplete="tel"]').fill('0550000000');
+  await partnerForm.locator('input[autocomplete="organization"]').fill('Example Company');
+  await partnerForm.locator('textarea').fill('Test partnership request');
+  await page.route('**/api/partners/applications', route=>route.fulfill({
+    status:500,contentType:'application/json',body:JSON.stringify({error:'mock failure'}),
+  }));
+  await partnerForm.locator('button[type="submit"]').click();
+  await page.getByRole('status').waitFor();
+  await page.waitForFunction(()=>document.querySelector('[role="status"]')?.textContent==='Unable to save the request. It has not been confirmed.');
+  await page.unroute('**/api/partners/applications');
+  const mockId='11111111-1111-4111-8111-111111111111';
+  await page.route('**/api/partners/applications', route=>route.fulfill({
+    status:201,contentType:'application/json',body:JSON.stringify({application:{id:mockId,status:'submitted'}}),
+  }));
+  await partnerForm.locator('button[type="submit"]').click();
+  await page.waitForFunction(id=>document.querySelector('[role="status"]')?.textContent?.includes(id),mockId);
+  await page.locator(picker).selectOption('ar');
+  await page.waitForFunction(id=>document.querySelector('[role="status"]')?.textContent?.includes('تم حفظ طلب الشراكة') &&
+    document.querySelector('[role="status"]')?.textContent?.includes(id),mockId);
+  await page.unroute('**/api/partners/applications');
   const second=await context.newPage();
   await second.goto(origin+'/',{waitUntil:'domcontentloaded'});
   await second.locator(picker).waitFor();
   await page.locator(picker).selectOption('ar');
   await second.waitForFunction(()=>document.documentElement.lang==='ar'&&document.documentElement.dir==='rtl'&&document.querySelector('select[aria-label="Language / اللغة"]')?.value==='ar',null,{timeout:15000});
-  console.log('ASLAN_BROWSER_LOCALE_PASS cases='+checked+' persistence=6 cross_tab=1 rtl_ltr=1');
+  console.log('ASLAN_BROWSER_LOCALE_PASS cases='+checked+' persistence=6 cross_tab=1 rtl_ltr=1 partner_form=6 submit_mock=2');
 } finally {
   await browser?.close();
   child.kill('SIGTERM');
