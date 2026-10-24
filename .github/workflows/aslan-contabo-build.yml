@@ -131,9 +131,14 @@ jobs:
           npm run build
           echo "ASLAN_REMOTE_BUILD_PASS"
           echo "Starting isolated localhost-only HTTP smoke test"
-          PORT=3187 HOSTNAME=127.0.0.1 npm run start -- -p 3187 > "$workspace/staging-http.log" 2>&1 &
+          # Allocate an ephemeral port; a fixed port collides with earlier
+          # isolated builds that may still be running on the same VPS.
+          smoke_port=$(node -e 'const s=require("node:net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')
+          test -n "$smoke_port"
+          HOSTNAME=127.0.0.1 ./node_modules/.bin/next start -H 127.0.0.1 -p "$smoke_port" > "$workspace/staging-http.log" 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          cleanup_smoke() { kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true; }
+          trap cleanup_smoke EXIT
           ready=0
           for attempt in $(seq 1 30); do
             if ! kill -0 "$app_pid" 2>/dev/null; then
@@ -141,7 +146,7 @@ jobs:
               tail -n 35 "$workspace/staging-http.log"
               exit 5
             fi
-            status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:3187/ || true)
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 "http://127.0.0.1:$smoke_port/" || true)
             if [[ "$status" =~ ^[23][0-9][0-9]$ ]]; then
               echo "ASLAN_STAGING_HTTP_PASS status=$status"
               ready=1
@@ -156,6 +161,23 @@ jobs:
           fi
           REMOTE
           grep -Fxq 'ASLAN_REMOTE_BUILD_PASS' /tmp/aslan-build-report.txt
+          grep -Eq '^ASLAN_STAGING_HTTP_PASS status=2[0-9][0-9]
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo '## ASLAN Contabo remote build'
+            echo 'Status: ${{ job.status }}'
+            echo 'Target: isolated aslan-ops home workspace (not production)'
+            echo 'Commit: ${{ github.sha }}'
+            if [ -f /tmp/aslan-build-report.txt ]; then
+              echo 'Remote build tail:'
+              echo '~~~'
+              tail -n 35 /tmp/aslan-build-report.txt
+              echo '~~~'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+ /tmp/aslan-build-report.txt
       - name: Report
         if: always()
         run: |
