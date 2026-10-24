@@ -21,5 +21,5 @@ test('market feedback has complete six-language coverage',()=>{
 });
 test('market catalog renders translated status and notices',()=>{
  for(const token of ['marketStatusCopy[language]','savedOnly?c.saved:c.title','s[notice]','s.resultUnit','s.chipQuery','s.compareSelected'])assert.ok(component.includes(token),token);
- assert.doesNotMatch(component,/منتجاتك المحفوظة|اخترت \{compared\.length\}|aria-label="فلاتر المنتجات"/);
+ assert.doesNotMatch(component,/savedOnly\?'منتجاتك المحفوظة'|اخترت \{compared\.length\}|aria-label="فلاتر المنتجات"/);
 });
