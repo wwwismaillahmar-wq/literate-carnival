@@ -42,7 +42,9 @@ export default function ProductMediaUploader({ productId }: { productId: number 
 
       let completed = 0;
       let auditWarning = false;
+      const failed: string[] = [];
       for (const file of files) {
+        try {
         const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
         const objectPath = user.id + '/products/' + productId + '/' + crypto.randomUUID() + '.' + extension;
         const { error: uploadError } = await supabase.storage.from('aslan-media').upload(objectPath, file, {
@@ -64,8 +66,18 @@ export default function ProductMediaUploader({ productId }: { productId: number 
         if (registered.warning) auditWarning = true;
         completed += 1;
         setMessage('تم رفع وربط ' + completed + ' من ' + files.length + ' ملفات.');
+        } catch (fileError) {
+          failed.push(file.name + ': ' + (fileError instanceof Error ? fileError.message : 'فشل غير معروف'));
+          setMessage('تم رفع ' + completed + ' من ' + files.length + '؛ تعذر رفع ' + failed.length + ' ملفات.');
+        }
       }
 
+      if (failed.length) {
+        setError('فشل ' + failed.length + ' من ' + files.length + ' ملفات: ' + failed.join(' | '));
+        setMessage('اكتمل رفع ' + completed + ' ملفًا. احتفظ بالملفات الفاشلة لإعادة المحاولة فقط.');
+        router.refresh();
+        return;
+      }
       if (inputRef.current) inputRef.current.value = '';
       setMessage(auditWarning ? 'تم رفع جميع الملفات وربطها بالمنتج، لكن تعذر تسجيل أحد أحداث التدقيق.' : 'تم رفع جميع الملفات وربطها بالمنتج بنجاح.');
       router.refresh();
