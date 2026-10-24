@@ -161,23 +161,7 @@ jobs:
           fi
           REMOTE
           grep -Fxq 'ASLAN_REMOTE_BUILD_PASS' /tmp/aslan-build-report.txt
-          grep -Eq '^ASLAN_STAGING_HTTP_PASS status=2[0-9][0-9]
-      - name: Report
-        if: always()
-        run: |
-          {
-            echo '## ASLAN Contabo remote build'
-            echo 'Status: ${{ job.status }}'
-            echo 'Target: isolated aslan-ops home workspace (not production)'
-            echo 'Commit: ${{ github.sha }}'
-            if [ -f /tmp/aslan-build-report.txt ]; then
-              echo 'Remote build tail:'
-              echo '~~~'
-              tail -n 35 /tmp/aslan-build-report.txt
-              echo '~~~'
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
- /tmp/aslan-build-report.txt
+          grep -Eq '^ASLAN_STAGING_HTTP_PASS status=2[0-9][0-9]$' /tmp/aslan-build-report.txt
       - name: Report
         if: always()
         run: |
