@@ -137,22 +137,12 @@ export default async function AdminProducts({ searchParams }: {
 }
 
 function ProductForm({ product, categories }: { product?: Product; categories: Category[] }) {
-  return <form action={saveProduct} encType="multipart/form-data" style={{display:'grid',gap:10,marginTop:14}}>
+  return <form action={saveProduct} style={{display:'grid',gap:10,marginTop:14}}>
     {product && <input type="hidden" name="id" value={product.id}/>}
     <input type="hidden" name="return_to" value="/admin/products"/>
     <label>اسم المنتج<input name="name" defaultValue={product?.name ?? ''} required /></label>
     <label>الرابط المختصر (يُنشأ تلقائيًا عند تركه فارغًا)<input name="slug" defaultValue={product?.slug ?? ''} /></label>
     <label>الوصف<textarea name="description" defaultValue={product?.description ?? ''} rows={4}/></label>
-    {!product && (
-      <label>صورة المنتج
-        <input
-          name="media"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-        />
-        <small className="muted">يمكن إرفاق صورة واحدة عند الإنشاء (حتى 1.5 ميغابايت). أضف صورًا إضافية بعد حفظ المنتج.</small>
-      </label>
-    )}
     <div className="grid three">
       <label>السعر بالدينار<input name="price_dzd" type="number" min="0" step="1" defaultValue={product?.price_dzd ?? ''}/></label>
       <label>المخزون<input name="stock" type="number" min="0" step="1" defaultValue={product?.stock ?? 0}/></label>
@@ -163,7 +153,7 @@ function ProductForm({ product, categories }: { product?: Product; categories: C
       <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> تمييزه في الرئيسية</label>
       <label>الأولوية الإعلانية 0–100<input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0}/></label>
     </div>
-    <p className="muted">بعد إنشاء المنتج، استخدم قسم الوسائط في بطاقة المنتج لرفع الصور والفيديوهات مباشرة إلى التخزين.</p>
+    <p className="muted">أنشئ المنتج أولًا، ثم ارفع الصور والفيديوهات من بطاقة المنتج مباشرة إلى التخزين (حتى 50 MiB للملف). لا تُرسل الصور عبر نموذج إنشاء المنتج، لتجنّب فشل الحفظ بسبب حد طلبات الخادم.</p>
     <button type="submit">{product ? 'حفظ التعديلات' : 'إنشاء المنتج'}</button>
   </form>;
 }
