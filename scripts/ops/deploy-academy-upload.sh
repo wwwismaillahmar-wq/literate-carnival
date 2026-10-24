@@ -98,9 +98,7 @@ if ! [[ "$candidate" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]]; then
   done
 fi
 if ! [[ "$candidate" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]]; then
-  echo 'BLOCKED_PUBLIC_TLS_HOSTNAME_REQUIRED'
-  echo "SERVER_HOSTNAME=$candidate"
-  exit 55
+  candidate=''
 fi
 # Query DNS directly: /etc/hosts may map the kernel hostname to 127.0.1.1.
 dns_address() {
@@ -128,10 +126,26 @@ if ! matches_server "$resolved"; then
     if matches_server "$ptr_address"; then candidate="$ptr"; resolved="$ptr_address"; break; fi
   done
 fi
+ip_certificate=0
 if ! matches_server "$resolved"; then
-  echo 'BLOCKED_PUBLIC_TLS_HOSTNAME_DNS_MISMATCH'
-  echo "SERVER_HOSTNAME=$candidate"
-  exit 56
+  # Let's Encrypt publicly supports IP certificates with the shortlived profile.
+  # Use only the IP of the verified SSH target, never a third-party DNS alias.
+  if node - "$expected" <<'NODE'
+const net=require('node:net'),ip=process.argv[2],a=ip.split('.').map(Number);
+const blocked=net.isIP(ip)!==4 || a[0]===0 || a[0]===10 || a[0]===127 || a[0]>=224 ||
+ (a[0]===169&&a[1]===254)||(a[0]===172&&a[1]>=16&&a[1]<=31)||
+ (a[0]===192&&a[1]===168)||(a[0]===100&&a[1]>=64&&a[1]<=127);
+process.exit(blocked?1:0);
+NODE
+  then
+    candidate="$expected"
+    ip_certificate=1
+    echo 'PUBLIC_TLS_USING_VERIFIED_SSH_IPV4_CERTIFICATE'
+  else
+    echo 'BLOCKED_PUBLIC_TLS_HOSTNAME_DNS_MISMATCH'
+    echo "SERVER_HOSTNAME=$candidate"
+    exit 56
+  fi
 fi
 if ! docker container inspect aslan-academy-upload-tls >/dev/null 2>&1; then
   if ss -lntH | awk '{print $4}' | grep -Eq ':(80|443)$'; then
@@ -140,14 +154,31 @@ if ! docker container inspect aslan-academy-upload-tls >/dev/null 2>&1; then
     docker ps --format '{{.Names}} {{.Ports}}'
     exit 57
   fi
-  cat > "$base/Caddyfile" <<CADDY
+  if [[ "$ip_certificate" = 1 ]]; then
+    cat > "$base/Caddyfile" <<CADDY
+https://$candidate {
+  tls {
+    issuer acme {
+      dir https://acme-v02.api.letsencrypt.org/directory
+      profile shortlived
+    }
+  }
+  reverse_proxy 127.0.0.1:9191
+}
+CADDY
+  else
+    cat > "$base/Caddyfile" <<CADDY
 $candidate {
   reverse_proxy 127.0.0.1:9191
 }
 CADDY
+  fi
   mkdir -p "$base/caddy-data" "$base/caddy-config"
   docker pull caddy:2.10.2-alpine >/dev/null
   caddy_image=$(docker image inspect caddy:2.10.2-alpine --format '{{index .RepoDigests 0}}')
+  docker run --rm --read-only -v "$base/Caddyfile:/etc/caddy/Caddyfile:ro" \
+    -v "$base/caddy-data:/data" -v "$base/caddy-config:/config" \
+    "$caddy_image" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
   docker run -d --name aslan-academy-upload-tls --restart unless-stopped \
     --label aslan.managed=academy-upload-tls --network host --read-only \
     --cap-drop ALL --cap-add NET_BIND_SERVICE --security-opt no-new-privileges:true \
@@ -156,7 +187,7 @@ CADDY
 fi
 for attempt in $(seq 1 30); do
   if curl -fsS --max-time 5 "https://$candidate/health" > "$base/public-health.json"; then
-    printf '%s\n' "$candidate" > "$base/hostname"
+    if [[ "$ip_certificate" = 0 ]]; then printf '%s\n' "$candidate" > "$base/hostname"; fi
     echo "CONTABO_PUBLIC_UPLOAD_URL=https://$candidate"
     echo 'CONTABO_PUBLIC_TLS_GATEWAY_PASS'
     exit 0

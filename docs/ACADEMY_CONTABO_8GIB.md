@@ -12,8 +12,10 @@ tests real 2/8 GiB files on the server, and installs a separate gateway on
 The gateway data and download signing key persist outside source releases.
 
 The deploy script uses the server's existing DNS hostname for TLS only when it
-resolves to an address owned by that server and ports 80/443 are unused. It never
-replaces an existing TLS proxy. If either prerequisite is missing, the job
+resolves to an address owned by that server. If DNS is unavailable, it uses the
+verified public SSH IPv4 address with an automatically renewed Let's Encrypt
+short-lived IP certificate (supported since January 2026). Ports 80/443 must be
+unused. It never replaces an existing TLS proxy. If a prerequisite is missing, the job
 reports the specific blocker and retains the working loopback gateway.
 
 After public TLS passes, set server-side `ACADEMY_UPLOAD_BASE_URL` to the emitted
