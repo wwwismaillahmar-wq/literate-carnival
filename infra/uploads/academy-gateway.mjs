@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
@@ -56,18 +56,43 @@ export async function createGateway({ directory, authorize, origins = [], signin
     try { await handle.writeFile(JSON.stringify(value)); await handle.sync(); } finally { await handle.close(); }
     await rename(temp, target);
   }
-  async function sizeOf(id) { try { return (await stat(file(id))).size; } catch (error) { if (error.code === 'ENOENT') throw fail(404, 'Upload not found'); throw error; } }
+  // A receipt is only reusable for the exact regular file that was hashed.
+  // Size alone cannot detect replacement or same-length tampering.
+  async function diskState(id) {
+    try {
+      const state = await lstat(file(id), { bigint: true });
+      if (!state.isFile() || state.nlink !== 1n) throw fail(409, 'Unsafe upload file');
+      return state;
+    } catch (error) {
+      if (error.code === 'ENOENT') throw fail(404, 'Upload not found');
+      throw error;
+    }
+  }
+  const fingerprint = state => ({
+    dev: String(state.dev), ino: String(state.ino), size: String(state.size),
+    mtimeNs: String(state.mtimeNs), ctimeNs: String(state.ctimeNs),
+  });
+  async function sizeOf(id) { return Number((await diskState(id)).size); }
   async function verify(id, asset) {
-    const size = await sizeOf(id);
+    const before = await diskState(id);
+    const size = Number(before.size);
     if (size !== Number(asset.file_size)) throw fail(409, 'Upload incomplete');
+    const identity = fingerprint(before);
     try {
       const old = JSON.parse(await readFile(receipt(id), 'utf8'));
-      if (old.size === size && old.mimeType === asset.mime_type) return old;
+      if (old.size === size && old.mimeType === asset.mime_type &&
+          /^[a-f0-9]{64}$/.test(old.sha256) &&
+          JSON.stringify(old.fingerprint) === JSON.stringify(identity)) {
+        return { size, mimeType: old.mimeType, sha256: old.sha256 };
+      }
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const hash = createHash('sha256');
     for await (const chunk of createReadStream(file(id))) hash.update(chunk);
+    // Fail closed if another process changes the file while hashing.
+    if (JSON.stringify(fingerprint(await diskState(id))) !== JSON.stringify(identity))
+      throw fail(409, 'Upload changed during verification');
     const result = { size, mimeType: asset.mime_type, sha256: hash.digest('hex') };
-    await atomicJSON(receipt(id), result);
+    await atomicJSON(receipt(id), { ...result, fingerprint: identity });
     return result;
   }
   const server = http.createServer(async (req, res) => {

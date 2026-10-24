@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomFillSync } from 'node:crypto';
@@ -93,6 +93,31 @@ test('offset conflicts, duplicate creation, restart, exact completion, signed do
     assert.equal((await fetch(f.base + signed.path.replace('token=', 'token=x'))).status, 403);
     f.setAsset({ status: 'archived' });
     assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 403);
+  } finally { await f.close(); }
+});
+
+test('SHA-256 receipt rejects same-size disk tampering and symlink substitution', async () => {
+  const f = await fixture(4);
+  const diskFile = path.join(f.directory, id + '.data');
+  const verify = () => fetch(f.base + '/assets/' + id + '/verify', { method: 'POST', headers });
+  try {
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
+    })).status, 201);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' },
+      body: 'abcd',
+    })).status, 204);
+    const original = await (await verify()).json();
+    assert.equal(original.sha256, createHash('sha256').update('abcd').digest('hex'));
+    await writeFile(diskFile, 'wxyz'); // same length, different bytes
+    const updated = await (await verify()).json();
+    assert.equal(updated.sha256, createHash('sha256').update('wxyz').digest('hex'));
+    assert.notEqual(updated.sha256, original.sha256);
+    await rm(diskFile);
+    await symlink('/etc/hosts', diskFile);
+    assert.equal((await verify()).status, 409);
+    assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 409);
   } finally { await f.close(); }
 });
 
