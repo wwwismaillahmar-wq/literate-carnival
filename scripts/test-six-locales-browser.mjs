@@ -3,6 +3,7 @@
 // No production writes, credentials, remote uploads or live database mutations.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import net from 'node:net';
 const require = createRequire(import.meta.url);
@@ -22,6 +23,15 @@ const port = await new Promise((resolve,reject) => {
   server.once('error',reject);
   server.listen(0,'127.0.0.1',()=>{const p=server.address().port;server.close(()=>resolve(p));});
 });
+const fixturePort=3215;
+if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:'+fixturePort)
+  throw Error('Refusing to run browser acceptance without isolated local Supabase fixture URL');
+const fixture=createServer((req,res)=>{
+  res.setHeader('Content-Type','application/json');
+  if(req.url?.startsWith('/auth/v1/user')){res.writeHead(401).end('{"message":"not authenticated"}');return;}
+  res.writeHead(200).end('[]');
+});
+await new Promise((resolve,reject)=>fixture.once('error',reject).listen(fixturePort,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+port;
 const child=spawn(process.execPath,['node_modules/next/dist/bin/next','start','-p',String(port),'-H','127.0.0.1'],{
   stdio:['ignore','pipe','pipe'],env:{...process.env,PORT:String(port)},
@@ -33,16 +43,13 @@ try {
   let ready=false;
   for(let i=0;i<50;i++){
     if(child.exitCode!==null) throw Error('Next.js exited: '+output);
-    try {const r=await fetch(origin+'/',{signal:AbortSignal.timeout(2000)});if(r.status<500){ready=true;break;}}catch{}
+    try {const r=await fetch(origin+'/robots.txt',{signal:AbortSignal.timeout(2000)});if(r.status<500){ready=true;break;}}catch{}
     await new Promise(resolve=>setTimeout(resolve,500));
   }
   if(!ready)throw Error('Next.js readiness timeout: '+output);
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const context=await browser.newContext({viewport:{width:1440,height:900}});
   await context.addInitScript(()=>{localStorage.setItem('aslan-intro','1');});
-  await context.route('https://example.supabase.co/**',async route=>{
-    await route.fulfill({status:200,contentType:'application/json',body:'[]'});
-  });
   const page=await context.newPage();
   const picker='select[aria-label="Language / اللغة"]';
   async function verify(code, route) {
@@ -80,4 +87,5 @@ try {
 } finally {
   await browser?.close();
   child.kill('SIGTERM');
+  await new Promise(resolve=>fixture.close(resolve));
 }
