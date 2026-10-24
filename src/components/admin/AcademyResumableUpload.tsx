@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-type Intent = { assetId: string; objectPath: string; bucket: string; mimeType: string; maxBytes: number };
+type Intent = { assetId: string; objectPath: string; endpoint: string; backend: 'contabo'; mimeType: string; maxBytes: number };
 type UploadState = 'idle'|'uploading'|'paused'|'done'|'error';
 const CHUNK = 6 * 1024 * 1024;
-const encoder = (value: string) => btoa(Array.from(new TextEncoder().encode(value), b => String.fromCharCode(b)).join(''));
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/** Direct TUS 1.0 uploader: no file bytes pass through Next.js/Vercel. */
+/** TUS directly to ASLAN's Contabo disk. No file bytes pass through Next.js/Vercel. */
 export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   const [file,setFile] = useState<File|null>(null);
   const [state,setState] = useState<UploadState>('idle');
@@ -19,16 +18,14 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   const running = useRef(false);
   const controller = useRef<AbortController|null>(null);
   const storage = createClient();
-  const endpoint = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/,'') + '/storage/v1/upload/resumable';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const resumeKey = (f:File) => 'aslan:tus:' + lessonId + ':' + f.name + ':' + f.size + ':' + f.lastModified;
+  const resumeKey = (f:File, userId: string) => 'aslan:contabo-tus:' + userId + ':' + lessonId + ':' + f.name + ':' + f.size + ':' + f.lastModified;
 
   useEffect(() => () => { pause.current = true; controller.current?.abort(); }, []);
 
   async function headers() {
     const {data:{session}} = await storage.auth.getSession();
     if (!session?.access_token) throw new Error('انتهت جلسة الدخول؛ سجّل الدخول مجددًا.');
-    return {authorization:'Bearer ' + session.access_token,apikey:key,'Tus-Resumable':'1.0.0'};
+    return {authorization:'Bearer ' + session.access_token,'Tus-Resumable':'1.0.0'};
   }
 
   async function request(url:string,method:string,extra:Record<string,string>={},body?:Blob) {
@@ -41,15 +38,21 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   async function run() {
     if (!file || !lessonId || running.current) return;
     running.current = true; pause.current = false; setState('uploading'); setMessage('');
-    const keyName = resumeKey(file);
     try {
-      if (!endpoint.startsWith('https://') || !key) throw new Error('إعدادات التخزين غير مكتملة.');
+      const configResponse = await fetch('/api/academy/upload-intent', { cache: 'no-store' });
+      const config = await configResponse.json() as { baseUrl?: string; maxBytes?: number };
+      if (!configResponse.ok || !config.baseUrl?.startsWith('https://')) throw new Error('بوابة رفع الخادم غير متاحة.');
+      if (!config.maxBytes || file.size > config.maxBytes) throw new Error('يتجاوز حجم الملف الحد المسموح: 8 GiB.');
+      const endpoint = new URL(config.baseUrl).origin;
+      const { data: { session } } = await storage.auth.getSession();
+      if (!session) throw new Error('سجّل الدخول أولًا.');
+      const keyName = resumeKey(file, session.user.id);
       let record: {url:string;assetId:string}|null = null;
       try { const raw = localStorage.getItem(keyName); if(raw) record = JSON.parse(raw); } catch {}
       let offset = 0;
       if (record) {
         try {
-          if (new URL(record.url).origin !== new URL(endpoint).origin) throw new Error('Invalid TUS origin');
+          if (record.url !== endpoint + '/files/' + record.assetId) throw new Error('Invalid TUS URL');
           const head = await request(record.url,'HEAD');
           offset = Number(head.headers.get('Upload-Offset'));
           if (!Number.isSafeInteger(offset) || offset < 0 || offset > file.size) throw new Error('Invalid offset');
@@ -64,26 +67,32 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
           body:JSON.stringify({lessonId,fileName:file.name,sizeBytes:file.size})});
         const intent = await intentResponse.json() as Intent & {error?:string};
         if (!intentResponse.ok) throw new Error(intent.error || 'تعذر إنشاء طلب الرفع.');
-        const metadata = [
-          ['bucketName',intent.bucket],['objectName',intent.objectPath],
-          ['contentType',intent.mimeType],['cacheControl','3600']
-        ].map(([name,value])=>name+' '+encoder(value)).join(',');
-        const created = await request(endpoint,'POST',{
-          'Upload-Length':String(file.size),'Upload-Metadata':metadata,
-          'x-upsert':'false'
+        if (intent.endpoint !== endpoint + '/files/' + intent.assetId) throw new Error('عنوان بوابة غير صالح.');
+        const created = await request(intent.endpoint,'POST',{
+          'Upload-Length':String(file.size),
         });
         const location = created.headers.get('Location');
         if (!location) throw new Error('لم يرجع التخزين عنوان متابعة الرفع.');
         const url = new URL(location,endpoint).toString();
-        if (new URL(url).origin !== new URL(endpoint).origin) throw new Error('عنوان متابعة غير آمن.');
+        if (url !== intent.endpoint) throw new Error('عنوان متابعة غير آمن.');
         record = {url,assetId:intent.assetId};
         localStorage.setItem(keyName,JSON.stringify(record));
       }
       while (offset < file.size) {
         if (pause.current) { setState('paused'); return; }
         let attempts = 0;
+        let recoverOffset = false;
         while (true) {
           try {
+            if (recoverOffset) {
+              const head = await request(record.url,'HEAD');
+              const serverOffset = Number(head.headers.get('Upload-Offset'));
+              if (!Number.isSafeInteger(serverOffset) || serverOffset < 0 || serverOffset > file.size)
+                throw new Error('تعذر استعادة موضع الرفع.');
+              offset = serverOffset;
+              if (offset === file.size) break;
+              recoverOffset = false;
+            }
             const chunk = file.slice(offset,Math.min(offset+CHUNK,file.size));
             const response = await request(record.url,'PATCH',{
               'Upload-Offset':String(offset),
@@ -96,12 +105,8 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
           } catch (err) {
             if (pause.current) { setState('paused'); return; }
             if (++attempts >= 5) throw err;
+            recoverOffset = true;
             await wait(Math.min(1000*2**attempts,16000));
-            const head = await request(record.url,'HEAD');
-            const serverOffset = Number(head.headers.get('Upload-Offset'));
-            if (!Number.isSafeInteger(serverOffset) || serverOffset < 0 || serverOffset > file.size)
-              throw new Error('تعذر استعادة موضع الرفع.');
-            offset = serverOffset;
           }
         }
       }

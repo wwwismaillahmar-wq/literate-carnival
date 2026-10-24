@@ -1,3 +1,5 @@
+import mimeTypes from './mime-types.json';
+
 /** ASLAN-ACADEMY-UNIFIED-004: permitted learning resource types.
  * Acceptance is distinct from browser preview and media transcoding.
  * MIME values and extensions are only hints: validate signatures server-side,
@@ -17,6 +19,7 @@ export const ACADEMY_FILE_CATEGORIES = {
 
 export const ACADEMY_MAX_FILE_BYTES = 8 * 1024 ** 3;
 export const ACADEMY_UPLOAD_PROTOCOL = 'tus-resumable' as const;
+export const ACADEMY_MIME_TYPES: Readonly<Record<string, string>> = mimeTypes;
 
 const extensionSet = new Set<string>(Object.values(ACADEMY_FILE_CATEGORIES).flat());
 const blocked = new Set(['exe','apk','bat','cmd','com','dll','msi','sh','ps1','jar','scr']);
@@ -26,8 +29,8 @@ export function validateAcademyUploadMetadata(
   filename: string,
   sizeBytes: number,
 ): UploadPreflight {
-  if (typeof filename !== 'string' || filename.length < 1 || filename.length > 255 ||
-      filename.includes('/') || filename.includes('\\') || filename.includes('\0')) {
+  if (typeof filename !== 'string' || filename.length < 1 || filename.length > 180 ||
+      /[/\\\x00-\x1f]/.test(filename)) {
     return { accepted: false, reason: 'invalid_filename' };
   }
   if (!Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > ACADEMY_MAX_FILE_BYTES) {

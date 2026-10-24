@@ -1,15 +1,23 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { ACADEMY_MAX_FILE_BYTES, validateAcademyUploadMetadata } from '@/lib/academy/resource-policy';
+import { ACADEMY_MAX_FILE_BYTES, ACADEMY_MIME_TYPES, validateAcademyUploadMetadata } from '@/lib/academy/resource-policy';
+
+import { academyUploadBaseUrl } from '@/lib/academy/contabo-storage';
 
 export const dynamic = 'force-dynamic';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export async function GET() {
+  const baseUrl = academyUploadBaseUrl();
+  return NextResponse.json({ backend: 'contabo', baseUrl, maxBytes: ACADEMY_MAX_FILE_BYTES },
+    { status: baseUrl ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
+}
+
 /**
  * Issues a per-user, per-lesson storage upload intent.
  * Does NOT proxy bytes through Vercel. A resumable TUS client must subsequently
- * upload directly to Supabase Storage using an authenticated session.
- * Storage policies MUST enforce owner/path/size constraints independently.
+ * upload directly to the authenticated Contabo filesystem gateway.
+ * The gateway independently enforces ownership, permission, and size.
  */
 export async function POST(request: Request) {
   const origin = request.headers.get('origin');
@@ -47,63 +55,29 @@ export async function POST(request: Request) {
   if (accessError || allowed !== true)
     return NextResponse.json({ error: 'لا تملك صلاحية رفع محتوى هذا الدرس.' }, { status: 403 });
   // Storage RLS requires a pending asset record before any upload begins.
-  const mime: Record<string,string> = {
-    mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime',m4v:'video/x-m4v',
-    mkv:'video/x-matroska',avi:'video/x-msvideo',
-    mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',aac:'audio/aac',
-    ogg:'audio/ogg',flac:'audio/flac',
-    pdf:'application/pdf',doc:'application/msword',
-    docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    txt:'text/plain',rtf:'application/rtf',odt:'application/vnd.oasis.opendocument.text',
-    ppt:'application/vnd.ms-powerpoint',
-    pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    odp:'application/vnd.oasis.opendocument.presentation',
-    xls:'application/vnd.ms-excel',
-    xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    csv:'text/csv',ods:'application/vnd.oasis.opendocument.spreadsheet',
-    jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',
-    gif:'image/gif',svg:'image/svg+xml',json:'application/json',xml:'application/xml',
-    html:'text/html',css:'text/css',js:'text/javascript',zip:'application/zip',
-  };
-  const mimeType = mime[check.extension ?? ''];
-  if (!mimeType) return NextResponse.json({error:'امتداد الملف غير مفعّل بعد في مخزن الأكاديمية.',code:'MIME_NOT_ENABLED'},{status:409});
-
-  // Temporary preflight matching the verified aslan-academy bucket MIME allowlist
-  // (20 Oct 2026). This does not replace the planned 37-extension policy.
-  // Reconcile with storage.buckets before changing the live bucket configuration.
-  const enabledStorageMimeTypes = new Set([
-    'video/mp4', 'video/webm', 'application/pdf',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'image/jpeg', 'image/png', 'image/webp', 'text/plain',
-  ]);
-  if (!enabledStorageMimeTypes.has(mimeType)) {
-    return NextResponse.json({
-      error: 'صيغة الملف مدعومة في خطة الأكاديمية، لكنها غير مفعّلة في التخزين الحالي.',
-      code: 'STORAGE_MIME_NOT_ENABLED',
-    }, { status: 409 });
-  }
-  // This value is a deployment configuration ceiling, not a promise that the provider accepts 8 GiB.
-  // Keep at the verified live 50 MiB cap until the provider and bucket are upgraded.
-  const currentStorageLimit = 50 * 1024 * 1024;
-  if (sizeBytes > currentStorageLimit) return NextResponse.json({
-    error:'حد التخزين الحالي 50 MiB؛ يجب زيادة سعة المخزن قبل رفع هذا الملف.',
-    code:'STORAGE_LIMIT',currentLimitBytes:currentStorageLimit,
-  },{status:409});
-  const path = [user.id, courseId, lessonId, crypto.randomUUID() + '.' + check.extension].join('/');
+  const mimeType = ACADEMY_MIME_TYPES[check.extension ?? ''];
+  if (!mimeType) return NextResponse.json({error:'نوع الملف غير مسموح.'},{status:400});
+  const uploadBase = academyUploadBaseUrl();
+  if (!uploadBase) return NextResponse.json({
+    error:'عنوان بوابة رفع الخادم غير مضبوط.',code:'CONTABO_UPLOAD_NOT_CONFIGURED',
+  },{status:503});
+  const id = crypto.randomUUID();
+  // Retain the database's immutable lesson/asset path contract.
+  const path = lessonId + '/' + id;
   const {data:asset,error:assetError} = await db.from('academy_lesson_assets').insert({
-    lesson_id:lessonId,owner_id:user.id,object_path:path,file_name:fileName,
+    id,lesson_id:lessonId,owner_id:user.id,object_path:path,file_name:fileName,storage_backend:'contabo',
     mime_type:mimeType,file_size:sizeBytes,status:'pending',
   }).select('id').single();
   if (assetError || !asset) return NextResponse.json({error:'تعذر تسجيل الملف قبل رفعه.'},{status:500});
   return NextResponse.json({
     assetId:asset.id,
     mimeType,
-    bucket: 'aslan-academy',
+    backend: 'contabo',
+    endpoint: uploadBase + '/files/' + id,
     objectPath: path,
-    maxBytes: currentStorageLimit,
-    plannedMaxBytes: ACADEMY_MAX_FILE_BYTES,
+    maxBytes: ACADEMY_MAX_FILE_BYTES,
+    chunkBytes: 6 * 1024 ** 2,
     protocol: 'tus-resumable',
-    note: 'يجب إتمام الرفع عبر جلسة TUS مباشرة إلى التخزين ثم تسجيل المورد والتحقق منه.',
+    note: 'تُنقل الملفات مباشرة إلى خادم ASLAN، ثم يُتحقق من الحجم والبصمة قبل المراجعة.',
   });
 }

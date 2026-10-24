@@ -5,13 +5,18 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import {NextResponse} from 'next/server.js';
 let database;
-const context=vm.createContext({Request,Response,URL,crypto,console}),modules=new Map();
+let gatewayResult={};const gatewayRequests=[];
+const context=vm.createContext({Request,Response,URL,crypto,console,AbortSignal,
+ process:{env:{ACADEMY_UPLOAD_BASE_URL:'https://uploads.aslan.test'}},
+ fetch:async(url,options)=>{gatewayRequests.push({url,method:options.method});return Response.json(gatewayResult);},
+}),modules=new Map();
 async function load(file){
  if(modules.has(file))return modules.get(file);
  const source=ts.transpileModule(await readFile(file,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
  const module=new vm.SourceTextModule(source,{context,identifier:file});modules.set(file,module);
  await module.link(async name=>{
  if(name==='@/lib/academy/requests')return load('src/lib/academy/requests.ts');
+ if(name==='@/lib/academy/contabo-storage')return load('src/lib/academy/contabo-storage.ts');
  const exports=name==='next/server'?{NextResponse}:name==='@/lib/supabase/server'?{createClient:async()=>database}:null;
  if(!exports)throw new Error('Unexpected import: '+name);
  return new vm.SyntheticModule(Object.keys(exports),function(){for(const[key,value]of Object.entries(exports))this.setExport(key,value);},{context});
@@ -24,7 +29,7 @@ let assertions=0;
 function fake({signedIn=true,queries=[],rpcData=true,rpcError=null,storage={}}={}){
  const calls=[];
  database={
- auth:{getUser:async()=>({data:{user:signedIn?{id:assetId}:null}})},
+ auth:{getUser:async()=>({data:{user:signedIn?{id:assetId}:null}}),getSession:async()=>({data:{session:signedIn?{access_token:'test-transport-token'}:null}})},
  rpc:async(name,args)=>{calls.push(['rpc',name,args]);return{data:rpcData,error:rpcError};},
  from(table){
  const result=queries.shift();assert.ok(result,'Unexpected query: '+table);
@@ -67,6 +72,20 @@ fake({queries:[row(asset)],storage:{createSignedUrl:row({signedUrl:'https://stor
 const download=await status(await resources.namespace.GET(request('GET')),307);
 assert.equal(download.headers.get('Cache-Control'),'private, no-store');assertions++;
 assert.equal(download.headers.get('Location'),'https://storage.test/signed-fixture');assertions++;
+gatewayResult={size:100,mimeType:'application/pdf',sha256:'a'.repeat(64)};gatewayRequests.length=0;
+calls=fake({queries:[row({...asset,id:assetId,storage_backend:'contabo'}),row({module_id:assetId})]});
+await status(await assets.namespace.PATCH(request('PATCH',{assetId})),409);
+assert.equal(gatewayRequests[0].url,'https://uploads.aslan.test/assets/'+assetId+'/verify');assertions++;
+assert.ok(!calls.some(call=>call[0]==='storage'));assertions++;
+gatewayResult={path:'/download/'+assetId+'?token=fixture'};
+fake({queries:[row({...asset,id:assetId,storage_backend:'contabo',status:'ready'})]});
+const contaboDownload=await status(await resources.namespace.GET(request('GET')),307);
+assert.equal(contaboDownload.headers.get('Location'),'https://uploads.aslan.test/download/'+assetId+'?token=fixture');assertions++;
+gatewayResult={deleted:true};gatewayRequests.length=0;
+calls=fake({queries:[row({...asset,id:assetId,storage_backend:'contabo'}),row({module_id:assetId}),row(null)]});
+await status(await assets.namespace.DELETE(request('DELETE')),200);
+assert.equal(gatewayRequests[0].url,'https://uploads.aslan.test/assets/'+assetId+'/purge');assertions++;
+assert.ok(!calls.some(call=>call[0]==='storage'));assertions++;
 fake({signedIn:false});await status(await invoices.namespace.POST(request('POST',{applicationId:assetId})),401);
 fake({rpcData:null,rpcError:{message:'FORBIDDEN'}});await status(await invoices.namespace.POST(request('POST',{applicationId:assetId})),403);
 fake({rpcData:null,rpcError:{message:'COURSE_PRICE_REQUIRED'}});await status(await invoices.namespace.POST(request('POST',{applicationId:assetId})),409);
