@@ -68,13 +68,36 @@ echo 'CONTABO_AUTHENTICATED_GATEWAY_LOOPBACK_PASS'
 # Use only a hostname already belonging to this server. Never invent a domain.
 candidate="${ASLAN_UPLOAD_HOSTNAME:-$(hostname -f)}"
 if [[ -f "$base/hostname" ]]; then candidate=$(cat "$base/hostname"); fi
+# Some Contabo images use a short kernel hostname. Resolve an existing PTR,
+# then require forward DNS to match this server; no new DNS record is created.
+if ! [[ "$candidate" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]]; then
+  for address in $(hostname -I); do
+    ptr=$(getent hosts "$address" | awk 'NR==1 {print $2}' || true)
+    if [[ "$ptr" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]]; then candidate="$ptr"; break; fi
+  done
+fi
 if ! [[ "$candidate" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]]; then
   echo 'BLOCKED_PUBLIC_TLS_HOSTNAME_REQUIRED'
   echo "SERVER_HOSTNAME=$candidate"
   exit 55
 fi
-resolved=$(getent ahostsv4 "$candidate" | awk 'NR==1 {print $1}')
-if ! hostname -I | tr ' ' '\n' | grep -Fxq "$resolved"; then
+resolved=$(getent ahostsv4 "$candidate" | awk 'NR==1 {print $1}' || true)
+# A NAT/public address may differ from hostname -I. The already verified SSH
+# target is another authoritative address for this same server.
+ssh_target=$(sed -n 's/^ASLAN_UPLOAD_EXPECTED_HOST=//p' "$base/gateway.env")
+expected=''
+if [[ "$ssh_target" =~ ^[A-Za-z0-9.-]+$ ]]; then expected=$(getent ahostsv4 "$ssh_target" | awk 'NR==1 {print $1}' || true); fi
+matches_server() { [[ -n "$1" ]] && { [[ "$1" = "$expected" ]] || hostname -I | tr ' ' '\n' | grep -Fxq "$1"; }; }
+if ! matches_server "$resolved"; then
+  for address in "$expected" $(hostname -I); do
+    [[ -n "$address" ]] || continue
+    ptr=$(getent hosts "$address" | awk '{for(i=2;i<=NF;i++) if($i ~ /\./){print $i;exit}}' || true)
+    [[ "$ptr" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]] || continue
+    ptr_address=$(getent ahostsv4 "$ptr" | awk 'NR==1 {print $1}' || true)
+    if matches_server "$ptr_address"; then candidate="$ptr"; resolved="$ptr_address"; break; fi
+  done
+fi
+if ! matches_server "$resolved"; then
   echo 'BLOCKED_PUBLIC_TLS_HOSTNAME_DNS_MISMATCH'
   echo "SERVER_HOSTNAME=$candidate"
   exit 56

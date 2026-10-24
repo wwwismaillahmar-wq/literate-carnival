@@ -77,12 +77,13 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$ASLAN_SUPABASE_PUBLISHABLE_KEY"
+          [[ "$ASLAN_SUPABASE_PUBLISHABLE_KEY" = sb_publishable_* ]] || { echo 'EXPECTED_PUBLIC_IDENTITY_KEY'; exit 2; }
           umask 077
           package=$(mktemp)
           settings=$(mktemp)
           trap 'rm -f "$package" "$settings"' EXIT
           tar -czf "$package" infra/uploads/academy-gateway.mjs tests/uploads/contabo-gateway.test.mjs scripts/ops/deploy-academy-upload.sh
-          printf 'NEXT_PUBLIC_SUPABASE_URL=https://zyenfobyorjfwkdgeube.supabase.co\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\nASLAN_UPLOAD_ORIGINS=https://literate-carnival-lemon.vercel.app\n' "$ASLAN_SUPABASE_PUBLISHABLE_KEY" > "$settings"
+          printf 'NEXT_PUBLIC_SUPABASE_URL=https://zyenfobyorjfwkdgeube.supabase.co\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\nASLAN_UPLOAD_ORIGINS=https://literate-carnival-lemon.vercel.app\nASLAN_UPLOAD_EXPECTED_HOST=%s\n' "$ASLAN_SUPABASE_PUBLISHABLE_KEY" "$OPS_HOST" > "$settings"
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" 'mkdir -p "$HOME/aslan-academy-uploads" && chmod 700 "$HOME/aslan-academy-uploads"'
           scp -q -o BatchMode=yes -o StrictHostKeyChecking=yes "$package" "$OPS_USER@$OPS_HOST:aslan-academy-uploads/release.tgz"
           scp -q -o BatchMode=yes -o StrictHostKeyChecking=yes "$settings" "$OPS_USER@$OPS_HOST:aslan-academy-uploads/gateway.env"

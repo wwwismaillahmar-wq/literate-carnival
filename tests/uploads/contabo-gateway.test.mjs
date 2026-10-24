@@ -5,13 +5,41 @@ import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomFillSync } from 'node:crypto';
+import { fork } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { createGateway, MAX_BYTES, CHUNK_BYTES, databaseAuthorizer } from '../../infra/uploads/academy-gateway.mjs';
 
 const id = '5dd358cf-6c5c-4b6b-8901-3f6e2d33f7c0';
 const other = '5dd358cf-6c5c-4b6b-8901-3f6e2d33f7c1';
 const headers = { Authorization: 'Bearer owner', 'Tus-Resumable': '1.0.0' };
-async function fixture(bytes) {
+if (process.env.ASLAN_GATEWAY_FIXTURE === '1') {
+  // Test-only identity injection is confined to this un-deployed test program.
+  const asset = { id, owner_id: 'owner', file_size: Number(process.env.ASLAN_FIXTURE_BYTES), file_name: 'test.txt', mime_type: 'text/plain', status: 'pending' };
+  const server = await createGateway({ directory: process.env.ASLAN_FIXTURE_DIRECTORY, reserveBytes: 0, signingKey: 'a'.repeat(48), authorize: async (req, assetId) => {
+    if (req.headers.authorization !== 'Bearer owner' || assetId !== id) throw Object.assign(new Error('Denied'), { status: 403 });
+    return asset;
+  } });
+  server.listen(0, '127.0.0.1', () => process.send(server.address().port));
+  process.on('SIGTERM', () => { server.closeAllConnections(); server.close(() => process.exit(0)); });
+  await new Promise(() => {});
+}
+
+async function fixture(bytes, separateProcess = false) {
   const directory = await mkdtemp(path.join(tmpdir(), 'aslan-gateway-'));
+  if (separateProcess) {
+    let child;
+    const start = () => new Promise((resolve, reject) => {
+      let errors = '';
+      child = fork(fileURLToPath(import.meta.url), [], { execArgv: [], env: { ...process.env, ASLAN_GATEWAY_FIXTURE: '1', ASLAN_FIXTURE_DIRECTORY: directory, ASLAN_FIXTURE_BYTES: String(bytes) }, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+      child.stderr.on('data', data => { errors = (errors + data).slice(-4096); });
+      child.once('message', port => resolve('http://127.0.0.1:' + port));
+      child.once('error', reject);
+      child.once('exit', code => { if (code) reject(new Error('Fixture exited: ' + errors)); });
+    });
+    const stop = () => new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
+    let base = await start();
+    return { directory, get base() { return base; }, restart: async () => { await stop(); base = await start(); }, close: async () => { await stop(); await rm(directory, { recursive: true, force: true }); } };
+  }
   let asset = { id, owner_id: 'owner', file_size: bytes, file_name: 'test.txt', mime_type: 'text/plain', status: 'pending' };
   let server;
   const start = async () => {
@@ -90,7 +118,7 @@ test('database authorizer verifies identity, live permissions and RLS; no servic
 });
 
 async function transfer(bytes) {
-  const f = await fixture(bytes);
+  const f = await fixture(bytes, true);
   const payload = randomFillSync(Buffer.alloc(CHUNK_BYTES));
   const expected = createHash('sha256');
   for (let n = 0; n < bytes; n += CHUNK_BYTES) expected.update(payload.subarray(0, Math.min(CHUNK_BYTES, bytes - n)));
