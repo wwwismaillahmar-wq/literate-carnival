@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { assertTusLength, parseTusOffset } from '@/lib/uploads/tus-response';
 
 type Intent = { assetId: string; objectPath: string; bucket: string; mimeType: string; maxBytes: number };
 type UploadState = 'idle'|'uploading'|'paused'|'done'|'error';
@@ -21,7 +22,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   const storage = createClient();
   const endpoint = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/,'') + '/storage/v1/upload/resumable';
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const resumeKey = (f:File) => 'aslan:tus:' + lessonId + ':' + f.name + ':' + f.size + ':' + f.lastModified;
+  const resumeKey = (f:File,userId:string) => 'aslan:tus:v2:' + userId + ':' + lessonId + ':' + f.name + ':' + f.size + ':' + f.lastModified;
 
   useEffect(() => () => { pause.current = true; controller.current?.abort(); }, []);
 
@@ -41,18 +42,27 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
   async function run() {
     if (!file || !lessonId || running.current) return;
     running.current = true; pause.current = false; setState('uploading'); setMessage('');
-    const keyName = resumeKey(file);
+    let keyName = '';
     try {
       if (!endpoint.startsWith('https://') || !key) throw new Error('إعدادات التخزين غير مكتملة.');
+      const {data:{user},error:authError} = await storage.auth.getUser();
+      if (authError || !user) throw new Error('يلزم تسجيل الدخول قبل استئناف الرفع.');
+      keyName = resumeKey(file,user.id);
+      const endpointUrl = new URL(endpoint);
+      const isTusUrl = (candidate:string) => {
+        const url = new URL(candidate,endpoint);
+        const prefix = endpointUrl.pathname.replace(/\/$/,'') + '/';
+        return url.origin === endpointUrl.origin && url.pathname.startsWith(prefix);
+      };
       let record: {url:string;assetId:string}|null = null;
       try { const raw = localStorage.getItem(keyName); if(raw) record = JSON.parse(raw); } catch {}
       let offset = 0;
       if (record) {
         try {
-          if (new URL(record.url).origin !== new URL(endpoint).origin) throw new Error('Invalid TUS origin');
+          if (!isTusUrl(record.url)) throw new Error('Invalid TUS URL');
           const head = await request(record.url,'HEAD');
-          offset = Number(head.headers.get('Upload-Offset'));
-          if (!Number.isSafeInteger(offset) || offset < 0 || offset > file.size) throw new Error('Invalid offset');
+          assertTusLength(head.headers,file.size);
+          offset = parseTusOffset(head.headers,file.size);
         } catch (err) {
           if (pause.current) throw err;
           throw new Error('تعذر التحقق من جلسة الرفع السابقة؛ احتفظ بالملف وحاول لاحقًا دون إنشاء نسخة مكررة.');
@@ -75,7 +85,7 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
         const location = created.headers.get('Location');
         if (!location) throw new Error('لم يرجع التخزين عنوان متابعة الرفع.');
         const url = new URL(location,endpoint).toString();
-        if (new URL(url).origin !== new URL(endpoint).origin) throw new Error('عنوان متابعة غير آمن.');
+        if (!isTusUrl(url)) throw new Error('عنوان متابعة غير آمن.');
         record = {url,assetId:intent.assetId};
         localStorage.setItem(keyName,JSON.stringify(record));
       }
@@ -89,8 +99,8 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
               'Upload-Offset':String(offset),
               'Content-Type':'application/offset+octet-stream',
             },chunk);
-            const next = Number(response.headers.get('Upload-Offset'));
-            if (!Number.isSafeInteger(next) || next <= offset || next > file.size)
+            const next = parseTusOffset(response.headers,file.size);
+            if (next <= offset)
               throw new Error('استجابة تقدم غير صالحة من الخادم.');
             offset = next; setPercent(Math.round(offset/file.size*100)); break;
           } catch (err) {
@@ -98,10 +108,12 @@ export function AcademyResumableUpload({lessonId}:{lessonId:string}) {
             if (++attempts >= 5) throw err;
             await wait(Math.min(1000*2**attempts,16000));
             const head = await request(record.url,'HEAD');
-            const serverOffset = Number(head.headers.get('Upload-Offset'));
-            if (!Number.isSafeInteger(serverOffset) || serverOffset < 0 || serverOffset > file.size)
-              throw new Error('تعذر استعادة موضع الرفع.');
+            assertTusLength(head.headers,file.size);
+            const serverOffset = parseTusOffset(head.headers,file.size);
+            if (serverOffset < offset) throw new Error('موضع الرفع تراجع على الخادم؛ يلزم التحقق من سلامة الجلسة.');
             offset = serverOffset;
+            // The server may have stored the last PATCH even if its ACK was lost.
+            if (offset === file.size) { setPercent(100); break; }
           }
         }
       }
