@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { constants as fsConstants, createReadStream, createWriteStream } from 'node:fs';
 import { lstat, mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
@@ -139,17 +139,33 @@ export async function createGateway({ directory, authorize, origins = [], signin
             !Number.isSafeInteger(grant.size) || grant.size <= 0 || grant.size > MAX_BYTES ||
             !/^[a-f0-9]{64}$/.test(grant.sha256) || typeof grant.mimeType !== 'string' ||
             typeof grant.name !== 'string') throw fail(403, 'Invalid or expired download token');
-        // Bind the signed URL to the exact bytes verified at issuance. A replaced
-        // or modified file must never be served under an older valid signature.
+        // Pin the verified inode before serving. A path replacement between
+        // SHA-256 verification and stream creation must not change the bytes sent.
+        const before = await diskState(id);
         const current = await verify(id, { file_size: grant.size, mime_type: grant.mimeType });
         if (current.sha256 !== grant.sha256) throw fail(409, 'Download content changed');
-        const size = current.size;
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(grant.name));
-        res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
-        res.setHeader('Content-Length', String(size));
-        res.writeHead(200);
-        if (req.method === 'HEAD') res.end(); else await pipeline(createReadStream(file(id)), res);
+        let handle;
+        try {
+          handle = await open(file(id), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+        } catch (error) {
+          if (error.code === 'ELOOP' || error.code === 'ENOENT') throw fail(409, 'Download file changed');
+          throw error;
+        }
+        try {
+          const opened = await handle.stat({ bigint: true });
+          if (!opened.isFile() || opened.nlink !== 1n ||
+              JSON.stringify(fingerprint(opened)) !== JSON.stringify(fingerprint(before)))
+            throw fail(409, 'Download file changed');
+          res.setHeader('Content-Type', 'application/octet-stream');
+          res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(grant.name));
+          res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+          res.setHeader('Content-Length', String(current.size));
+          res.writeHead(200);
+          if (req.method === 'HEAD') res.end();
+          else await pipeline(handle.createReadStream({ autoClose: false }), res);
+        } finally {
+          await handle.close();
+        }
         return;
       }
       const operation = action === 'download-token' ? 'download' : action || (req.method === 'POST' && kind === 'files' ? 'create' : req.method.toLowerCase());

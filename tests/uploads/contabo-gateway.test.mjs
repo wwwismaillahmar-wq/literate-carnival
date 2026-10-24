@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtemp, rm, stat, writeFile, symlink } from 'node:fs/promises';
+import { link, mkdtemp, rm, stat, writeFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomFillSync } from 'node:crypto';
@@ -99,6 +99,32 @@ test('offset conflicts, duplicate creation, restart, exact completion, signed do
     assert.equal((await fetch(f.base + signed.path, { method: 'HEAD' })).status, 409);
     f.setAsset({ status: 'archived' });
     assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 403);
+  } finally { await f.close(); }
+});
+
+test('signed download refuses symlink and hardlink substitution after grant issuance', async () => {
+  const f = await fixture(4);
+  const diskFile = path.join(f.directory, id + '.data');
+  try {
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
+    })).status, 201);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH',
+      headers: { ...headers, 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' },
+      body: 'abcd',
+    })).status, 204);
+    const signedResponse = await fetch(f.base + '/assets/' + id + '/download-token', { method: 'POST', headers });
+    assert.equal(signedResponse.status, 200);
+    const signed = await signedResponse.json();
+    assert.equal((await fetch(f.base + signed.path, { method: 'HEAD' })).status, 200);
+    await rm(diskFile);
+    await symlink('/etc/hosts', diskFile);
+    assert.equal((await fetch(f.base + signed.path)).status, 409);
+    await rm(diskFile);
+    await writeFile(diskFile, 'abcd');
+    await link(diskFile, path.join(f.directory, 'another-hardlink'));
+    assert.equal((await fetch(f.base + signed.path)).status, 409);
   } finally { await f.close(); }
 });
 
