@@ -19,3 +19,7 @@ jobs:
       - run: npm run typecheck
       - name: Verify six locale navigation dictionaries
         run: node scripts/check-six-locales.cjs
+      - name: Academy unit tests
+        run: npm run test:academy
+      - name: Production build
+        run: npm run build
