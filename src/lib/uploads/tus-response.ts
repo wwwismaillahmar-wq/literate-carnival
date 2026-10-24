@@ -20,3 +20,19 @@ export function assertTusLength(headers: Pick<Headers, 'get'>, fileSize: number)
     throw new Error('TUS upload length does not match selected file');
   }
 }
+
+/** A lost PATCH response is not proof that the server rejected its bytes. */
+export async function recoverTusOffset(
+  url: string,
+  fileSize: number,
+  previousOffset: number,
+  head: (url: string) => Promise<Pick<Response, 'headers'>>,
+): Promise<number> {
+  const response = await head(url);
+  assertTusLength(response.headers, fileSize);
+  const offset = parseTusOffset(response.headers, fileSize);
+  if (!Number.isSafeInteger(previousOffset) || previousOffset < 0 || offset < previousOffset) {
+    throw new Error('TUS server offset regressed');
+  }
+  return offset;
+}
