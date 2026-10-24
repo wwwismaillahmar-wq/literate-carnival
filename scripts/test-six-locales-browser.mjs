@@ -12,6 +12,8 @@ const langs = ['ar','fr','en','es','de','pt'];
 const routes = ['/','/market','/services','/academy','/partners','/company','/community','/talent'];
 const normalizePath = path => path==='/'?'/':path.replace(/\/+$/,'');
 const talentHeadings = {ar:'الكفاءات المهنية الموثقة',fr:'Talents professionnels vérifiés',en:'Verified professional talent',es:'Talento profesional verificado',de:'Verifizierte Fachkräfte',pt:'Talentos profissionais verificados'};
+const companyHeadings = {"ar":"تعرف على المجموعة","fr":"Découvrez le groupe","en":"Discover the group","es":"Conoce el grupo","de":"Die Gruppe kennenlernen","pt":"Conheça o grupo"};
+const companySectionLabels = {"ar":["عن ASLAN","الرؤية","الرسالة","الأنشطة","المشاريع","معرض الأعمال","الأخبار","الأسئلة الشائعة"],"fr":["À propos d’ASLAN","Vision","Mission","Activités","Projets","Réalisations","Actualités","Questions fréquentes"],"en":["About ASLAN","Vision","Mission","Activities","Projects","Portfolio","News","Frequently asked questions"],"es":["Acerca de ASLAN","Visión","Misión","Actividades","Proyectos","Trabajos","Noticias","Preguntas frecuentes"],"de":["Über ASLAN","Vision","Mission","Tätigkeiten","Projekte","Referenzen","Neuigkeiten","Häufige Fragen"],"pt":["Sobre a ASLAN","Visão","Missão","Atividades","Projetos","Portefólio","Notícias","Perguntas frequentes"]};
 const partnerHeadings = {ar:'الشراكات والتعاون',fr:'Partenariats et collaboration',en:'Partnerships and collaboration',es:'Alianzas y colaboración',de:'Partnerschaften und Zusammenarbeit',pt:'Parcerias e colaboração'};
 const partnerFormLabels = {
   ar:['اسم جهة الاتصال','رقم الهاتف','البريد الإلكتروني (اختياري)','اسم الشركة أو المؤسسة','مجال الشراكة','تفاصيل الطلب'],
@@ -82,6 +84,12 @@ try {
     },code,{timeout:15000});
     assert.equal(normalizePath(new URL(page.url()).pathname),route,'unexpected redirect '+code+':'+route);
     if(route==='/talent') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,talentHeadings[code],{timeout:15000});
+    if(route==='/company') {
+      await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,companyHeadings[code],{timeout:15000});
+      const headings=page.locator('main .grid.three .card h2');
+      assert.equal(await headings.count(),8,'company sections count '+code);
+      for(let i=0;i<8;i++) assert.equal((await headings.nth(i).textContent()).trim(),companySectionLabels[code][i],code+':company section '+i);
+    }
     if(route==='/partners') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,partnerHeadings[code],{timeout:15000});
     if(route==='/partners') {
       const form=page.locator('form.card');
