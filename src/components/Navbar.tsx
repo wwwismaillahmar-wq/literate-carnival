@@ -19,7 +19,7 @@ export function Navbar(){
   const [brandLogoUrl,setBrandLogoUrl]=useState<string|null>(null);
   const [brandGold,setBrandGold]=useState('#c9a45c');
   useEffect(()=>{fetch('/api/account/profile').then(async r=>r.ok?r.json():null).then(d=>{if(d?.profile)setProfile(d.profile);setIsAdmin(Boolean(d?.isAdmin))}).catch(()=>undefined);fetch('/api/platform/site-settings',{cache:'no-store'}).then(async r=>r.ok?r.json():null).then(d=>{if(typeof d?.brandLogoUrl==='string')setBrandLogoUrl(d.brandLogoUrl);if(typeof d?.settings?.brand_gold==='string'&&/^#[0-9a-f]{6}$/i.test(d.settings.brand_gold))setBrandGold(d.settings.brand_gold)}).catch(()=>undefined)},[]);
-  const primary=['/','/market','/services','/academy','/partners','/company','/community'].map((href,index)=>[href,t(['home','market','services','academy','partners','company','community'][index])]);
+  const primary=['/','/market','/services','/academy','/partners','/company','/community','/talent'].map((href,index)=>[href,t(['home','market','services','academy','partners','company','community','talent'][index])]);
   const community:[string,string][]=[
     ['/market/sell','merchantDesk'],['/market/requests','quoteRequests'],['/guides','userGuide'],['/guides/management','roleGuide'],['/guides/rules','usageRules'],['/members','members'],['/account/friends','friends'],['/account/friend-requests','friendRequests'],['/account/messages','messages'],['/notifications','notifications'],['/support','support'],['/reviews','reviews'],['/account/posts','myPosts'],['/account/contributions','myContributions']
   ];
