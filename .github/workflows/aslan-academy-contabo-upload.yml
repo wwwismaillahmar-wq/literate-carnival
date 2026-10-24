@@ -96,6 +96,27 @@ jobs:
           tar -xzf "$base/release.tgz" -C "$release"
           bash "$release/scripts/ops/deploy-academy-upload.sh"
           REMOTE
+      - name: Verify public TLS and browser upload boundaries from outside Contabo
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json,re
+          report=open('contabo-upload-report.txt').read()
+          match=re.search(r'^CONTABO_PUBLIC_UPLOAD_URL=(https://[^/\s]+)$',report,re.M)
+          if not match: raise SystemExit('PUBLIC_UPLOAD_ENDPOINT_MISSING')
+          base=match.group(1)
+          health=json.load(urllib.request.urlopen(base+'/health',timeout=30))
+          assert health.get('backend')=='contabo' and health.get('maxBytes')==8589934592, 'PUBLIC_GATEWAY_CAPABILITY_MISMATCH'
+          for method,origin,expected in [('HEAD',None,401),('OPTIONS','https://literate-carnival-lemon.vercel.app',204),('OPTIONS','https://foreign.example',403)]:
+              req=urllib.request.Request(base+'/files/5dd358cf-6c5c-4b6b-8901-3f6e2d33f7c0',method=method,headers={'Origin':origin} if origin else {})
+              try:
+                  response=urllib.request.urlopen(req,timeout=30)
+                  code=response.status
+                  if expected==204: assert response.headers.get('Access-Control-Allow-Origin')==origin
+              except urllib.error.HTTPError as error: code=error.code
+              assert code==expected, (method,origin,code,expected)
+          print('CONTABO_EXTERNAL_TLS_AUTH_CORS_8GIB_PASS')
+          PY
       - name: Save transfer and deployment evidence
         if: always()
         uses: actions/upload-artifact@v4
