@@ -48,7 +48,14 @@ if docker container inspect aslan-academy-upload >/dev/null 2>&1; then
   managed=$(docker inspect -f '{{index .Config.Labels "aslan.managed"}}' aslan-academy-upload)
   [[ "$managed" = 'academy-upload' ]] || { echo 'BLOCKED_UNMANAGED_CONTAINER'; exit 51; }
   deployed=$(docker inspect -f '{{index .Config.Labels "aslan.sha"}}' aslan-academy-upload)
-  if [[ "$deployed" != "$ASLAN_SHA" ]]; then
+  settings_match=0
+  if docker inspect -f '{{json .Config.Env}}' aslan-academy-upload | node -e '
+const fs=require("node:fs");
+const env=JSON.parse(fs.readFileSync(0,"utf8"));
+const expected=fs.readFileSync(process.argv[1],"utf8").trim().split("\n");
+process.exit(expected.every(line=>env.includes(line))?0:1);
+' "$base/gateway.env"; then settings_match=1; fi
+  if [[ "$deployed" != "$ASLAN_SHA" ]] && { [[ "$reuse" != 1 ]] || [[ "$settings_match" != 1 ]]; }; then
     old="aslan-academy-upload-rollback-$ASLAN_SHA"
     docker stop --time 30 aslan-academy-upload >/dev/null
     docker rename aslan-academy-upload "$old"
@@ -185,6 +192,7 @@ CADDY
     -v "$base/Caddyfile:/etc/caddy/Caddyfile:ro" \
     -v "$base/caddy-data:/data" -v "$base/caddy-config:/config" "$caddy_image" >/dev/null
 fi
+docker logs --tail 35 aslan-academy-upload-tls 2>&1 | tail -n 35
 for attempt in $(seq 1 30); do
   if curl -fsS --max-time 5 "https://$candidate/health" > "$base/public-health.json"; then
     if [[ "$ip_certificate" = 0 ]]; then printf '%s\n' "$candidate" > "$base/hostname"; fi
@@ -196,4 +204,5 @@ for attempt in $(seq 1 30); do
 done
 echo 'BLOCKED_PUBLIC_TLS_CERTIFICATE_OR_NETWORK'
 echo "SERVER_HOSTNAME=$candidate"
+docker logs --tail 45 aslan-academy-upload-tls 2>&1
 exit 58
