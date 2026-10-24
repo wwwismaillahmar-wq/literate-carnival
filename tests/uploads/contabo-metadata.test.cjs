@@ -12,7 +12,7 @@ test('real Postgres metadata constraints admit Contabo 8 GiB and preserve legacy
       mime_type text not null constraint academy_lesson_assets_mime_type_check check(mime_type in ('video/mp4','text/plain')),
       status text not null default 'pending' constraint academy_lesson_assets_status_check check(status in ('pending','ready','archived'))
     ); insert into public.academy_lesson_assets(id,file_size,mime_type) values(1,10,'text/plain');`);
-    const migration = fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261024114252_academy_contabo_8gib_assets.sql'),'utf8');
+    const migration = fs.readFileSync(path.join(__dirname,'../../supabase/migrations/20261024114816_academy_contabo_8gib_assets.sql'),'utf8');
     await db.exec(migration);
     const old = await db.query('select storage_backend from public.academy_lesson_assets where id=1');
     assert.equal(old.rows[0].storage_backend, 'supabase');

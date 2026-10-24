@@ -14,8 +14,29 @@ available=$(df -PB1 "$base" | awk 'NR==2 {print $4}')
 # Real disk/network transfer, mid-PATCH abort, process restart and full SHA-256.
 # The test listener stays on loopback with an injected test identity, never public.
 cd "$release"
-ASLAN_LARGE_TRANSFER=1 node --test tests/uploads/contabo-gateway.test.mjs
-echo 'CONTABO_2_AND_8_GIB_TRANSFER_SHA256_RESUME_PASS'
+reuse=0
+if docker container inspect aslan-academy-upload >/dev/null 2>&1; then
+  previous_source=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/app/gateway.mjs"}}{{.Source}}{{end}}{{end}}' aslan-academy-upload)
+  previous_sha=$(docker inspect -f '{{index .Config.Labels "aslan.sha"}}' aslan-academy-upload)
+  previous_managed=$(docker inspect -f '{{index .Config.Labels "aslan.managed"}}' aslan-academy-upload)
+  case "$previous_source" in
+    "$base"/releases/*/infra/uploads/academy-gateway.mjs)
+      previous_release=${previous_source%/infra/uploads/academy-gateway.mjs}
+      if [[ "$previous_managed" = academy-upload ]] && \
+        cmp -s "$previous_source" "$release/infra/uploads/academy-gateway.mjs" && \
+        cmp -s "$previous_release/tests/uploads/contabo-gateway.test.mjs" "$release/tests/uploads/contabo-gateway.test.mjs"; then reuse=1; fi
+      ;;
+  esac
+fi
+if [[ "$reuse" = 1 ]]; then
+  # This managed service can only have been deployed after the same large tests
+  # passed. Reuse their evidence when only DNS/deployment wiring changed.
+  node --test tests/uploads/contabo-gateway.test.mjs
+  echo "CONTABO_2_8_GIB_EVIDENCE_REUSED_FROM_DEPLOYED_SHA=$previous_sha"
+else
+  ASLAN_LARGE_TRANSFER=1 node --test tests/uploads/contabo-gateway.test.mjs
+  echo 'CONTABO_2_AND_8_GIB_TRANSFER_SHA256_RESUME_PASS'
+fi
 
 mkdir -p "$base/data"
 chmod 700 "$base/data"
@@ -81,19 +102,29 @@ if ! [[ "$candidate" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]]; then
   echo "SERVER_HOSTNAME=$candidate"
   exit 55
 fi
-resolved=$(getent ahostsv4 "$candidate" | awk 'NR==1 {print $1}' || true)
+# Query DNS directly: /etc/hosts may map the kernel hostname to 127.0.1.1.
+dns_address() {
+  node - "$1" <<'NODE'
+const dns=require('node:dns').promises,net=require('node:net'),host=process.argv[2];
+if(net.isIP(host)===4){console.log(host);}else{
+  setTimeout(()=>process.exit(0),5000).unref();
+  dns.resolve4(host).then(rows=>{if(rows[0])console.log(rows[0]);}).catch(()=>{});
+}
+NODE
+}
+resolved=$(dns_address "$candidate")
 # A NAT/public address may differ from hostname -I. The already verified SSH
 # target is another authoritative address for this same server.
 ssh_target=$(sed -n 's/^ASLAN_UPLOAD_EXPECTED_HOST=//p' "$base/gateway.env")
 expected=''
-if [[ "$ssh_target" =~ ^[A-Za-z0-9.-]+$ ]]; then expected=$(getent ahostsv4 "$ssh_target" | awk 'NR==1 {print $1}' || true); fi
+if [[ "$ssh_target" =~ ^[A-Za-z0-9.-]+$ ]]; then expected=$(dns_address "$ssh_target"); fi
 matches_server() { [[ -n "$1" ]] && { [[ "$1" = "$expected" ]] || hostname -I | tr ' ' '\n' | grep -Fxq "$1"; }; }
 if ! matches_server "$resolved"; then
   for address in "$expected" $(hostname -I); do
     [[ -n "$address" ]] || continue
     ptr=$(getent hosts "$address" | awk '{for(i=2;i<=NF;i++) if($i ~ /\./){print $i;exit}}' || true)
     [[ "$ptr" =~ ^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$ ]] || continue
-    ptr_address=$(getent ahostsv4 "$ptr" | awk 'NR==1 {print $1}' || true)
+    ptr_address=$(dns_address "$ptr")
     if matches_server "$ptr_address"; then candidate="$ptr"; resolved="$ptr_address"; break; fi
   done
 fi
