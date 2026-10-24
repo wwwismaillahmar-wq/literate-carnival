@@ -32,5 +32,10 @@ const academyCopy={
 
 // Labels are localized without changing the stable training field IDs used for filtering.
 const fieldNames:Record<string,Record<string,string>>={
- ar:{},fr:{},en:{},es:{},de:{},pt:{}
+ ar:{upholstery:'التنجيد والديكور',sewing:'الخياطة والتفصيل',electrical:'الكهرباء الصناعية',cooling:'التبريد والتكييف',plumbing:'التدفئة والأنابيب'},
+ fr:{upholstery:'Tapisserie et décoration',sewing:'Couture et confection',electrical:'Électricité industrielle',cooling:'Réfrigération et climatisation',plumbing:'Chauffage et plomberie'},
+ en:{upholstery:'Upholstery and interior design',sewing:'Sewing and tailoring',electrical:'Industrial electricity',cooling:'Cooling and air conditioning',plumbing:'Heating and plumbing'},
+ es:{upholstery:'Tapicería y decoración',sewing:'Costura y confección',electrical:'Electricidad industrial',cooling:'Refrigeración y climatización',plumbing:'Calefacción y fontanería'},
+ de:{upholstery:'Polsterei und Innendesign',sewing:'Nähen und Schneidern',electrical:'Industrieelektrik',cooling:'Kälte- und Klimatechnik',plumbing:'Heizung und Sanitär'},
+ pt:{upholstery:'Estofamento e decoração',sewing:'Costura e alfaiataria',electrical:'Eletricidade industrial',cooling:'Refrigeração e climatização',plumbing:'Aquecimento e canalização'}
 };
