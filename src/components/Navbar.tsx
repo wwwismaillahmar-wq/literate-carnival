@@ -20,7 +20,9 @@ export function Navbar(){
   const [brandGold,setBrandGold]=useState('#c9a45c');
   useEffect(()=>{fetch('/api/account/profile').then(async r=>r.ok?r.json():null).then(d=>{if(d?.profile)setProfile(d.profile);setIsAdmin(Boolean(d?.isAdmin))}).catch(()=>undefined);fetch('/api/platform/site-settings',{cache:'no-store'}).then(async r=>r.ok?r.json():null).then(d=>{if(typeof d?.brandLogoUrl==='string')setBrandLogoUrl(d.brandLogoUrl);if(typeof d?.settings?.brand_gold==='string'&&/^#[0-9a-f]{6}$/i.test(d.settings.brand_gold))setBrandGold(d.settings.brand_gold)}).catch(()=>undefined)},[]);
   const primary=['/','/market','/services','/academy','/partners','/company','/community'].map((href,index)=>[href,t(['home','market','services','academy','partners','company','community'][index])]);
-  const community=[['/market/sell','مكتب التاجر'],['/market/requests','طلبات عروض الأسعار'],['/guides','دليل الاستخدام'],['/guides/management','دليل الأدوار'],['/guides/rules','قواعد الاستخدام'],['/members','الأعضاء'],['/account/friends','الأصدقاء'],['/account/friend-requests','طلبات الصداقة'],['/account/messages','الرسائل'],['/notifications','الإشعارات'],['/support','الدعم والشكاوى'],['/reviews','التقييمات'],['/account/posts','منشوراتي'],['/account/contributions','مساهماتي']];
+  const community:[string,string][]=[
+    ['/market/sell','merchantDesk'],['/market/requests','quoteRequests'],['/guides','userGuide'],['/guides/management','roleGuide'],['/guides/rules','usageRules'],['/members','members'],['/account/friends','friends'],['/account/friend-requests','friendRequests'],['/account/messages','messages'],['/notifications','notifications'],['/support','support'],['/reviews','reviews'],['/account/posts','myPosts'],['/account/contributions','myContributions']
+  ];
   return <header className="shell-header">
     <div className="wrap" style={{minHeight:76,display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
       <Link href="/" className="shell-brand" onClick={()=>setOpen(false)}>{brandLogoUrl?<img src={brandLogoUrl} alt="ASLAN Modelling Group" style={{maxWidth:120,maxHeight:48,objectFit:'contain'}}/>:<><AslanBrandMark size={44} decorative/><span className="shell-wordmark" style={{color:brandGold}}>ASLAN</span></>}<span><small style={{display:'block',fontSize:9,color:'var(--muted)',letterSpacing:'.18em'}}>MODELLING GROUP</small></span></Link>
@@ -33,8 +35,8 @@ export function Navbar(){
     </div>
     {open&&<div className="wrap shell-mobile-menu" style={{padding:'12px 0 18px',display:'grid',gap:8}}>
       {primary.map(([href,label])=><Link key={href} href={href} aria-current={active(href)?'page':undefined} onClick={()=>setOpen(false)}>{label}</Link>)}
-      <div style={{borderTop:'1px solid var(--line)',marginTop:4,paddingTop:8,display:'grid',gap:8}}>{community.map(([href,label])=><Link key={href} href={href} onClick={()=>setOpen(false)}>{label}</Link>)}</div>
-      {profile&&<Link href="/partner-portal" onClick={()=>setOpen(false)}>{t('partnerPortal')}</Link>}{isAdmin&&<div style={{borderTop:'1px solid var(--line)',marginTop:4,paddingTop:8,display:'grid',gap:8}}><Link href="/admin/dashboard" onClick={()=>setOpen(false)}>⚙️ {t('admin')}</Link><Link href="/products" onClick={()=>setOpen(false)}>👁️ معاينة المتجر كزائر</Link></div>}
+      <div style={{borderTop:'1px solid var(--line)',marginTop:4,paddingTop:8,display:'grid',gap:8}}>{community.map(([href,key])=><Link key={href} href={href} onClick={()=>setOpen(false)}>{t(key)}</Link>)}</div>
+      {profile&&<Link href="/partner-portal" onClick={()=>setOpen(false)}>{t('partnerPortal')}</Link>}{isAdmin&&<div style={{borderTop:'1px solid var(--line)',marginTop:4,paddingTop:8,display:'grid',gap:8}}><Link href="/admin/dashboard" onClick={()=>setOpen(false)}>⚙️ {t('admin')}</Link><Link href="/products" onClick={()=>setOpen(false)}>👁️ {t('previewStore')}</Link></div>}
       {!profile&&<><Link href="/login" onClick={()=>setOpen(false)}>{t('login')}</Link><Link href="/register" onClick={()=>setOpen(false)}>{t('register')}</Link></>}
     </div>}
   </header>;
