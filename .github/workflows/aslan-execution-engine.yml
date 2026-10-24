@@ -1,0 +1,37 @@
+name: ASLAN Execution Engine Verification
+on:
+  push:
+    branches: [ops/aslan-technical-team-20261020]
+    paths:
+      - 'scripts/ops/aslan-command-intake.mjs'
+      - 'scripts/ops/aslan-execution-engine.mjs'
+      - 'tests/ops/**'
+      - '.github/workflows/aslan-execution-engine.yml'
+  pull_request:
+    paths:
+      - 'scripts/ops/aslan-command-intake.mjs'
+      - 'scripts/ops/aslan-execution-engine.mjs'
+      - 'tests/ops/**'
+      - '.github/workflows/aslan-execution-engine.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  engine-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate command routing and permissions
+        run: node --test tests/ops/*.test.mjs
+      - name: Check engine syntax
+        run: |
+          node --check scripts/ops/aslan-command-intake.mjs
+          node --check scripts/ops/aslan-execution-engine.mjs
+      - name: Publish verification summary
+        if: always()
+        run: |
+          echo 'ASLAN execution engine validation finished. Inspect job result and logs before accepting completion.' >> "$GITHUB_STEP_SUMMARY"
