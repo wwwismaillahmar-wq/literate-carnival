@@ -45,7 +45,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const result = await response.json();
+      await response.json();
 
       if (!response.ok) {
         setError(copy.missing);
