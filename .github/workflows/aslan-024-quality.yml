@@ -1,5 +1,7 @@
 name: ASLAN 024 quality gate
 on:
+  push:
+    branches: [feat/aslan-web-exec-2026-024]
   pull_request:
     branches: [main]
   workflow_dispatch:
