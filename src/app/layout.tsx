@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import { resolveLocale, localeDirection } from '@/lib/i18n/core';
 import './globals.css';
 import { CinematicIntro } from '@/components/CinematicIntro';
 import { Navbar } from '@/components/Navbar';
@@ -16,6 +18,7 @@ export const metadata:Metadata={
  openGraph:{type:'website',locale:'ar_DZ',siteName:'ASLAN Modelling Group',title:'ASLAN Modelling Group',description:'نبني الجودة. نصنع الثقة.',url:siteUrl},
  robots:{index:true,follow:true},
 };
-export default function RootLayout({children}:{children:React.ReactNode}) {
- return <html lang="ar" dir="rtl"><body><CinematicIntro/><Navbar/>{children}<Footer/><WhatsAppButton/><AnalyticsConsent/><SpeedInsights/></body></html>;
+export default async function RootLayout({children}:{children:React.ReactNode}) {
+ const locale=resolveLocale((await cookies()).get('aslan-language')?.value);
+ return <html lang={locale} dir={localeDirection(locale)}><body><CinematicIntro/><Navbar/>{children}<Footer/><WhatsAppButton/><AnalyticsConsent/><SpeedInsights/></body></html>;
 }

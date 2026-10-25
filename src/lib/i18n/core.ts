@@ -17,6 +17,7 @@ export function applyLocale(locale: AslanLocale): void {
 export function persistLocale(locale: AslanLocale): void {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
   applyLocale(locale);
   window.dispatchEvent(new Event(LOCALE_EVENT));
 }

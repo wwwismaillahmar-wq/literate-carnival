@@ -1,5 +1,6 @@
 'use client';
 import {useCallback,useEffect,useState} from 'react';
+import {usePathname,useRouter,useSearchParams} from 'next/navigation';
 import {LOCALE_EVENT as LANGUAGE_EVENT, LOCALE_STORAGE_KEY, resolveLocale, applyLocale, persistLocale, translate} from '@/lib/i18n/core';
 import {languages,languageNames,type Language} from '@/components/LanguageSelector';
 const translations:Record<Language,Record<string,string>>={
@@ -12,8 +13,14 @@ const translations:Record<Language,Record<string,string>>={
 };
 export function useAslanLanguage(){
  const [language,setLanguage]=useState<Language>('ar');
+ const router=useRouter();const pathname=usePathname();const searchParams=useSearchParams();
  useEffect(()=>{const saved=window.localStorage.getItem(LOCALE_STORAGE_KEY);const next=resolveLocale(saved);setLanguage(next);applyLocale(next);const sync=()=>{const value=window.localStorage.getItem(LOCALE_STORAGE_KEY);const current=resolveLocale(value);setLanguage(current);applyLocale(current);};window.addEventListener(LANGUAGE_EVENT,sync);window.addEventListener('storage',sync);return ()=>{window.removeEventListener(LANGUAGE_EVENT,sync);window.removeEventListener('storage',sync);};},[]);
- const change=useCallback((next:Language)=>{setLanguage(next);persistLocale(next);},[]);
+ const change=useCallback((next:Language)=>{setLanguage(next);persistLocale(next);
+   const path=pathname||'/';const parts=path.split('/').filter(Boolean);
+   const withoutLocale=languages.some(code=>code===parts[0])?'/'+parts.slice(1).join('/'):path;
+   const destination='/'+next+(withoutLocale==='/'?'':withoutLocale);
+   const query=searchParams.toString();router.replace(destination+(query?'?'+query:''),{scroll:false});
+ },[pathname,router,searchParams]);
  return {language,change,t:(key:string)=>translate(translations,language,key)};
 }
 export function LocalePicker({language,change}:{language:Language;change:(next:Language)=>void}){
