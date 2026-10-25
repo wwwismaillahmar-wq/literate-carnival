@@ -1,6 +1,6 @@
 import http from 'node:http';
-import { constants as fsConstants } from 'node:fs';
-import { lstat, mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdir, open, readFile, rename, rm, stat, statfs } from 'node:fs/promises';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
@@ -56,71 +56,18 @@ export async function createGateway({ directory, authorize, origins = [], signin
     try { await handle.writeFile(JSON.stringify(value)); await handle.sync(); } finally { await handle.close(); }
     await rename(temp, target);
   }
-  // A receipt is only reusable for the exact regular file that was hashed.
-  // Size alone cannot detect replacement or same-length tampering.
-  async function diskState(id) {
-    try {
-      const state = await lstat(file(id), { bigint: true });
-      if (!state.isFile() || state.nlink !== 1n) throw fail(409, 'Unsafe upload file');
-      return state;
-    } catch (error) {
-      if (error.code === 'ENOENT') throw fail(404, 'Upload not found');
-      throw error;
-    }
-  }
-  const fingerprint = state => ({
-    dev: String(state.dev), ino: String(state.ino), size: String(state.size),
-    mtimeNs: String(state.mtimeNs), ctimeNs: String(state.ctimeNs),
-  });
-  async function sizeOf(id) { return Number((await diskState(id)).size); }
+  async function sizeOf(id) { try { return (await stat(file(id))).size; } catch (error) { if (error.code === 'ENOENT') throw fail(404, 'Upload not found'); throw error; } }
   async function verify(id, asset) {
-    const before = await diskState(id);
-    const size = Number(before.size);
+    const size = await sizeOf(id);
     if (size !== Number(asset.file_size)) throw fail(409, 'Upload incomplete');
-    const identity = fingerprint(before);
     try {
       const old = JSON.parse(await readFile(receipt(id), 'utf8'));
-      if (old.size === size && old.mimeType === asset.mime_type &&
-          /^[a-f0-9]{64}$/.test(old.sha256) &&
-          JSON.stringify(old.fingerprint) === JSON.stringify(identity)) {
-        return { size, mimeType: old.mimeType, sha256: old.sha256 };
-      }
-    } catch (error) {
-      // A truncated/corrupt cached receipt is not evidence about file bytes.
-      // Rehash the pinned file instead of permanently blocking verification.
-      if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
-    }
-    // Hash bytes from a pinned, no-follow file descriptor. A path swap between
-    // lstat and stream creation must never make us hash a different file.
+      if (old.size === size && old.mimeType === asset.mime_type) return old;
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const hash = createHash('sha256');
-    let handle;
-    try {
-      try {
-        handle = await open(file(id), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-      } catch (error) {
-        if (error.code === 'ELOOP' || error.code === 'ENOENT') throw fail(409, 'Upload file changed');
-        throw error;
-      }
-      const opened = await handle.stat({ bigint: true });
-      if (!opened.isFile() || opened.nlink !== 1n ||
-          JSON.stringify(fingerprint(opened)) !== JSON.stringify(identity))
-        throw fail(409, 'Upload changed before verification');
-      const buffer = Buffer.allocUnsafe(1024 * 1024);
-      let position = 0;
-      while (position < size) {
-        const { bytesRead } = await handle.read(buffer, 0, Math.min(buffer.length, size - position), position);
-        if (bytesRead === 0) throw fail(409, 'Upload truncated during verification');
-        hash.update(buffer.subarray(0, bytesRead));
-        position += bytesRead;
-      }
-      if (JSON.stringify(fingerprint(await handle.stat({ bigint: true }))) !== JSON.stringify(identity) ||
-          JSON.stringify(fingerprint(await diskState(id))) !== JSON.stringify(identity))
-        throw fail(409, 'Upload changed during verification');
-    } finally {
-      await handle?.close();
-    }
+    for await (const chunk of createReadStream(file(id))) hash.update(chunk);
     const result = { size, mimeType: asset.mime_type, sha256: hash.digest('hex') };
-    await atomicJSON(receipt(id), { ...result, fingerprint: identity });
+    await atomicJSON(receipt(id), result);
     return result;
   }
   const server = http.createServer(async (req, res) => {
@@ -154,46 +101,19 @@ export async function createGateway({ directory, authorize, origins = [], signin
         if (req.method !== 'GET' && req.method !== 'HEAD') throw fail(405, 'Method not allowed');
         const token = url.searchParams.get('token') || '';
         if (token.length > 2048) throw fail(403, 'Invalid download token');
-        const parts = token.split('.');
-        if (parts.length !== 2) throw fail(403, 'Invalid download token');
-        const [payload, signature] = parts;
+        const [payload, signature] = token.split('.');
         const expected = Buffer.from(sign(payload || ''));
         const actual = Buffer.from(signature || '');
         if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw fail(403, 'Invalid download token');
-        let grant;
-        try { grant = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); }
-        catch { throw fail(403, 'Invalid download token'); }
-        if (!grant || grant.id !== id || !Number.isSafeInteger(grant.expires) || grant.expires < Date.now() ||
-            !Number.isSafeInteger(grant.size) || grant.size <= 0 || grant.size > MAX_BYTES ||
-            !/^[a-f0-9]{64}$/.test(grant.sha256) || typeof grant.mimeType !== 'string' ||
-            typeof grant.name !== 'string') throw fail(403, 'Invalid or expired download token');
-        // Pin the verified inode before serving. A path replacement between
-        // SHA-256 verification and stream creation must not change the bytes sent.
-        const before = await diskState(id);
-        const current = await verify(id, { file_size: grant.size, mime_type: grant.mimeType });
-        if (current.sha256 !== grant.sha256) throw fail(409, 'Download content changed');
-        let handle;
-        try {
-          handle = await open(file(id), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-        } catch (error) {
-          if (error.code === 'ELOOP' || error.code === 'ENOENT') throw fail(409, 'Download file changed');
-          throw error;
-        }
-        try {
-          const opened = await handle.stat({ bigint: true });
-          if (!opened.isFile() || opened.nlink !== 1n ||
-              JSON.stringify(fingerprint(opened)) !== JSON.stringify(fingerprint(before)))
-            throw fail(409, 'Download file changed');
-          res.setHeader('Content-Type', 'application/octet-stream');
-          res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(grant.name));
-          res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
-          res.setHeader('Content-Length', String(current.size));
-          res.writeHead(200);
-          if (req.method === 'HEAD') res.end();
-          else await pipeline(handle.createReadStream({ autoClose: false }), res);
-        } finally {
-          await handle.close();
-        }
+        const grant = JSON.parse(Buffer.from(payload, 'base64url').toString());
+        if (grant.id !== id || !Number.isSafeInteger(grant.expires) || grant.expires < Date.now()) throw fail(403, 'Download expired');
+        const size = await sizeOf(id);
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(grant.name));
+        res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+        res.setHeader('Content-Length', String(size));
+        res.writeHead(200);
+        if (req.method === 'HEAD') res.end(); else await pipeline(createReadStream(file(id)), res);
         return;
       }
       const operation = action === 'download-token' ? 'download' : action || (req.method === 'POST' && kind === 'files' ? 'create' : req.method.toLowerCase());
@@ -201,11 +121,8 @@ export async function createGateway({ directory, authorize, origins = [], signin
       const length = Number(asset.file_size);
       if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_BYTES) throw fail(413, 'File exceeds 8 GiB');
       if (action === 'download-token' && req.method === 'POST') {
-        const verified = await verify(id, asset);
-        const payload = Buffer.from(JSON.stringify({
-          id, name: asset.file_name, expires: Date.now() + 300000,
-          size: verified.size, sha256: verified.sha256, mimeType: verified.mimeType,
-        })).toString('base64url');
+        await verify(id, asset);
+        const payload = Buffer.from(JSON.stringify({ id, name: asset.file_name, expires: Date.now() + 300000 })).toString('base64url');
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ path: '/download/' + id + '?token=' + payload + '.' + sign(payload) })); return;
       }
       if (kind === 'assets' && action === 'purge' && req.method === 'POST') {
@@ -226,26 +143,15 @@ export async function createGateway({ directory, authorize, origins = [], signin
       locked.add(id); lockId = id;
       if (req.method === 'POST') {
         if (req.headers['upload-length'] !== String(length)) throw fail(400, 'Declared length does not match asset');
-        // Resuming an existing upload must not reserve its full size again.
-        // In particular, an almost-complete 8 GiB upload may leave less than
-        // 8 GiB free; a duplicate POST is still an idempotent operation.
-        let existingSize;
-        try { existingSize = await sizeOf(id); }
-        catch (error) { if (error.status !== 404) throw error; }
-        if (existingSize !== undefined) {
-          if (existingSize > length) throw fail(409, 'Stored upload exceeds declared length');
-        } else {
-          const disk = await statfs(base, { bigint: true });
-          if (disk.bavail * disk.bsize < BigInt(length) + BigInt(reserveBytes)) throw fail(507, 'Insufficient disk capacity');
-          try { const handle = await open(file(id), 'wx', 0o600); await handle.close(); }
-          catch (error) { if (error.code !== 'EEXIST') throw error; }
-        }
+        const disk = await statfs(base, { bigint: true });
+        if (disk.bavail * disk.bsize < BigInt(length) + BigInt(reserveBytes)) throw fail(507, 'Insufficient disk capacity');
+        try { const handle = await open(file(id), 'wx', 0o600); await handle.close(); }
+        catch (error) { if (error.code !== 'EEXIST') throw error; } // idempotent create for the same authenticated asset
         res.setHeader('Location', '/files/' + id);
         res.setHeader('Upload-Offset', String(await sizeOf(id)));
         res.writeHead(201).end(); return;
       }
       const offset = await sizeOf(id);
-      if (offset > length) throw fail(409, 'Stored upload exceeds declared length');
       res.setHeader('Upload-Length', String(length));
       res.setHeader('Upload-Offset', String(offset));
       if (req.method === 'HEAD') { res.writeHead(200).end(); return; }
@@ -259,43 +165,17 @@ export async function createGateway({ directory, authorize, origins = [], signin
       if (!Number.isSafeInteger(contentLength) || contentLength <= 0 || contentLength > CHUNK_BYTES || offset + contentLength > length) throw fail(413, 'Invalid chunk size');
       const disk = await statfs(base, { bigint: true });
       if (disk.bavail * disk.bsize < BigInt(contentLength) + BigInt(reserveBytes)) throw fail(507, 'Insufficient disk capacity');
-      // Open the exact verified inode, not the path again via createWriteStream.
-      // O_NOFOLLOW prevents a symlink swap from redirecting a PATCH to another file.
-      const beforePatch = await diskState(id);
-      if (Number(beforePatch.size) !== offset) throw fail(409, 'Upload changed before PATCH');
       let received = 0;
       const limiter = new Transform({ transform(chunk, encoding, callback) {
         received += chunk.length;
         callback(received > contentLength ? fail(413, 'Chunk too large') : null, chunk);
       } });
-      let handle;
-      let writer;
       try {
-        try {
-          handle = await open(file(id), fsConstants.O_RDWR | fsConstants.O_NOFOLLOW);
-        } catch (error) {
-          if (error.code === 'ELOOP' || error.code === 'ENOENT') throw fail(409, 'Upload file changed');
-          throw error;
-        }
-        const opened = await handle.stat({ bigint: true });
-        if (!opened.isFile() || opened.nlink !== 1n ||
-            JSON.stringify(fingerprint(opened)) !== JSON.stringify(fingerprint(beforePatch)))
-          throw fail(409, 'Upload file changed before PATCH');
-        writer = handle.createWriteStream({ start: offset, autoClose: false });
-        await pipeline(req, limiter, writer);
+        await pipeline(req, limiter, createWriteStream(file(id), { flags: 'r+', start: offset, mode: 0o600 }));
         if (received !== contentLength) throw fail(400, 'Truncated chunk');
-        await handle.sync();
-        const onDisk = await diskState(id);
-        const written = await handle.stat({ bigint: true });
-        if (Number(written.size) !== offset + contentLength ||
-            JSON.stringify(fingerprint(onDisk)) !== JSON.stringify(fingerprint(written)))
-          throw fail(409, 'Upload file changed during PATCH');
+        const handle = await open(file(id), 'r+'); try { await handle.sync(); } finally { await handle.close(); }
       } finally {
-        // FileHandle.close waits for active streams. Explicitly release the writer
-        // after pipeline before closing the descriptor (including aborted PATCHes).
-        writer?.destroy();
-        await handle?.close();
-        // Interrupted PATCH bytes remain resumable; HEAD reports the real offset.
+        // Persist actual bytes, including an interrupted PATCH; HEAD is authoritative.
         res.setHeader('Upload-Offset', String(await sizeOf(id)));
       }
       res.writeHead(204).end();

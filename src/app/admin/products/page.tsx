@@ -41,11 +41,32 @@ export default async function AdminProducts({ searchParams }: {
   ]);
   const products = (productResult.data ?? []) as Product[];
   const categories = (categoryResult.data ?? []) as Category[];
-  const media: Media[] = await Promise.all((mediaResult.data ?? []).map(async (row) => {
-    const bucket = row.bucket_id ?? 'aslan-media';
-    const { data } = await db.storage.from(bucket).createSignedUrl(row.object_path, 3600);
-    return { ...row, bucket_id: bucket, url: data?.signedUrl ?? null } as Media;
+  // Batch signed URLs by bucket rather than issuing one request per media item.
+  const mediaRows = mediaResult.data ?? [];
+  const mediaByBucket = new Map<string, typeof mediaRows>();
+  for (const row of mediaRows) {
+    const bucket = row.bucket_id || 'aslan-media';
+    mediaByBucket.set(bucket, [...(mediaByBucket.get(bucket) ?? []), row]);
+  }
+  const signedUrls = new Map<string, string>();
+  await Promise.all(Array.from(mediaByBucket.entries()).map(async ([bucket, rows]) => {
+    // Keep batches bounded so a large catalogue does not produce oversized requests.
+    for (let start = 0; start < rows.length; start += 100) {
+      const batch = rows.slice(start, start + 100);
+      const { data, error } = await db.storage.from(bucket).createSignedUrls(batch.map(row => row.object_path), 3600);
+      if (error) {
+        console.error('[ASLAN product media] signed URL batch failed', { bucket, count: batch.length, message: error.message });
+        continue;
+      }
+      for (const item of data ?? []) {
+        if (item.signedUrl) signedUrls.set(bucket + ':' + item.path, item.signedUrl);
+      }
+    }
   }));
+  const media: Media[] = mediaRows.map(row => {
+    const bucket = row.bucket_id || 'aslan-media';
+    return { ...row, bucket_id: bucket, url: signedUrls.get(bucket + ':' + row.object_path) ?? null } as Media;
+  });
 
   const loadErrors = [
     productResult.error ? 'المنتجات: ' + productResult.error.message : null,
@@ -89,8 +110,8 @@ export default async function AdminProducts({ searchParams }: {
                   <ProductMediaUploader productId={product.id} />
                   <div className="grid three" style={{marginTop:12}}>
                     {productMedia.map((item) => <div className="card" key={item.id}>
-                      {item.url && item.media_type === 'image' ? <img src={item.url} alt={product.name} style={{width:'100%',height:180,objectFit:'contain',borderRadius:8}} /> : null}
-                      {item.url && item.media_type === 'video' ? <video src={item.url} controls style={{width:'100%',maxHeight:220,borderRadius:8}} /> : null}
+                      {item.url && item.media_type === 'image' ? <img loading="lazy" decoding="async" src={item.url} alt={product.name} style={{width:'100%',height:180,objectFit:'contain',borderRadius:8}} /> : null}
+                      {item.url && item.media_type === 'video' ? <video preload="none" src={item.url} controls style={{width:'100%',maxHeight:220,borderRadius:8}} /> : null}
                       {!item.url && <p className="muted">تعذر إنشاء رابط معاينة للملف.</p>}
                       <small className="muted">{item.media_type} · {Math.ceil(item.file_size / 1024)} KB</small>
                       <form action={deleteProductMedia} style={{marginTop:8}}>
@@ -116,22 +137,12 @@ export default async function AdminProducts({ searchParams }: {
 }
 
 function ProductForm({ product, categories }: { product?: Product; categories: Category[] }) {
-  return <form action={saveProduct} encType="multipart/form-data" style={{display:'grid',gap:10,marginTop:14}}>
+  return <form action={saveProduct} style={{display:'grid',gap:10,marginTop:14}}>
     {product && <input type="hidden" name="id" value={product.id}/>}
     <input type="hidden" name="return_to" value="/admin/products"/>
     <label>اسم المنتج<input name="name" defaultValue={product?.name ?? ''} required /></label>
     <label>الرابط المختصر (يُنشأ تلقائيًا عند تركه فارغًا)<input name="slug" defaultValue={product?.slug ?? ''} /></label>
     <label>الوصف<textarea name="description" defaultValue={product?.description ?? ''} rows={4}/></label>
-    {!product && (
-      <label>صورة المنتج
-        <input
-          name="media"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-        />
-        <small className="muted">يمكن إرفاق صورة واحدة عند الإنشاء (حتى 1.5 ميغابايت). أضف صورًا إضافية بعد حفظ المنتج.</small>
-      </label>
-    )}
     <div className="grid three">
       <label>السعر بالدينار<input name="price_dzd" type="number" min="0" step="1" defaultValue={product?.price_dzd ?? ''}/></label>
       <label>المخزون<input name="stock" type="number" min="0" step="1" defaultValue={product?.stock ?? 0}/></label>
@@ -142,7 +153,7 @@ function ProductForm({ product, categories }: { product?: Product; categories: C
       <label><input type="checkbox" name="home_featured" defaultChecked={product?.home_featured ?? false}/> تمييزه في الرئيسية</label>
       <label>الأولوية الإعلانية 0–100<input name="ad_priority" type="number" min="0" max="100" defaultValue={product?.ad_priority ?? 0}/></label>
     </div>
-    <p className="muted">بعد إنشاء المنتج، استخدم قسم الوسائط في بطاقة المنتج لرفع الصور والفيديوهات مباشرة إلى التخزين.</p>
+    <p className="muted">أنشئ المنتج أولًا، ثم ارفع الصور والفيديوهات من بطاقة المنتج مباشرة إلى التخزين (حتى 50 MiB للملف). لا تُرسل الصور عبر نموذج إنشاء المنتج، لتجنّب فشل الحفظ بسبب حد طلبات الخادم.</p>
     <button type="submit">{product ? 'حفظ التعديلات' : 'إنشاء المنتج'}</button>
   </form>;
 }

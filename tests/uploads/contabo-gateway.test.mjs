@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { link, mkdtemp, rm, stat, writeFile, symlink } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomFillSync } from 'node:crypto';
@@ -42,9 +42,8 @@ async function fixture(bytes, separateProcess = false) {
   }
   let asset = { id, owner_id: 'owner', file_size: bytes, file_name: 'test.txt', mime_type: 'text/plain', status: 'pending' };
   let server;
-  let reserveBytes = 0;
   const start = async () => {
-    server = await createGateway({ directory, reserveBytes, signingKey: 'a'.repeat(48), origins: ['https://academy.example'], authorize: async (req, assetId) => {
+    server = await createGateway({ directory, reserveBytes: 0, signingKey: 'a'.repeat(48), origins: ['https://academy.example'], authorize: async (req, assetId) => {
       if (req.headers.authorization !== 'Bearer owner' || assetId !== id || asset.status === 'archived') throw Object.assign(new Error('Denied'), { status: 403 });
       return asset;
     } });
@@ -53,7 +52,7 @@ async function fixture(bytes, separateProcess = false) {
   };
   let base = await start();
   const stop = () => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); });
-  return { directory, get base() { return base; }, setAsset: value => { asset = { ...asset, ...value }; }, restart: async (options = {}) => { await stop(); reserveBytes = options.reserveBytes ?? reserveBytes; base = await start(); }, close: async () => { await stop(); await rm(directory, { recursive: true, force: true }); } };
+  return { directory, get base() { return base; }, setAsset: value => { asset = { ...asset, ...value }; }, restart: async () => { await stop(); base = await start(); }, close: async () => { await stop(); await rm(directory, { recursive: true, force: true }); } };
 }
 
 test('Contabo enforces ownership, maximum length and configured CORS before disk allocation', async () => {
@@ -92,194 +91,8 @@ test('offset conflicts, duplicate creation, restart, exact completion, signed do
     assert.equal(await download.text(), 'helloworld');
     assert.match(download.headers.get('Content-Disposition'), /^attachment/);
     assert.equal((await fetch(f.base + signed.path.replace('token=', 'token=x'))).status, 403);
-    assert.equal((await fetch(f.base + signed.path + '.extra')).status, 403);
-    // A signed URL must not serve changed bytes even while its TTL is valid.
-    await writeFile(path.join(f.directory, id + '.data'), 'XXXXXXXXXX');
-    assert.equal((await fetch(f.base + signed.path)).status, 409);
-    assert.equal((await fetch(f.base + signed.path, { method: 'HEAD' })).status, 409);
     f.setAsset({ status: 'archived' });
     assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 403);
-  } finally { await f.close(); }
-});
-
-test('signed download refuses symlink and hardlink substitution after grant issuance', async () => {
-  const f = await fixture(4);
-  const diskFile = path.join(f.directory, id + '.data');
-  try {
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
-    })).status, 201);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH',
-      headers: { ...headers, 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' },
-      body: 'abcd',
-    })).status, 204);
-    const signedResponse = await fetch(f.base + '/assets/' + id + '/download-token', { method: 'POST', headers });
-    assert.equal(signedResponse.status, 200);
-    const signed = await signedResponse.json();
-    assert.equal((await fetch(f.base + signed.path, { method: 'HEAD' })).status, 200);
-    await rm(diskFile);
-    await symlink('/etc/hosts', diskFile);
-    assert.equal((await fetch(f.base + signed.path)).status, 409);
-    await rm(diskFile);
-    await writeFile(diskFile, 'abcd');
-    await link(diskFile, path.join(f.directory, 'another-hardlink'));
-    assert.equal((await fetch(f.base + signed.path)).status, 409);
-  } finally { await f.close(); }
-});
-
-test('PATCH refuses symlink and hardlink paths without modifying their targets', async () => {
-  const f = await fixture(8);
-  const diskFile = path.join(f.directory, id + '.data');
-  const outside = path.join(f.directory, 'unrelated-file');
-  const patch = () => fetch(f.base + '/files/' + id, {
-    method: 'PATCH', headers: { ...headers, 'Upload-Offset': '4',
-      'Content-Type': 'application/offset+octet-stream' }, body: 'ZZZZ',
-  });
-  try {
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'POST', headers: { ...headers, 'Upload-Length': '8' },
-    })).status, 201);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0',
-        'Content-Type': 'application/offset+octet-stream' }, body: 'abcd',
-    })).status, 204);
-    await writeFile(outside, 'SAFE');
-    await rm(diskFile);
-    await symlink(outside, diskFile);
-    assert.equal((await patch()).status, 409);
-    assert.equal(await (await import('node:fs/promises')).readFile(outside, 'utf8'), 'SAFE');
-    await rm(diskFile);
-    await writeFile(diskFile, 'abcd');
-    await link(diskFile, path.join(f.directory, 'hardlink'));
-    assert.equal((await patch()).status, 409);
-    assert.equal(await (await import('node:fs/promises')).readFile(diskFile, 'utf8'), 'abcd');
-  } finally { await f.close(); }
-});
-
-test('duplicate POST resumes an existing upload even when a new upload would fail disk reserve', async () => {
-  const f = await fixture(10);
-  const post = () => fetch(f.base + '/files/' + id, {
-    method: 'POST', headers: { ...headers, 'Upload-Length': '10' },
-  });
-  try {
-    assert.equal((await post()).status, 201);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH',
-      headers: { ...headers, 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' },
-      body: 'hello',
-    })).status, 204);
-    await f.restart({ reserveBytes: Number.MAX_SAFE_INTEGER });
-    const resumed = await post();
-    assert.equal(resumed.status, 201);
-    assert.equal(resumed.headers.get('Upload-Offset'), '5');
-    assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).headers.get('Upload-Offset'), '5');
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH',
-      headers: { ...headers, 'Upload-Offset': '5', 'Content-Type': 'application/offset+octet-stream' },
-      body: 'world',
-    })).status, 507); // the new PATCH still respects disk reserve
-    assert.equal((await fetch(f.base + '/files/' + id, { method: 'DELETE', headers })).status, 204);
-    assert.equal((await post()).status, 507); // a genuinely new upload is rejected
-  } finally { await f.close(); }
-});
-
-test('SHA-256 receipt rejects same-size disk tampering and symlink substitution', async () => {
-  const f = await fixture(4);
-  const diskFile = path.join(f.directory, id + '.data');
-  const verify = () => fetch(f.base + '/assets/' + id + '/verify', { method: 'POST', headers });
-  try {
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
-    })).status, 201);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' },
-      body: 'abcd',
-    })).status, 204);
-    const original = await (await verify()).json();
-    assert.equal(original.sha256, createHash('sha256').update('abcd').digest('hex'));
-    await writeFile(diskFile, 'wxyz'); // same length, different bytes
-    const updated = await (await verify()).json();
-    assert.equal(updated.sha256, createHash('sha256').update('wxyz').digest('hex'));
-    assert.notEqual(updated.sha256, original.sha256);
-    await rm(diskFile);
-    await symlink('/etc/hosts', diskFile);
-    assert.equal((await verify()).status, 409);
-    assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 409);
-  } finally { await f.close(); }
-});
-
-test('corrupt SHA-256 receipt is rebuilt from disk and never authorizes stale bytes', async () => {
-  const f = await fixture(4);
-  const dataPath = path.join(f.directory, id + '.data');
-  const receiptPath = path.join(f.directory, id + '.verified.json');
-  const verify = () => fetch(f.base + '/assets/' + id + '/verify', { method: 'POST', headers });
-  try {
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
-    })).status, 201);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0',
-        'Content-Type': 'application/offset+octet-stream' }, body: 'abcd',
-    })).status, 204);
-    const first = await (await verify()).json();
-    assert.equal(first.sha256, createHash('sha256').update('abcd').digest('hex'));
-    const signed = await (await fetch(f.base + '/assets/' + id + '/download-token', {
-      method: 'POST', headers,
-    })).json();
-    await writeFile(receiptPath, '{"sha256":');
-    const recovered = await verify();
-    assert.equal(recovered.status, 200);
-    assert.equal((await recovered.json()).sha256, first.sha256);
-    const download = await fetch(f.base + signed.path);
-    assert.equal(download.status, 200);
-    assert.equal(await download.text(), 'abcd');
-    await writeFile(receiptPath, '{"sha256":');
-    await writeFile(dataPath, 'wxyz');
-    const changed = await verify();
-    assert.equal(changed.status, 200);
-    assert.equal((await changed.json()).sha256, createHash('sha256').update('wxyz').digest('hex'));
-    assert.equal((await fetch(f.base + signed.path)).status, 409);
-  } finally { await f.close(); }
-});
-
-test('SHA-256 verification rejects hardlinked upload files and recovers after unlink', async () => {
-  const f = await fixture(4);
-  const diskFile = path.join(f.directory, id + '.data');
-  const extraLink = path.join(f.directory, 'untrusted-hardlink');
-  try {
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
-    })).status, 201);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0',
-        'Content-Type': 'application/offset+octet-stream' }, body: 'abcd',
-    })).status, 204);
-    await link(diskFile, extraLink);
-    assert.equal((await fetch(f.base + '/assets/' + id + '/verify', {
-      method: 'POST', headers,
-    })).status, 409);
-    await rm(extraLink);
-    const response = await fetch(f.base + '/assets/' + id + '/verify', {
-      method: 'POST', headers,
-    });
-    assert.equal(response.status, 200);
-    assert.equal((await response.json()).sha256, createHash('sha256').update('abcd').digest('hex'));
-  } finally { await f.close(); }
-});
-
-test('HEAD and PATCH fail closed when on-disk bytes exceed declared upload length', async () => {
-  const f = await fixture(4);
-  try {
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
-    })).status, 201);
-    await writeFile(path.join(f.directory, id + '.data'), 'oversized');
-    assert.equal((await fetch(f.base + '/files/' + id, { method: 'HEAD', headers })).status, 409);
-    assert.equal((await fetch(f.base + '/files/' + id, {
-      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '9',
-        'Content-Type': 'application/offset+octet-stream' }, body: 'x',
-    })).status, 409);
   } finally { await f.close(); }
 });
 

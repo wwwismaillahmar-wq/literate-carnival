@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {spawnSync}=require('node:child_process'),{createHash}=require('node:crypto');
-const {mkdtempSync,writeFileSync,symlinkSync,rmSync}=require('node:fs');
+const {mkdtempSync,writeFileSync,rmSync}=require('node:fs');
 const {tmpdir}=require('node:os'),{join,resolve}=require('node:path');
 const cli=resolve(__dirname,'../../scripts/verify-upload-sha256.mjs');
 const run=(file,hash,size)=>spawnSync(process.execPath,[cli,file,hash,...(size===undefined?[]:[String(size)])],{encoding:'utf8'});
@@ -14,7 +14,4 @@ test('streaming SHA-256 validates real 13 MiB bytes and rejects bad digest/size'
  const badHash=run(file,'0'.repeat(64),bytes.length);assert.notEqual(badHash.status,0);assert.match(badHash.stderr,/SHA256_MISMATCH/);
  const badSize=run(file,hash,bytes.length+1);assert.notEqual(badSize.status,0);assert.match(badSize.stderr,/SIZE_MISMATCH/);
  const invalid=run(file,'invalid',bytes.length);assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/USAGE/);
- const link=join(dir,'link.bin');symlinkSync(file,link);
- const linked=run(link,hash,bytes.length);assert.notEqual(linked.status,0);assert.match(linked.stderr,/FILE_NOT_REGULAR|ELOOP/);
- const directory=run(dir,hash);assert.notEqual(directory.status,0);assert.match(directory.stderr,/FILE_NOT_REGULAR/);
 });

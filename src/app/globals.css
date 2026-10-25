@@ -182,3 +182,15 @@ body{background:#fff;color:#263743}
 .social-post,.messenger,.message-popover__panel{background:#fff}
 .social-post__title{color:#203744}
 @media(prefers-contrast:more){.shell-header .shell-nav a{color:#fff}.btn.primary,.button.primary{border-width:2px}}
+
+/* ASLAN-025: responsive brand controls and overflow protection */
+html,body{max-width:100%;overflow-x:clip}
+img,video{max-width:100%}
+.shell-header .wrap{min-width:0}
+.shell-brand{min-width:0;flex-shrink:0}
+.shell-nav{min-width:0}
+.shell-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.aslan-locale-picker{display:inline-flex;align-items:center;flex:0 0 auto}
+.aslan-locale-picker select{width:48px;min-width:48px;max-width:48px;height:38px;padding:0 4px;text-align:center;text-align-last:center;border-radius:10px;font-size:13px;font-weight:700;line-height:1.2}
+@media(max-width:950px){.shell-header>.wrap{gap:8px!important}.shell-brand img{max-width:84px!important}.shell-wordmark{font-size:18px}.shell-actions{gap:5px}.shell-actions .btn{padding:7px 10px;font-size:12px}.shell-mobile-menu{max-height:calc(100dvh - 80px);overflow-y:auto}}
+@media(max-width:600px){.shell-header>.wrap{min-height:64px!important}.shell-brand .shell-wordmark{font-size:15px}.shell-brand small{font-size:7px!important;letter-spacing:0!important}.shell-actions .btn.primary{padding:7px 8px}.aslan-locale-picker select{width:42px;min-width:42px;max-width:42px}}

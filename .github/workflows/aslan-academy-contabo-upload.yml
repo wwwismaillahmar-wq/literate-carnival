@@ -1,0 +1,132 @@
+name: ASLAN Academy Contabo 8 GiB delivery
+on:
+  push:
+    branches: [fix/academy-contabo-8gib-20261024]
+    paths:
+      - '.github/workflows/aslan-academy-contabo-upload.yml'
+      - 'infra/uploads/academy-gateway.mjs'
+      - 'scripts/ops/deploy-academy-upload.sh'
+      - 'tests/uploads/contabo-gateway.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aslan-academy-contabo-upload
+  cancel-in-progress: false
+jobs:
+  deliver-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Gateway regression tests
+        run: node --test tests/uploads/contabo-gateway.test.mjs
+      - name: Configure SSH
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          umask 077
+          mkdir -p ~/.ssh
+          python3 - <<'PY'
+          import os, re, textwrap, pathlib, sys
+          raw = os.environ['OPS_KEY'].strip().replace(chr(13), '')
+          raw = raw.replace(chr(92) + 'n', chr(10))
+          match = re.search('-----BEGIN OPENSSH PRIVATE KEY-----(.*?)-----END OPENSSH PRIVATE KEY-----', raw, re.S)
+          if not match:
+              print('KEY_FORMAT_ERROR: Missing key markers; no secret displayed')
+              sys.exit(20)
+          body = ''.join(match.group(1).split())
+          if not re.fullmatch('[A-Za-z0-9+/=]+', body):
+              print('KEY_FORMAT_ERROR: Invalid encoded body; no secret displayed')
+              sys.exit(21)
+          newline = chr(10)
+          formatted = '-----BEGIN OPENSSH PRIVATE KEY-----' + newline + newline.join(textwrap.wrap(body, 70)) + newline + '-----END OPENSSH PRIVATE KEY-----' + newline
+          pathlib.Path.home().joinpath('.ssh/id_ed25519').write_text(formatted)
+          print('KEY_FORMAT_NORMALIZED')
+          PY
+          # Host key must be a public known_hosts entry, never a private key.
+          if printf '%s' "$OPS_HOST_KEY" | grep -q -- 'PRIVATE KEY'; then
+            echo 'HOST_KEY_FORMAT_ERROR: ASLAN_OPS_HOST_KEY contains private-key material'
+            exit 23
+          fi
+          if ! printf '%s\n' "$OPS_HOST_KEY" | ssh-keygen -lf - >/dev/null 2>&1; then
+            echo 'HOST_KEY_FORMAT_ERROR: expected an SSH public host-key entry'
+            exit 24
+          fi
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          if ! ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 > /dev/null 2>/dev/null; then
+            echo "KEY_VALIDATION_FAILED: Secret key data is incomplete or corrupted. No SSH attempted."
+            exit 22
+          fi
+          echo "KEY_VALIDATION_PASS"
+          echo "OPS_HOST=$OPS_HOST" >> "$GITHUB_ENV"
+          echo "OPS_USER=$OPS_USER" >> "$GITHUB_ENV"
+      - name: Transfer gateway and public identity configuration
+        env:
+          ASLAN_SHA: ${{ github.sha }}
+          ASLAN_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.ASLAN_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ASLAN_SUPABASE_PUBLISHABLE_KEY"
+          [[ "$ASLAN_SUPABASE_PUBLISHABLE_KEY" = sb_publishable_* ]] || { echo 'EXPECTED_PUBLIC_IDENTITY_KEY'; exit 2; }
+          umask 077
+          package=$(mktemp)
+          settings=$(mktemp)
+          trap 'rm -f "$package" "$settings"' EXIT
+          tar -czf "$package" infra/uploads/academy-gateway.mjs tests/uploads/contabo-gateway.test.mjs scripts/ops/deploy-academy-upload.sh
+          printf 'NEXT_PUBLIC_SUPABASE_URL=https://zyenfobyorjfwkdgeube.supabase.co\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\nASLAN_UPLOAD_ORIGINS=https://literate-carnival-lemon.vercel.app\nASLAN_UPLOAD_EXPECTED_HOST=%s\n' "$ASLAN_SUPABASE_PUBLISHABLE_KEY" "$OPS_HOST" > "$settings"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" 'mkdir -p "$HOME/aslan-academy-uploads" && chmod 700 "$HOME/aslan-academy-uploads"'
+          scp -q -o BatchMode=yes -o StrictHostKeyChecking=yes "$package" "$OPS_USER@$OPS_HOST:aslan-academy-uploads/release.tgz"
+          scp -q -o BatchMode=yes -o StrictHostKeyChecking=yes "$settings" "$OPS_USER@$OPS_HOST:aslan-academy-uploads/gateway.env"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$OPS_USER@$OPS_HOST" "ASLAN_SHA='$ASLAN_SHA' bash -se" <<'REMOTE' | tee contabo-upload-report.txt
+          set -Eeuo pipefail
+          base="$HOME/aslan-academy-uploads"
+          release="$base/releases/$ASLAN_SHA"
+          mkdir -p "$release"
+          chmod 600 "$base/gateway.env"
+          tar -xzf "$base/release.tgz" -C "$release"
+          bash "$release/scripts/ops/deploy-academy-upload.sh"
+          REMOTE
+      - name: Verify public TLS and browser upload boundaries from outside Contabo
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import urllib.request,urllib.error,json,re
+          report=open('contabo-upload-report.txt').read()
+          match=re.search(r'^CONTABO_PUBLIC_UPLOAD_URL=(https://[^/\s]+)$',report,re.M)
+          if not match: raise SystemExit('PUBLIC_UPLOAD_ENDPOINT_MISSING')
+          base=match.group(1)
+          health=json.load(urllib.request.urlopen(base+'/health',timeout=30))
+          assert health.get('backend')=='contabo' and health.get('maxBytes')==8589934592, 'PUBLIC_GATEWAY_CAPABILITY_MISMATCH'
+          for method,origin,expected in [('HEAD',None,401),('OPTIONS','https://literate-carnival-lemon.vercel.app',204),('OPTIONS','https://foreign.example',403)]:
+              req=urllib.request.Request(base+'/files/5dd358cf-6c5c-4b6b-8901-3f6e2d33f7c0',method=method,headers={'Origin':origin} if origin else {})
+              try:
+                  response=urllib.request.urlopen(req,timeout=30)
+                  code=response.status
+                  if expected==204: assert response.headers.get('Access-Control-Allow-Origin')==origin
+              except urllib.error.HTTPError as error: code=error.code
+              assert code==expected, (method,origin,code,expected)
+          print('CONTABO_EXTERNAL_TLS_AUTH_CORS_8GIB_PASS')
+          PY
+      - name: Save transfer and deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contabo-8gib-delivery-${{ github.sha }}
+          path: contabo-upload-report.txt
+          if-no-files-found: warn
+      - name: Delivery summary
+        if: always()
+        run: |
+          echo '## ASLAN Academy — Contabo filesystem upload' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Result: ${{ job.status }}' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f contabo-upload-report.txt ]; then tail -n 35 contabo-upload-report.txt >> "$GITHUB_STEP_SUMMARY"; fi

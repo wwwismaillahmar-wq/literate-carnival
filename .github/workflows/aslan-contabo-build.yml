@@ -2,9 +2,23 @@ name: ASLAN Contabo Remote Build
 # Re-trigger after operator corrected ASLAN_OPS_SSH_KEY secret
 on:
   push:
+    branches: [main, develop/aslan-025-unified-recovery]
+    paths:
+      - '.github/workflows/aslan-contabo-build.yml'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'next.config.*'
+      - 'tsconfig.json'
+  pull_request:
     branches: [main]
     paths:
       - '.github/workflows/aslan-contabo-build.yml'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'next.config.*'
+      - 'tsconfig.json'
   workflow_dispatch:
 permissions:
   contents: read
@@ -117,8 +131,9 @@ jobs:
           npm run build
           echo "ASLAN_REMOTE_BUILD_PASS"
           echo "Starting isolated localhost-only HTTP smoke test"
-          # Let the OS allocate an unused localhost port; avoid collisions with other builds.
-          smoke_port=$(node -e 'const s=require("net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')
+          # Allocate an ephemeral port; a fixed port collides with earlier
+          # isolated builds that may still be running on the same VPS.
+          smoke_port=$(node -e 'const s=require("node:net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')
           test -n "$smoke_port"
           HOSTNAME=127.0.0.1 ./node_modules/.bin/next start -H 127.0.0.1 -p "$smoke_port" > "$workspace/staging-http.log" 2>&1 &
           app_pid=$!
@@ -131,7 +146,7 @@ jobs:
               tail -n 35 "$workspace/staging-http.log"
               exit 5
             fi
-            status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:$smoke_port/ || true)
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 "http://127.0.0.1:$smoke_port/" || true)
             if [[ "$status" =~ ^[23][0-9][0-9]$ ]]; then
               echo "ASLAN_STAGING_HTTP_PASS status=$status"
               ready=1
@@ -146,6 +161,7 @@ jobs:
           fi
           REMOTE
           grep -Fxq 'ASLAN_REMOTE_BUILD_PASS' /tmp/aslan-build-report.txt
+          grep -Eq '^ASLAN_STAGING_HTTP_PASS status=2[0-9][0-9]$' /tmp/aslan-build-report.txt
       - name: Report
         if: always()
         run: |
