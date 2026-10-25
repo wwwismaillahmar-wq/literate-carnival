@@ -1,18 +1,36 @@
 import 'server-only';
 import {localizedRows} from '@/lib/i18n/content.server';
-import {createClient} from '@/lib/supabase/server';
+import {createClient as createPublicClient} from '@supabase/supabase-js';
+import {unstable_cache} from 'next/cache';
 import {aslanStore,normalizeMarketProduct,type MarketStore} from './catalog';
-export async function getMarketCatalog(){
- const db=await createClient();const [products,categories,stores]=await Promise.all([
- db.from('products').select('*,category:categories(name)').eq('active',true).order('created_at',{ascending:false}).limit(1000),
+const publicDb=()=>createPublicClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{auth:{persistSession:false,autoRefreshToken:false}});
+const loadPublicCatalog=unstable_cache(async (slug?:string)=>{
+ const db=publicDb();const [products,categories,stores]=await Promise.all([
+ (slug ? db.from('products').select('*,category:categories(name)').eq('active',true).eq('slug',slug).limit(1) : db.from('products').select('*,category:categories(name)').eq('active',true).order('created_at',{ascending:false}).limit(24)),
  db.from('categories').select('id,name,slug').order('name'),
  db.from('market_stores').select('id,name,slug,description,region,logo_url,status').eq('status','approved').order('created_at',{ascending:false}),
  ]);
  const approved=[aslanStore,...(stores.data||[]) as MarketStore[]];const ids=(products.data||[]).map(row=>row.id);
  const media=ids.length?await db.from('media_assets').select('product_id,object_path,bucket_id,media_type').in('product_id',ids).eq('upload_status','uploaded').eq('media_type','image'):{data:[]};
  const images=new Map<number,string[]>();
- await Promise.all((media.data||[]).map(async item=>{const result=await db.storage.from(item.bucket_id||'aslan-media').createSignedUrl(item.object_path,3600);if(result.data?.signedUrl){const urls=images.get(item.product_id)||[];urls.push(result.data.signedUrl);images.set(item.product_id,urls);}}));
- const translated=await localizedRows('product',(products.data||[]) as Record<string,unknown>[]);
- const catalog=translated.map(row=>normalizeMarketProduct(row,images.get(Number(row.id)))).filter(product=>approved.some(store=>store.id===product.storeId));
- return {products:catalog,categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
+ // Only explicitly public buckets may use stable public URLs. Private media remain inaccessible here.
+ for(const item of media.data||[]){if(item.bucket_id!=='aslan-public-media')continue;
+  const url=db.storage.from(item.bucket_id).getPublicUrl(item.object_path).data.publicUrl;
+  const urls=images.get(item.product_id)||[];urls.push(url);images.set(item.product_id,urls);
+ }
+ return {rows:(products.data||[]) as Record<string,unknown>[],images:Object.fromEntries(images),categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
+},['market-products-v2'],{revalidate:60,tags:['market-products']});
+async function localizedCatalog(slug?:string){
+ const cached=await loadPublicCatalog(slug);
+ const translated=await localizedRows('product',cached.rows);
+ const products=translated.map(row=>normalizeMarketProduct(row,cached.images[Number(row.id)])).filter(product=>cached.stores.some(store=>store.id===product.storeId));
+ return {products,categories:cached.categories,stores:cached.stores,error:cached.error,storesError:cached.storesError};
+}
+export async function getMarketCatalog(){return localizedCatalog();}
+export async function getMarketProduct(slug:string){
+ const detail=await localizedCatalog(slug);
+ const product=detail.products[0];if(!product)return {...detail,products:[]};
+ const db=publicDb();const {data:related}=await db.from('products').select('*,category:categories(name)').eq('active',true).eq('category_id',Number(product.categoryId)).neq('id',product.id).order('created_at',{ascending:false}).limit(4);
+ const translated=await localizedRows('product',(related||[]) as Record<string,unknown>[]);
+ return {...detail,products:[product,...translated.map(row=>normalizeMarketProduct(row)).filter(p=>detail.stores.some(s=>s.id===p.storeId))]};
 }

@@ -1,5 +1,5 @@
 'use client';
-import {useCallback,useEffect,useState} from 'react';
+import {memo,useCallback,useEffect,useState} from 'react';
 import {usePathname,useRouter,useSearchParams} from 'next/navigation';
 import {LOCALE_EVENT as LANGUAGE_EVENT, LOCALE_STORAGE_KEY, resolveLocale, applyLocale, persistLocale, translate} from '@/lib/i18n/core';
 import {languages,languageNames,type Language} from '@/components/LanguageSelector';
@@ -36,6 +36,8 @@ export function useAslanLanguage(){
  },[pathname,router,searchParams]);
  return {language,change,t:(key:string)=>translate(translations,language,key)};
 }
-export function LocalePicker({language,change}:{language:Language;change:(next:Language)=>void}){
+function LocalePickerComponent({language,change}:{language:Language;change:(next:Language)=>void}){
  return <label style={{display:'inline-flex',alignItems:'center',gap:5}}><span aria-hidden="true">🌐</span><select aria-label="Language / اللغة" value={language} onChange={e=>{const next=languages.find(item=>item===e.target.value);if(next)change(next);}}>{languages.map(item=><option key={item} value={item}>{languageNames[item]}</option>)}</select></label>;
 }
+
+export const LocalePicker=memo(LocalePickerComponent);

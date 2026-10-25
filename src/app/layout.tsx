@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
+// The root layout remains request-aware for the locale cookie; cache only public settings.
 import { resolveLocale, localeDirection } from '@/lib/i18n/core';
 import './globals.css';
 import { CinematicIntro } from '@/components/CinematicIntro';

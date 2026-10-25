@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {memo,useEffect,useState,useMemo,useCallback,useDeferredValue} from 'react';
 import Link from 'next/link';
 import {useAslanLanguage} from '@/components/AslanLocale';
 import {marketStatusCopy} from '@/lib/i18n/market-status';
@@ -16,13 +16,15 @@ import {filterMarket,type MarketFilters,type MarketProduct,type MarketStore} fro
 import {MarketProductCard} from './MarketProductCard';
 import styles from './Market.module.css';
 const empty:MarketFilters={query:'',category:'',store:'',availability:'all',minimum:'',maximum:'',sort:'newest'};
-export function MarketCatalog({products,stores,categories,initial={},savedOnly=false,error=false}:{products:MarketProduct[];stores:MarketStore[];categories:{id:number;name:string}[];initial?:Partial<MarketFilters>;savedOnly?:boolean;error?:boolean}){
+function MarketCatalogComponent({products,stores,categories,initial={},savedOnly=false,error=false}:{products:MarketProduct[];stores:MarketStore[];categories:{id:number;name:string}[];initial?:Partial<MarketFilters>;savedOnly?:boolean;error?:boolean}){
  const {language}=useAslanLanguage();const c=copyByLanguage[language];const s=marketStatusCopy[language];
  const [filters,setFilters]=useState<MarketFilters>({...empty,...initial});const [saved,setSaved]=useState<number[]>([]);const [compared,setCompared]=useState<number[]>([]);const [showFilters,setShowFilters]=useState(false);const [notice,setNotice]=useState<'compareLimit'|'storageUnavailable'|null>(null);
  useEffect(()=>{try{for(const [key,set] of [['aslan-market-saved',setSaved],['aslan-market-compare',setCompared]] as const){const value=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(value))set(value.filter((id):id is number=>Number.isSafeInteger(id)&&id>0).slice(0,key.endsWith('compare')?4:500));}}catch{}},[]);
  function toggle(id:number,kind:'saved'|'compare'){const current=kind==='saved'?saved:compared;let updated:number[];if(current.includes(id))updated=current.filter(value=>value!==id);else{if(kind==='compare'&&current.length>=4){setNotice('compareLimit');return;}updated=[...current,id];}if(kind==='saved')setSaved(updated);else setCompared(updated);try{localStorage.setItem(kind==='saved'?'aslan-market-saved':'aslan-market-compare',JSON.stringify(updated));}catch{setNotice('storageUnavailable');}}
- function update(key:keyof MarketFilters,value:string){setFilters(current=>({...current,[key]:value}));}
- const shown=filterMarket(products,{...filters,ids:savedOnly?saved:undefined});const applied=Boolean(filters.query||filters.category||filters.store||filters.availability!=='all'||filters.minimum||filters.maximum);
+ const update=useCallback((key:keyof MarketFilters,value:string)=>setFilters(current=>({...current,[key]:value})),[]);
+ const deferredQuery=useDeferredValue(filters.query);
+ const deferredFilters=useMemo(()=>({...filters,query:deferredQuery,ids:savedOnly?saved:undefined}),[filters,deferredQuery,savedOnly,saved]);
+ const shown=useMemo(()=>filterMarket(products,deferredFilters),[products,deferredFilters]);const applied=Boolean(filters.query||filters.category||filters.store||filters.availability!=='all'||filters.minimum||filters.maximum);
  return <section id="catalog" className={styles.section} aria-labelledby="catalog-heading"><div className={styles.heading}><div><h2 id="catalog-heading">{savedOnly?c.saved:c.title}</h2><p>{savedOnly?s.savedDescription:s.catalogDescription}</p></div><button type="button" className={styles.filterToggle} aria-expanded={showFilters} onClick={()=>setShowFilters(value=>!value)}><SlidersHorizontal size={16}/> {c.search}</button></div>{notice&&<p className={styles.notice} role="status">{s[notice]}</p>}
  <div className={styles.catalog}><aside className={styles.filters+' '+(showFilters?styles.show:'')} aria-label={s.filterAria}><h3>{c.filter}</h3><label>{c.query}<input type="search" value={filters.query} onChange={event=>update('query',event.target.value)} placeholder={c.placeholder}/></label><label>{c.category}<select value={filters.category} onChange={event=>update('category',event.target.value)}><option value="">{c.allCategories}</option>{categories.map(category=><option value={String(category.id)} key={category.id}>{category.name}</option>)}</select></label><label>{c.store}<select value={filters.store} onChange={event=>update('store',event.target.value)}><option value="">{c.allStores}</option>{stores.map(store=><option key={store.id} value={store.id}>{store.name}</option>)}</select></label><label>{c.availability}<select value={filters.availability} onChange={event=>update('availability',event.target.value)}><option value="all">{c.all}</option><option value="stock">{c.stock}</option><option value="quote">{c.quote}</option></select></label><div><span className={styles.small}>{c.price}</span><div className={styles.range}><label>{c.from}<input type="number" min="0" value={filters.minimum} onChange={event=>update('minimum',event.target.value)}/></label><label>{c.to}<input type="number" min="0" value={filters.maximum} onChange={event=>update('maximum',event.target.value)}/></label></div></div><button type="button" className={styles.secondary} onClick={()=>setFilters({...empty})}>{c.clear}</button></aside>
  <div><div className={styles.resultBar}><p role="status" aria-live="polite">{shown.length} {s.resultUnit}{filters.query?s.resultsQueryPrefix+'«'+filters.query+'»':''}</p><label>{c.sort}<select value={filters.sort} onChange={event=>update('sort',event.target.value)}><option value="newest">{c.newest}</option><option value="featured">{c.featured}</option><option value="price-low">{c.low}</option><option value="price-high">{c.high}</option></select></label><Link href="/market/compare" className={styles.small}>{c.compare} ({compared.length})</Link></div>
@@ -31,3 +33,5 @@ export function MarketCatalog({products,stores,categories,initial={},savedOnly=f
  </div></div>{compared.length>0&&<div className={styles.comparison}><span>{s.compareSelected} {compared.length}</span><Link href="/market/compare">{s.openCompare}</Link><button onClick={()=>{setCompared([]);try{localStorage.setItem('aslan-market-compare','[]');}catch{}}}>{s.clearSelection}</button></div>}
  </section>;
 }
+
+export const MarketCatalog=memo(MarketCatalogComponent);
