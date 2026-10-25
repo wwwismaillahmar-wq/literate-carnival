@@ -149,6 +149,8 @@ try {
   // Real browser submission acceptance with a mocked local API: no external writes.
   await page.goto(origin+'/partners',{waitUntil:'domcontentloaded'});
   await page.locator(picker).selectOption('en');
+  await page.waitForURL(url=>normalizePath(url.pathname)==='/en/partners');
+  await page.waitForLoadState('domcontentloaded');
   const partnerForm=page.locator('form.card');
   await partnerForm.locator('input[autocomplete="name"]').fill('Example Partner');
   await partnerForm.locator('input[autocomplete="tel"]').fill('0550000000');
