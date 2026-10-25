@@ -85,7 +85,11 @@ export async function createGateway({ directory, authorize, origins = [], signin
           JSON.stringify(old.fingerprint) === JSON.stringify(identity)) {
         return { size, mimeType: old.mimeType, sha256: old.sha256 };
       }
-    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    } catch (error) {
+      // A truncated/corrupt cached receipt is not evidence about file bytes.
+      // Rehash the pinned file instead of permanently blocking verification.
+      if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
+    }
     // Hash bytes from a pinned, no-follow file descriptor. A path swap between
     // lstat and stream creation must never make us hash a different file.
     const hash = createHash('sha256');
