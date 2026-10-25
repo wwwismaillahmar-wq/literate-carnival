@@ -22,9 +22,19 @@ const loadPublicCatalog=unstable_cache(async (slug?:string)=>{
 },['market-products-v2'],{revalidate:60,tags:['market-products']});
 async function localizedCatalog(slug?:string){
  const cached=await loadPublicCatalog(slug);
- const translated=await localizedRows('product',cached.rows);
- const products=translated.map(row=>normalizeMarketProduct(row,cached.images[Number(row.id)])).filter(product=>cached.stores.some(store=>store.id===product.storeId));
- return {products,categories:cached.categories,stores:cached.stores,error:cached.error,storesError:cached.storesError};
+ const [translated,localizedCategories,localizedStores]=await Promise.all([
+  localizedRows('product',cached.rows),
+  localizedRows('category',cached.categories as Record<string,unknown>[]),
+  localizedRows('market_store',cached.stores.filter(store=>store.id!=='aslan') as unknown as Record<string,unknown>[]),
+ ]);
+ const categories=localizedCategories as typeof cached.categories;
+ const categoryNames=new Map(categories.map(category=>[String(category.id),category.name]));
+ const stores=cached.stores.map(store=>(localizedStores.find(item=>item.id===store.id) as typeof store|undefined)||store);
+ const products=translated.map(row=>{
+  const product=normalizeMarketProduct(row,cached.images[Number(row.id)]);
+  return {...product,category:categoryNames.get(product.categoryId)||product.category};
+ }).filter(product=>stores.some(store=>store.id===product.storeId));
+ return {products,categories,stores,error:cached.error,storesError:cached.storesError};
 }
 export async function getMarketCatalog(){return localizedCatalog();}
 export async function getMarketProduct(slug:string){
