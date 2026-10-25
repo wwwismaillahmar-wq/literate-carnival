@@ -1,5 +1,6 @@
+import type { LocalizedText } from '@/lib/i18n/content';
 /** Public service presentation taxonomy. No dependency on unapproved database categories. */
-export type AslanService = { id: string; name: string; slug: string; description: string };
+export type AslanService = { id: string; name: string; slug: string; description: string; nameTranslations?: LocalizedText | null; descriptionTranslations?: LocalizedText | null };
 export const serviceCategories = [
   { id: 'all', label: 'كل الخدمات', summary: 'تصفح جميع المجالات' },
   { id: 'craft', label: 'التنجيد والخياطة', summary: 'الأثاث والمفروشات والتفصيل' },
