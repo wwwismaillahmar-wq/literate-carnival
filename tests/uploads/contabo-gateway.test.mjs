@@ -164,7 +164,7 @@ async function transfer(bytes) {
   } finally { await f.close(); }
 }
 
-test('real disk transfer survives mid-PATCH interruption and process restart', { timeout: 120000 }, () => transfer(24 * 1024 ** 2));
+test('real 50 MiB TUS transfer survives mid-PATCH interruption, process restart and validates SHA-256', { timeout: 180000 }, () => transfer(50 * 1024 ** 2));
 if (process.env.ASLAN_LARGE_TRANSFER === '1') {
   test('2 GiB real transfer, interrupted PATCH, restart and SHA-256', { timeout: 3600000 }, () => transfer(2 * 1024 ** 3));
   test('8 GiB real transfer, interrupted PATCH, restart and SHA-256', { timeout: 3600000 }, () => transfer(8 * 1024 ** 3));

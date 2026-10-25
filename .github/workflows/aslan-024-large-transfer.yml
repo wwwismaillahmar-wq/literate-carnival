@@ -32,7 +32,7 @@ jobs:
             echo "BLOCKED: less than 10 GiB free; no large transfer attempted"
             exit 7
           fi
-      - name: Real HTTP TUS transfers, interruption, restart and independent SHA-256
+      - name: Real 50 MiB, 2 GiB and 8 GiB HTTP TUS transfers, interruption, restart and independent SHA-256
         env:
           ASLAN_LARGE_TRANSFER: '1'
         run: node --test tests/uploads/contabo-gateway.test.mjs
