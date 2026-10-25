@@ -1,3 +1,4 @@
+import { getPortalDictionary } from '@/lib/i18n/portal-dictionary.server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 type Row = Record<string, unknown>;
 
 export default async function Dashboard() {
+  const t = await getPortalDictionary('admin');
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
