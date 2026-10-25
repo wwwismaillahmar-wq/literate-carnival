@@ -11,7 +11,22 @@ function component(name) {
   const file = path.resolve(__dirname, '../../src/components/admin', name + '.tsx');
   const loaded = new Module(file, module); loaded.filename = file; loaded.paths = module.paths;
   const original = loaded.require.bind(loaded);
-  loaded.require = name => name === '@/lib/supabase/client' ? { createClient: () => ({}) } : original(name);
+  loaded.require = name => {
+    if (name === '@/lib/supabase/client') return { createClient: () => ({}) };
+    if (name === '@/components/AslanLocale') return { useAslanLanguage: () => ({ language: 'ar' }) };
+    if (name === '@/lib/uploads/tus-response') return { parseTusOffset: () => 0, recoverTusOffset: async () => 0 };
+    if (name === '@/lib/i18n/academy-assets' || name === '@/lib/i18n/academy-upload') {
+      const dictionaryPath = path.resolve(__dirname, '../../src/lib/i18n', name.split('/').at(-1) + '.ts');
+      const dictionary = new Module(dictionaryPath, module);
+      dictionary.filename = dictionaryPath;
+      dictionary.paths = module.paths;
+      dictionary._compile(ts.transpileModule(fs.readFileSync(dictionaryPath, 'utf8'), {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+      }).outputText, dictionaryPath);
+      return dictionary.exports;
+    }
+    return original(name);
+  };
   loaded._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText, file);
   return loaded.exports[name];
 }
