@@ -152,6 +152,11 @@ try {
   await page.waitForURL(url=>normalizePath(url.pathname)==='/en/partners');
   await page.waitForLoadState('domcontentloaded');
   const partnerForm=page.locator('form.card');
+  await partnerForm.waitFor({state:'visible',timeout:12000}).catch(async error=>{
+    const details={url:page.url(),title:await page.title().catch(()=>''),body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,1300),
+      html:(await page.locator('body').innerHTML().catch(()=>'' )).slice(0,1000)};
+    throw new Error('PARTNER_PREFIX_ROUTE_DIAGNOSTIC '+JSON.stringify(details),{cause:error});
+  });
   await partnerForm.locator('input[autocomplete="name"]').fill('Example Partner');
   await partnerForm.locator('input[autocomplete="tel"]').fill('0550000000');
   await partnerForm.locator('input[autocomplete="organization"]').fill('Example Company');
