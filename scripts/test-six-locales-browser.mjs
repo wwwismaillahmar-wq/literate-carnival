@@ -79,9 +79,10 @@ try {
   for(const route of ['/en/partners/','/fr/market/']){
     const response=await fetch(origin+route,{redirect:'follow'});
     const html=await response.text();
-    console.log('ASLAN_PREFIX_HTTP',route,'status='+response.status,'final='+response.url,'hasPage='+(/form class="card"|id="catalog-heading"/.test(html)));
-    if(response.status!==200 || /404: This page could not be found/.test(html))
-      throw Error('PREFX_HTTP_ROUTE_FAILURE '+route+' status='+response.status+' final='+response.url+' body='+html.slice(0,300));
+    const hasPage=route.startsWith('/en/partners/') ? html.includes('form class="card"') : html.includes('id="catalog-heading"');
+    console.log('ASLAN_PREFIX_HTTP',route,'status='+response.status,'final='+response.url,'hasPage='+hasPage);
+    if(response.status!==200 || !hasPage)
+      throw Error('PREFIX_HTTP_ROUTE_FAILURE '+route+' status='+response.status+' final='+response.url+' body='+html.slice(0,300));
   }
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const context=await browser.newContext({viewport:{width:1440,height:900}});
