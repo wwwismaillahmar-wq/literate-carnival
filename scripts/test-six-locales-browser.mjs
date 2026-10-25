@@ -75,6 +75,14 @@ try {
     await new Promise(resolve=>setTimeout(resolve,500));
   }
   if(!ready)throw Error('Next.js readiness timeout: '+output);
+  // Direct HTTP preflight distinguishes a broken middleware rewrite from a client router transition.
+  for(const route of ['/en/partners/','/fr/market/']){
+    const response=await fetch(origin+route,{redirect:'follow'});
+    const html=await response.text();
+    console.log('ASLAN_PREFIX_HTTP',route,'status='+response.status,'final='+response.url,'hasPage='+(/form class="card"|id="catalog-heading"/.test(html)));
+    if(response.status!==200 || /404: This page could not be found/.test(html))
+      throw Error('PREFX_HTTP_ROUTE_FAILURE '+route+' status='+response.status+' final='+response.url+' body='+html.slice(0,300));
+  }
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const context=await browser.newContext({viewport:{width:1440,height:900}});
   await context.addInitScript(()=>{localStorage.setItem('aslan-intro','1');});
