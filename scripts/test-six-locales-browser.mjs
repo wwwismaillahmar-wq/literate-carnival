@@ -117,6 +117,12 @@ try {
     await page.locator(picker).selectOption(code);
     await page.waitForFunction(expected=>document.documentElement.lang===expected,code);
     for(const route of routes){await verify(code,route);checked++;}
+    // Exercise an actual navigation click, not just direct URL visits and href assertions.
+    await page.locator('nav.shell-nav a[href="/market"]').click();
+    await page.waitForURL(url=>normalizePath(url.pathname)==='/market');
+    await page.waitForFunction(expected=>document.documentElement.lang===expected &&
+      document.documentElement.dir===(expected==='ar'?'rtl':'ltr') &&
+      localStorage.getItem('aslan-language')===expected,code);
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForFunction(expected=>document.documentElement.lang===expected && document.querySelector('select[aria-label="Language / اللغة"]')?.value===expected,code);
   }
@@ -148,9 +154,14 @@ try {
   const second=await context.newPage();
   await second.goto(origin+'/',{waitUntil:'domcontentloaded'});
   await second.locator(picker).waitFor();
+  // A same-value selection does not emit a storage event: verify two real cross-tab changes.
+  await page.locator(picker).selectOption('en');
+  await second.waitForFunction(()=>document.documentElement.lang==='en' && document.documentElement.dir==='ltr' &&
+    document.querySelector('select[aria-label="Language / اللغة"]')?.value==='en',null,{timeout:15000});
   await page.locator(picker).selectOption('ar');
-  await second.waitForFunction(()=>document.documentElement.lang==='ar'&&document.documentElement.dir==='rtl'&&document.querySelector('select[aria-label="Language / اللغة"]')?.value==='ar',null,{timeout:15000});
-  console.log('ASLAN_BROWSER_LOCALE_PASS cases='+checked+' persistence=6 cross_tab=1 rtl_ltr=1 partner_form=6 submit_mock=2');
+  await second.waitForFunction(()=>document.documentElement.lang==='ar' && document.documentElement.dir==='rtl' &&
+    document.querySelector('select[aria-label="Language / اللغة"]')?.value==='ar',null,{timeout:15000});
+  console.log('ASLAN_BROWSER_LOCALE_PASS cases='+checked+' persistence=6 navigation_click=6 cross_tab_changes=2 rtl_ltr=1 partner_form=6 submit_mock=2');
 } finally {
   await browser?.close();
   child.kill('SIGTERM');
