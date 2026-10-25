@@ -1,0 +1,29 @@
+{
+  "academy": {
+    "heroTag": "ASLAN ACADEMY · Apprenez un métier.",
+    "heroTitle": "Votre prochaine étape commence par une compétence.",
+    "explore": "Explorer les cours",
+    "join": "Choisir un cours et s'inscrire",
+    "fields": "Domaines de formation",
+    "chooseField": "Quel domaine souhaitez-vous maîtriser ?",
+    "before": "Avant de commencer",
+    "help": "Assistance aux étudiants"
+  },
+  "admin": {
+    "categoriesTitle": "Gérer les catégories du marché",
+    "createCategory": "Créer une catégorie",
+    "categoryName": "Nom de catégorie",
+    "slug": "Identifiant URL",
+    "save": "Enregistrer",
+    "delete": "Supprimer la catégorie",
+    "empty": "Aucune catégorie."
+  },
+  "services": {
+    "home": "Accueil",
+    "request": "Demander ce service",
+    "track": "Suivre mes demandes",
+    "how": "Comment ça marche ?",
+    "before": "Avant d'envoyer votre demande",
+    "help": "Aide"
+  }
+}

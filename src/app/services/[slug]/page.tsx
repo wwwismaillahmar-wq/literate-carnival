@@ -1,3 +1,4 @@
+import { getPortalDictionary } from '@/lib/i18n/portal-dictionary.server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Armchair, CalendarDays, CheckCircle2, ClipboardList, Droplets, Factory, Scissors, Snowflake, Wrench, Zap } from 'lucide-react';
@@ -22,6 +23,7 @@ export async function generateMetadata({params}: Props) {
   } catch {return {title:'خدمات ASLAN'};}
 }
 export default async function ServiceDetails({ params }: Props) {
+  const t = await getPortalDictionary('services');
   const { slug } = await params;
   const services = (await listServices()) as AslanService[];
   const item = services.find(service => service.slug === slug);
@@ -29,7 +31,7 @@ export default async function ServiceDetails({ params }: Props) {
   const Icon = icons[slug as keyof typeof icons] ?? Wrench;
   return <main className={styles.page}><div className={styles.wrap}>
     <nav className={styles.breadcrumbs} aria-label="تسلسل التنقل">
-      <Link href="/">الرئيسية</Link> <span>›</span>
+      <Link href="/">{t('home')}</Link> <span>›</span>
       <Link href="/services">الخدمات</Link> <span>›</span><span>{item.name}</span>
     </nav>
     <div className={styles.detail}>
@@ -38,11 +40,11 @@ export default async function ServiceDetails({ params }: Props) {
         <h1>{item.name}</h1>
         <p>{item.description}</p>
         <div className={styles.actions}>
-          <Link className={styles.primary} href={serviceRequestUrl(item.slug)}>اطلب هذه الخدمة</Link>
-          <Link className={styles.secondary} href="/service-requests">متابعة طلباتي</Link>
+          <Link className={styles.primary} href={serviceRequestUrl(item.slug)}>{t('request')}</Link>
+          <Link className={styles.secondary} href="/service-requests">{t('track')}</Link>
         </div>
         <p style={{fontSize:13}}>تُحدد الأسعار والمواعيد والتغطية الجغرافية بعد مراجعة تفاصيل طلبك؛ لا توجد أسعار أو آجال ثابتة معلنة لهذه الخدمة.</p>
-        <h2>كيف تحصل على الخدمة؟</h2>
+        <h2>{t('how')}</h2>
         <div className={styles.steps}>
           <div className={styles.step}><strong>1</strong><span>اختر هذه الخدمة وأدخل وصف العمل وموقعه وتوقيتك المفضل.</span></div>
           <div className={styles.step}><strong>2</strong><span>تراجع الإدارة الطلب وتصدر عرض سعر موضحًا تفاصيل التنفيذ.</span></div>
@@ -53,11 +55,11 @@ export default async function ServiceDetails({ params }: Props) {
       <aside className={styles.detailAside}>
         <div className={styles.visual}><Icon size={95} aria-hidden="true"/><small>{categoryLabel(serviceCategory(item))}</small></div>
         <div className={styles.detailPanel}>
-          <h2>قبل إرسال طلبك</h2>
+          <h2>{t('before')}</h2>
           <p>اجمع تفاصيل العمل، المقاسات أو المعدات المعنية، والموقع والموعد المفضل؛ هذه المعلومات تساعد على إعداد عرض مناسب.</p>
           <div className={styles.actions}>
             <Link className={styles.primary} href={serviceRequestUrl(item.slug)}><ClipboardList size={17}/> إرسال طلب الخدمة</Link>
-            <Link className={styles.secondary} href="/support">المساعدة</Link>
+            <Link className={styles.secondary} href="/support">{t('help')}</Link>
           </div>
         </div>
       </aside>

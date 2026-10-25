@@ -1,0 +1,29 @@
+{
+  "academy": {
+    "heroTag": "ASLAN ACADEMY · Aprende un oficio.",
+    "heroTitle": "Tu próximo paso comienza con una habilidad.",
+    "explore": "Explorar cursos",
+    "join": "Elegir un curso e inscribirse",
+    "fields": "Áreas de formación",
+    "chooseField": "¿Qué área quieres dominar?",
+    "before": "Antes de empezar",
+    "help": "Ayuda al estudiante"
+  },
+  "admin": {
+    "categoriesTitle": "Gestionar categorías del mercado",
+    "createCategory": "Crear categoría",
+    "categoryName": "Nombre de categoría",
+    "slug": "Identificador URL",
+    "save": "Guardar cambios",
+    "delete": "Eliminar categoría",
+    "empty": "No hay categorías."
+  },
+  "services": {
+    "home": "Inicio",
+    "request": "Solicitar este servicio",
+    "track": "Seguir mis solicitudes",
+    "how": "¿Cómo funciona?",
+    "before": "Antes de enviar tu solicitud",
+    "help": "Ayuda"
+  }
+}

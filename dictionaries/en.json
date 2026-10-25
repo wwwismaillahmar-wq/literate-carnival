@@ -1,0 +1,29 @@
+{
+  "academy": {
+    "heroTag": "ASLAN ACADEMY · Learn a craft. Build skills.",
+    "heroTitle": "Your next step starts with a skill.",
+    "explore": "Explore courses",
+    "join": "Choose a course and enroll",
+    "fields": "Training areas",
+    "chooseField": "Which field would you like to master?",
+    "before": "Before you begin",
+    "help": "Student support"
+  },
+  "admin": {
+    "categoriesTitle": "Manage market categories",
+    "createCategory": "Create category",
+    "categoryName": "Category name",
+    "slug": "URL slug",
+    "save": "Save changes",
+    "delete": "Delete category",
+    "empty": "No categories yet."
+  },
+  "services": {
+    "home": "Home",
+    "request": "Request this service",
+    "track": "Track my requests",
+    "how": "How does it work?",
+    "before": "Before submitting your request",
+    "help": "Help"
+  }
+}
