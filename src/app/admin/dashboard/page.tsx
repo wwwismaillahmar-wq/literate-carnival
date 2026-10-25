@@ -1,3 +1,4 @@
+import { getPortalDictionary } from '@/lib/i18n/portal-dictionary.server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 type Row = Record<string, unknown>;
 
 export default async function Dashboard() {
+  const t = await getPortalDictionary('admin');
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
@@ -74,15 +76,15 @@ export default async function Dashboard() {
   return (
     <main className="section"><div className="wrap">
       <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',flexWrap:'wrap'}}>
-        <div><span className="kicker">ADMIN CONTROL CENTER</span><h1>مركز تحكم ASLAN</h1><p className="muted">{profile?.full_name || profile?.username || user.email}</p><p className="muted">جلسة الإدارة تبقى فعالة أثناء تصفح الموقع والمعاينة.</p></div>
+        <div><span className="kicker">ADMIN CONTROL CENTER</span><h1>{t('controlTitle')}</h1><p className="muted">{profile?.full_name || profile?.username || user.email}</p><p className="muted">جلسة الإدارة تبقى فعالة أثناء تصفح الموقع والمعاينة.</p></div>
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <Link href="/admin/control" className="card" style={{textDecoration:'none'}}>⚙️ مركز التشغيل</Link><Link href="/" className="card" style={{textDecoration:'none'}}>👁️ معاينة الموقع</Link><LogoutButton />
+          <Link href="/admin/control" className="card" style={{textDecoration:'none'}}>{t('operations')}</Link><Link href="/" className="card" style={{textDecoration:'none'}}>{t('preview')}</Link><LogoutButton />
         </div>
       </div>
 
       <section className="card" style={{marginTop:25}}>
         <span className="kicker">OPERATIONS / M00–M17</span>
-        <h2>خريطة التشغيل الفعلية</h2>
+        <h2>{t('operationsMap')}</h2>
         <p className="muted">هذه ليست مراحل نظرية: كل بطاقة أدناه تقود إلى واجهة التشغيل الموجودة فعليًا. الحدود التي ما زالت بنيوية فقط تبقى معلّمة بوضوح بدل إظهارها كأنها مكتملة.</p>
         <div className="grid three" style={{marginTop:18}}>
           {[
@@ -122,24 +124,24 @@ export default async function Dashboard() {
       </div>
 
       <section className="card" style={{marginTop:25}}>
-        <span className="kicker">APPLICATIONS / EXTENSIONS</span><h2>تطبيقات المنصة</h2>
+        <span className="kicker">APPLICATIONS / EXTENSIONS</span><h2>{t('applications')}</h2>
         <p className="muted">سجل مركزي قابل للتوسع للتطبيقات المستقبلية. لا يوجد تشغيل ديناميكي لإضافات غير موثوقة؛ كل تطبيق يمر عبر الصلاحيات الحالية.</p>
         <div className="grid three" style={{marginTop:20}}>{ADMIN_APPLICATIONS.map(app =>
           <article className="card" key={app.id}>
             <strong>{app.name}</strong><p className="muted">{app.description}</p><small>{app.status}</small>
-            {app.entryPath ? <p><Link href={app.entryPath}>فتح الوحدة ←</Link></p> : <p className="muted">لا يوجد مسار تفعيل بعد.</p>}
+            {app.entryPath ? <p><Link href={app.entryPath}>{t('openModule')}</Link></p> : <p className="muted">{t('noRoute')}</p>}
           </article>
         )}</div>
       </section>
 
       <section className="grid three" style={{marginTop:25}}>
-        <AdminTable title="آخر العملاء المحتملين" rows={(recentLeads ?? []) as Row[]} fields={['name','type','status']} />
-        <AdminTable title="آخر المنشورات" rows={(recentPosts ?? []) as Row[]} fields={['title','status']} />
-        <AdminTable title="آخر المساهمات" rows={(recentContributions ?? []) as Row[]} fields={['title','type','status']} />
+        <AdminTable t={t} title="آخر العملاء المحتملين" rows={(recentLeads ?? []) as Row[]} fields={['name','type','status']} />
+        <AdminTable t={t} title="آخر المنشورات" rows={(recentPosts ?? []) as Row[]} fields={['title','status']} />
+        <AdminTable t={t} title="آخر المساهمات" rows={(recentContributions ?? []) as Row[]} fields={['title','type','status']} />
       </section>
 
       <section className="card" style={{marginTop:25}}>
-        <span className="kicker">CONTROL MAP</span><h2>حدود الإدارة الحالية</h2>
+        <span className="kicker">CONTROL MAP</span><h2>{t('boundaries')}</h2>
         <div className="grid three" style={{marginTop:20}}>{[
           ['Users & Identity','profiles + roles + permissions'],['Organizations','organizations + members'],
           ['Commerce','products + categories + leads'],['Content','posts + contributions + moderation'],
@@ -152,9 +154,9 @@ export default async function Dashboard() {
   );
 }
 
-function AdminTable({title,rows,fields}:{title:string;rows:Row[];fields:string[]}) {
+function AdminTable({t,title,rows,fields}:{t:(key:string)=>string;title:string;rows:Row[];fields:string[]}) {
   return <div className="card"><span className="kicker">LIVE DATA</span><h2>{title}</h2>
-    {rows.length===0 ? <p className="muted">لا توجد سجلات.</p> :
+    {rows.length===0 ? <p className="muted">{t('noRecords')}</p> :
       <div style={{display:'grid',gap:12,marginTop:15}}>{rows.map((row,index)=>
         <div key={String(row.id ?? index)} style={{paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.08)'}}>
           {fields.map(field=><div key={field}><small className="muted">{field}</small>{' '}<span>{String(row[field] ?? '—')}</span></div>)}

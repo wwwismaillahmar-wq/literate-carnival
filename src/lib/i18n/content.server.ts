@@ -2,7 +2,7 @@ import 'server-only';
 import {cookies} from 'next/headers';
 import {createClient} from '@/lib/supabase/server';
 import {DEFAULT_LOCALE,resolveLocale,type AslanLocale} from './core';
-export type TranslatableContent='product'|'course'|'service';
+export type TranslatableContent='product'|'course'|'service'|'category'|'market_store';
 export async function serverLocale():Promise<AslanLocale>{
  return resolveLocale((await cookies()).get('aslan-language')?.value||DEFAULT_LOCALE);
 }
