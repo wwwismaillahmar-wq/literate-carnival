@@ -14,7 +14,8 @@ export async function middleware(request: NextRequest) {
   // /en/partners/ to /partners (without the final slash) resolves to 404 in App Router.
   if (hasLocale) url.pathname = normalizedPath === '/' ? '/' : normalizedPath + '/';
   request.cookies.set('aslan-language', locale);
-  let response = hasLocale ? NextResponse.rewrite(url, { request }) : NextResponse.next({ request });
+  // Locale routing is handled by Next.js beforeFiles rewrites; middleware only manages cookies/auth.
+  let response = NextResponse.next({ request });
   response.cookies.set('aslan-language', locale, { path: '/', sameSite: 'lax', maxAge: 31536000, secure: request.nextUrl.protocol === 'https:' });
   const pathname = normalizedPath;
   const isAdminLogin = pathname === '/admin/login';
@@ -35,7 +36,7 @@ export async function middleware(request: NextRequest) {
       getAll: () => request.cookies.getAll(),
       setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = hasLocale ? NextResponse.rewrite(url, { request }) : NextResponse.next({ request });
+        response = NextResponse.next({ request });
         response.cookies.set('aslan-language', locale, { path: '/', sameSite: 'lax', maxAge: 31536000, secure: request.nextUrl.protocol === 'https:' });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
         Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));

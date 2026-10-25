@@ -9,6 +9,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   trailingSlash: true,
+  async rewrites() {
+    // Route locale-prefixed URLs to the existing App Router pages.
+    // beforeFiles prevents a locale prefix from resolving to the 404 route.
+    return { beforeFiles: [
+      { source: '/:locale(ar|fr|en|es|de|pt)', destination: '/' },
+      { source: '/:locale(ar|fr|en|es|de|pt)/:path*', destination: '/:path*' },
+    ], afterFiles: [], fallback: [] };
+  },
   experimental: {
     serverActions: {
       // Vercel serverless request bodies are limited to about 4.5 MB; keep a safe margin.
