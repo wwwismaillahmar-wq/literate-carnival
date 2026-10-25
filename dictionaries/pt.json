@@ -7,7 +7,17 @@
     "fields": "Áreas de formação",
     "chooseField": "Que área gostaria de dominar?",
     "before": "Antes de começar",
-    "help": "Apoio ao estudante"
+    "help": "Apoio ao estudante",
+    "pathIntro": "Da escolha do programa à aprendizagem",
+    "clearPath": "Um percurso claro para cada aluno",
+    "academyGuide": "Guia de inscrição →",
+    "fieldDescription": "Escolha uma área e explore os cursos.",
+    "fromAcademy": "Da academia",
+    "details": "Ver detalhes",
+    "yourExperience": "Sua experiência",
+    "siteGuide": "Guia do site →",
+    "journey": "Da escolha do curso à aprendizagem",
+    "startJoin": "Iniciar inscrição"
   },
   "admin": {
     "categoriesTitle": "Gerir categorias do mercado",
@@ -16,7 +26,16 @@
     "slug": "Identificador URL",
     "save": "Guardar alterações",
     "delete": "Eliminar categoria",
-    "empty": "Ainda não existem categorias."
+    "empty": "Ainda não existem categorias.",
+    "controlTitle": "Centro de controlo ASLAN",
+    "operations": "⚙️ Centro de operações",
+    "preview": "👁️ Pré-visualizar site",
+    "operationsMap": "Mapa de operações",
+    "applications": "Aplicações da plataforma",
+    "openModule": "Abrir módulo →",
+    "noRoute": "Sem rota de ativação.",
+    "boundaries": "Âmbito atual da administração",
+    "noRecords": "Sem registos."
   },
   "services": {
     "home": "Início",
@@ -24,6 +43,15 @@
     "track": "Acompanhar pedidos",
     "how": "Como funciona?",
     "before": "Antes de enviar o pedido",
-    "help": "Ajuda"
+    "help": "Ajuda",
+    "services": "Serviços",
+    "requestStep1": "Escolha o serviço e descreva o trabalho, local e horário.",
+    "requestStep2": "A equipa analisa o pedido e emite um orçamento.",
+    "requestStep3": "Aceite ou rejeite o orçamento na sua conta antes de agendar.",
+    "requestStep4": "Acompanhe o agendamento e o progresso nos seus pedidos.",
+    "sendRequest": "Enviar pedido",
+    "clearRequest": "Um pedido claro e rastreável",
+    "quoteFirst": "Orçamento antes do acordo",
+    "scheduleAfter": "Agendar após aprovação"
   }
 }

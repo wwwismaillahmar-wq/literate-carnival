@@ -32,7 +32,7 @@ export default async function ServiceDetails({ params }: Props) {
   return <main className={styles.page}><div className={styles.wrap}>
     <nav className={styles.breadcrumbs} aria-label="تسلسل التنقل">
       <Link href="/">{t('home')}</Link> <span>›</span>
-      <Link href="/services">الخدمات</Link> <span>›</span><span>{item.name}</span>
+      <Link href="/services">{t('services')}</Link> <span>›</span><span>{item.name}</span>
     </nav>
     <div className={styles.detail}>
       <section className={styles.detailPanel}>
@@ -46,10 +46,10 @@ export default async function ServiceDetails({ params }: Props) {
         <p style={{fontSize:13}}>تُحدد الأسعار والمواعيد والتغطية الجغرافية بعد مراجعة تفاصيل طلبك؛ لا توجد أسعار أو آجال ثابتة معلنة لهذه الخدمة.</p>
         <h2>{t('how')}</h2>
         <div className={styles.steps}>
-          <div className={styles.step}><strong>1</strong><span>اختر هذه الخدمة وأدخل وصف العمل وموقعه وتوقيتك المفضل.</span></div>
-          <div className={styles.step}><strong>2</strong><span>تراجع الإدارة الطلب وتصدر عرض سعر موضحًا تفاصيل التنفيذ.</span></div>
-          <div className={styles.step}><strong>3</strong><span>راجع العرض ووافق عليه أو ارفضه من حسابك قبل تحديد الموعد.</span></div>
-          <div className={styles.step}><strong>4</strong><span>تابع جدولة الخدمة ومراحل إنجازها من صفحة طلباتك.</span></div>
+          <div className={styles.step}><strong>1</strong><span>{t('requestStep1')}</span></div>
+          <div className={styles.step}><strong>2</strong><span>{t('requestStep2')}</span></div>
+          <div className={styles.step}><strong>3</strong><span>{t('requestStep3')}</span></div>
+          <div className={styles.step}><strong>4</strong><span>{t('requestStep4')}</span></div>
         </div>
       </section>
       <aside className={styles.detailAside}>
@@ -65,9 +65,9 @@ export default async function ServiceDetails({ params }: Props) {
       </aside>
     </div>
     <section className={styles.trust} aria-label="خطوات الخدمة">
-      <article><ClipboardList size={24}/><span>طلب واضح قابل للمتابعة</span></article>
-      <article><CheckCircle2 size={24}/><span>عرض سعر قبل الاتفاق</span></article>
-      <article><CalendarDays size={24}/><span>تحديد موعد بعد القبول</span></article>
+      <article><ClipboardList size={24}/><span>{t('clearRequest')}</span></article>
+      <article><CheckCircle2 size={24}/><span>{t('quoteFirst')}</span></article>
+      <article><CalendarDays size={24}/><span>{t('scheduleAfter')}</span></article>
     </section>
   </div></main>;
 }

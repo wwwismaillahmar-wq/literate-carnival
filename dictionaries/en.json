@@ -7,7 +7,17 @@
     "fields": "Training areas",
     "chooseField": "Which field would you like to master?",
     "before": "Before you begin",
-    "help": "Student support"
+    "help": "Student support",
+    "pathIntro": "From choosing a program to learning",
+    "clearPath": "A clear path for every learner",
+    "academyGuide": "Academy enrollment guide →",
+    "fieldDescription": "Select a training field to explore its published courses.",
+    "fromAcademy": "From the academy",
+    "details": "View details",
+    "yourExperience": "Your learning experience",
+    "siteGuide": "Website guide →",
+    "journey": "From choosing a course to learning",
+    "startJoin": "Start enrollment"
   },
   "admin": {
     "categoriesTitle": "Manage market categories",
@@ -16,7 +26,16 @@
     "slug": "URL slug",
     "save": "Save changes",
     "delete": "Delete category",
-    "empty": "No categories yet."
+    "empty": "No categories yet.",
+    "controlTitle": "ASLAN Control Center",
+    "operations": "⚙️ Operations center",
+    "preview": "👁️ Preview website",
+    "operationsMap": "Operations map",
+    "applications": "Platform applications",
+    "openModule": "Open module →",
+    "noRoute": "No activation route yet.",
+    "boundaries": "Current administration scope",
+    "noRecords": "No records."
   },
   "services": {
     "home": "Home",
@@ -24,6 +43,15 @@
     "track": "Track my requests",
     "how": "How does it work?",
     "before": "Before submitting your request",
-    "help": "Help"
+    "help": "Help",
+    "services": "Services",
+    "requestStep1": "Choose this service and describe the work, location and preferred time.",
+    "requestStep2": "Our team reviews the request and provides a detailed quote.",
+    "requestStep3": "Review and accept or decline the quote in your account before scheduling.",
+    "requestStep4": "Track scheduling and progress from your requests page.",
+    "sendRequest": "Send service request",
+    "clearRequest": "A clear, trackable request",
+    "quoteFirst": "Quote before agreement",
+    "scheduleAfter": "Schedule after approval"
   }
 }
