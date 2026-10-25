@@ -6,8 +6,8 @@ const ts=require('typescript');
 const source=fs.readFileSync('src/lib/i18n/academy-assets.ts','utf8');
 const component=fs.readFileSync('src/components/admin/AcademyLessonAssets.tsx','utf8');
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const exports={};vm.runInNewContext(js,{exports,module:{exports}});
-const copy=exports.academyAssetCopy;
+const exported={};vm.runInNewContext(js,{exports:exported,module:{exports:exported}});
+const copy=exported.academyAssetCopy;
 test('lesson asset lifecycle copy covers six languages and all statuses',()=>{
  const langs=['ar','fr','en','es','de','pt'];
  assert.deepEqual(Object.keys(copy).sort(),langs.slice().sort());

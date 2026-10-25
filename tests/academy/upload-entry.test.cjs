@@ -11,8 +11,13 @@ function component(name) {
   const file = path.resolve(__dirname, '../../src/components/admin', name + '.tsx');
   const loaded = new Module(file, module); loaded.filename = file; loaded.paths = module.paths;
   const original = loaded.require.bind(loaded);
+  const dictionaryPath = path.resolve(__dirname, '../../src/lib/i18n/academy-assets.ts');
+  const dictionary = new Module(dictionaryPath, module);
+  dictionary._compile(ts.transpileModule(fs.readFileSync(dictionaryPath, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, dictionaryPath);
   loaded.require = name => name === '@/lib/supabase/client' ? { createClient: () => ({}) }
     : name === '@/lib/uploads/tus-response' ? { parseTusOffset: () => 0, recoverTusOffset: async () => 0 }
+    : name === '@/components/AslanLocale' ? { useAslanLanguage: () => ({ language: 'ar' }) }
+    : name === '@/lib/i18n/academy-assets' ? dictionary.exports
     : original(name);
   loaded._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText, file);
   return loaded.exports[name];
