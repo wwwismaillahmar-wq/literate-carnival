@@ -18,13 +18,17 @@ const loadPublicCatalog=unstable_cache(async (slug?:string)=>{
   const url=db.storage.from(item.bucket_id).getPublicUrl(item.object_path).data.publicUrl;
   const urls=images.get(item.product_id)||[];urls.push(url);images.set(item.product_id,urls);
  }
- const translated=await localizedRows('product',(products.data||[]) as Record<string,unknown>[]);
- const catalog=translated.map(row=>normalizeMarketProduct(row,images.get(Number(row.id)))).filter(product=>approved.some(store=>store.id===product.storeId));
- return {products:catalog,categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
+ return {rows:(products.data||[]) as Record<string,unknown>[],images:Object.fromEntries(images),categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
 },['market-products-v2'],{revalidate:60,tags:['market-products']});
-export async function getMarketCatalog(){return loadPublicCatalog();}
+async function localizedCatalog(slug?:string){
+ const cached=await loadPublicCatalog(slug);
+ const translated=await localizedRows('product',cached.rows);
+ const products=translated.map(row=>normalizeMarketProduct(row,cached.images[Number(row.id)])).filter(product=>cached.stores.some(store=>store.id===product.storeId));
+ return {products,categories:cached.categories,stores:cached.stores,error:cached.error,storesError:cached.storesError};
+}
+export async function getMarketCatalog(){return localizedCatalog();}
 export async function getMarketProduct(slug:string){
- const detail=await loadPublicCatalog(slug);
+ const detail=await localizedCatalog(slug);
  const product=detail.products[0];if(!product)return {...detail,products:[]};
  const db=publicDb();const {data:related}=await db.from('products').select('*,category:categories(name)').eq('active',true).eq('category_id',Number(product.categoryId)).neq('id',product.id).order('created_at',{ascending:false}).limit(4);
  const translated=await localizedRows('product',(related||[]) as Record<string,unknown>[]);
