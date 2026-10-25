@@ -3,11 +3,16 @@ on:
   push:
     branches: [feat/aslan-web-exec-2026-024]
     paths:
-      - 'src/components/AslanLocale.tsx'
-      - 'src/components/LanguageSelector.tsx'
-      - 'src/components/Navbar.tsx'
-      - 'src/components/PartnerApplicationForm.tsx'
-      - 'src/lib/i18n/partner-form.ts'
+      - 'src/components/**'
+      - 'src/lib/i18n/**'
+      - 'src/app/**'
+      - 'scripts/test-six-locales-browser.mjs'
+      - '.github/workflows/aslan-024-browser-acceptance.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/**'
+      - 'src/lib/i18n/**'
       - 'src/app/**'
       - 'scripts/test-six-locales-browser.mjs'
       - '.github/workflows/aslan-024-browser-acceptance.yml'

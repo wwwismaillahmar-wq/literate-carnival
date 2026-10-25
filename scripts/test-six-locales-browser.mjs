@@ -15,6 +15,8 @@ const talentHeadings = {ar:'الكفاءات المهنية الموثقة',fr:'
 const companyHeadings = {"ar":"تعرف على المجموعة","fr":"Découvrez le groupe","en":"Discover the group","es":"Conoce el grupo","de":"Die Gruppe kennenlernen","pt":"Conheça o grupo"};
 const companySectionLabels = {"ar":["عن ASLAN","الرؤية","الرسالة","الأنشطة","المشاريع","معرض الأعمال","الأخبار","الأسئلة الشائعة"],"fr":["À propos d’ASLAN","Vision","Mission","Activités","Projets","Réalisations","Actualités","Questions fréquentes"],"en":["About ASLAN","Vision","Mission","Activities","Projects","Portfolio","News","Frequently asked questions"],"es":["Acerca de ASLAN","Visión","Misión","Actividades","Proyectos","Trabajos","Noticias","Preguntas frecuentes"],"de":["Über ASLAN","Vision","Mission","Tätigkeiten","Projekte","Referenzen","Neuigkeiten","Häufige Fragen"],"pt":["Sobre a ASLAN","Visão","Missão","Atividades","Projetos","Portefólio","Notícias","Perguntas frequentes"]};
 const marketCatalogHeadings = {ar:'اكتشف منتجات السوق',fr:'Produits du marché',en:'Explore market products',es:'Productos del mercado',de:'Marktprodukte entdecken',pt:'Produtos do mercado'};
+const servicesHeroHeadings = {"ar":"خدمات احترافية. من الطلب إلى الإنجاز.","fr":"Services professionnels, de la demande à la réalisation.","en":"Professional services, from request to delivery.","es":"Servicios profesionales, de la solicitud a la entrega.","de":"Professionelle Dienstleistungen von Anfrage bis Lieferung.","pt":"Serviços profissionais, do pedido à entrega."};
+const servicesSectionHeadings = {"ar":["مشروعك يبدأ بطلب واضح","تصفح حسب المجال","دليل خدمات ASLAN"],"fr":["Votre projet commence par une demande claire","Par domaine","Catalogue des services ASLAN"],"en":["Your project starts with a clear request","Browse by field","ASLAN service directory"],"es":["Tu proyecto empieza con una solicitud clara","Explorar por área","Directorio de servicios ASLAN"],"de":["Ihr Projekt beginnt mit einer klaren Anfrage","Nach Fachbereich","ASLAN-Dienstleistungsverzeichnis"],"pt":["O seu projeto começa com um pedido claro","Explorar por área","Diretório de serviços ASLAN"]};
 const academyCatalogHeadings = {ar:'الدورات الإلكترونية والتكوين',fr:'Cours en ligne et formations',en:'Online courses and training',es:'Cursos en línea y formación',de:'Online-Kurse und Weiterbildung',pt:'Cursos online e formação'};
 const partnerHeadings = {ar:'الشراكات والتعاون',fr:'Partenariats et collaboration',en:'Partnerships and collaboration',es:'Alianzas y colaboración',de:'Partnerschaften und Zusammenarbeit',pt:'Parcerias e colaboração'};
 const partnerFormLabels = {
@@ -85,6 +87,12 @@ try {
         document.querySelector('select[aria-label="Language / اللغة"]')?.value===expected;
     },code,{timeout:15000});
     assert.equal(normalizePath(new URL(page.url()).pathname),route,'unexpected redirect '+code+':'+route);
+    if(route==='/services') await page.waitForFunction(({code,hero,sections})=>{
+      return document.querySelector('h1')?.textContent?.trim()===hero &&
+        document.querySelector('section aside h2')?.textContent?.trim()===sections[0] &&
+        document.querySelector('#categories-heading')?.textContent?.trim()===sections[1] &&
+        document.querySelector('#catalog-heading')?.textContent?.trim()===sections[2];
+    },{code,hero:servicesHeroHeadings[code],sections:servicesSectionHeadings[code]},{timeout:15000});
     if(route==='/market') await page.waitForFunction(expected=>document.querySelector('#catalog-heading')?.textContent?.trim()===expected,marketCatalogHeadings[code],{timeout:15000});
     if(route==='/academy') await page.waitForFunction(expected=>document.querySelector('#courses-heading')?.textContent?.trim()===expected,academyCatalogHeadings[code],{timeout:15000});
     if(route==='/talent') await page.waitForFunction(expected=>document.querySelector('main h1')?.textContent?.trim()===expected,talentHeadings[code],{timeout:15000});
