@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import {cookies} from 'next/headers';
+import {resolveLocale} from '@/lib/i18n/core';
 import { ArrowLeft, ArrowUpLeft, BookOpen, BriefcaseBusiness, Handshake, PackageCheck, ShieldCheck, ShoppingBag, TrendingUp, BadgePercent, UsersRound, Wrench } from 'lucide-react';
 import styles from './HomeExperience.module.css';
 import { site } from '@/lib/config';
@@ -9,7 +11,10 @@ import { HomeAcademySection } from '@/components/academy/HomeAcademySection';
 import { HomeProductCarousel } from '@/components/HomeProductCarousel';
 import { AslanBrandMark } from '@/components/AslanBrandMark';
 
+const homeUi:Record<string,string[]>={"ar":["استكشف السوق","اطلب خدمة","منتجات وأعمال","خدمات تنفيذية","تعليم مهني","اكتشف المجموعة","إلى أين تريد الذهاب؟","بوابات مستقلة بحسب ما تريد إنجازه.","اكتشف سوق المنتجات","منتجات ASLAN والمتاجر المعتمدة، منفصلة عن خدمات التنفيذ.","الذهاب إلى السوق","خدمات مهنية تلائم احتياجك","جميع الخدمات","من المجتمع المهني","ادخل المجتمع","تواصل مع ASLAN"],"fr":["Explorez le marché","Demander un service","Produits et réalisations","Services professionnels","Formation professionnelle","Découvrez le groupe","Où souhaitez-vous aller ?","Des espaces dédiés à vos besoins.","Découvrez les produits","Les produits ASLAN et les boutiques agréées, distincts des services.","Voir le marché","Services professionnels adaptés à vos besoins","Tous les services","Communauté professionnelle","Accéder à la communauté","Contacter ASLAN"],"en":["Explore the market","Request a service","Products and projects","Professional services","Vocational training","Explore the group","Where would you like to go?","Dedicated spaces for what you need.","Explore products","ASLAN products and approved stores, separate from services.","Go to market","Professional services tailored to your needs","All services","Professional community","Enter community","Contact ASLAN"],"es":["Explorar el mercado","Solicitar un servicio","Productos y proyectos","Servicios profesionales","Formación profesional","Descubra el grupo","¿Adónde desea ir?","Espacios dedicados a sus necesidades.","Descubra los productos","Productos ASLAN y tiendas autorizadas, separados de los servicios.","Ir al mercado","Servicios profesionales para sus necesidades","Todos los servicios","Comunidad profesional","Entrar en la comunidad","Contactar con ASLAN"],"de":["Markt entdecken","Dienstleistung anfragen","Produkte und Projekte","Professionelle Dienstleistungen","Berufliche Weiterbildung","Gruppe entdecken","Wohin möchten Sie?","Eigenständige Bereiche für Ihre Anliegen.","Produkte entdecken","ASLAN-Produkte und zugelassene Shops, getrennt von Dienstleistungen.","Zum Markt","Professionelle Dienstleistungen für Ihren Bedarf","Alle Dienstleistungen","Berufliche Community","Zur Community","ASLAN kontaktieren"],"pt":["Explorar o mercado","Solicitar um serviço","Produtos e projetos","Serviços profissionais","Formação profissional","Conheça o grupo","Para onde pretende ir?","Espaços dedicados às suas necessidades.","Descubra os produtos","Produtos ASLAN e lojas aprovadas, separados dos serviços.","Ir ao mercado","Serviços profissionais adaptados às suas necessidades","Todos os serviços","Comunidade profissional","Entrar na comunidade","Contactar a ASLAN"]};
 export default async function HomePage(){
+  const locale=resolveLocale((await cookies()).get('aslan-language')?.value);
+  const ui=(index:number)=>homeUi[locale]?.[index]||homeUi.ar[index];
   const products=await getHomepageProducts();
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser();
@@ -90,7 +95,7 @@ export default async function HomePage(){
 
       <section className={styles.section} aria-labelledby="portals-heading">
         <div className={styles.sectionHeading}>
-          <div><span className={styles.eyebrow}>اكتشف المجموعة</span><h2 id="portals-heading">إلى أين تريد الذهاب؟</h2><p>بوابات مستقلة بحسب ما تريد إنجازه.</p></div>
+          <div><span className={styles.eyebrow}>{ui(5)}</span><h2 id="portals-heading">{ui(6)}</h2><p>{ui(7)}</p></div>
         </div>
         <div className={styles.portalGrid}>
           {portals.map(item=>{const Icon=item.icon;return <Link href={item.href} className={styles.portalCard+' '+styles['portal'+item.theme]} key={item.href}>
@@ -103,7 +108,7 @@ export default async function HomePage(){
 
       <section className={styles.section} aria-labelledby="products-heading">
         <div className={styles.sectionHeading}>
-          <div><span className={styles.eyebrow}>ASLAN MARKET</span><h2 id="products-heading">اكتشف سوق المنتجات</h2><p>منتجات ASLAN والمتاجر المعتمدة، منفصلة عن خدمات التنفيذ.</p></div>
+          <div><span className={styles.eyebrow}>ASLAN MARKET</span><h2 id="products-heading">{ui(8)}</h2><p>{ui(9)}</p></div>
           <Link href="/market" className={styles.textLink}>الذهاب إلى السوق <ArrowLeft size={16} aria-hidden="true"/></Link>
         </div>
         {products.length ? <HomeProductCarousel products={products}/> : <div className={styles.marketEmpty}>
@@ -119,7 +124,7 @@ export default async function HomePage(){
     <div className={styles.wrap}>
       <section className={styles.section} aria-labelledby="services-heading">
         <div className={styles.sectionHeading}>
-          <div><span className={styles.eyebrow}>ASLAN SERVICES</span><h2 id="services-heading">خدمات مهنية تلائم احتياجك</h2><p>من طلب الخدمة إلى عرض السعر والمتابعة، ضمن فضاء مستقل.</p></div>
+          <div><span className={styles.eyebrow}>ASLAN SERVICES</span><h2 id="services-heading">{ui(11)}</h2><p>من طلب الخدمة إلى عرض السعر والمتابعة، ضمن فضاء مستقل.</p></div>
           <Link href="/services" className={styles.textLink}>جميع الخدمات <ArrowLeft size={16} aria-hidden="true"/></Link>
         </div>
         {(publicServices ?? []).length > 0 ? <div className={styles.serviceGrid}>
@@ -133,7 +138,7 @@ export default async function HomePage(){
 
       <section className={styles.section} aria-labelledby="community-heading">
         <div className={styles.sectionHeading}>
-          <div><span className={styles.eyebrow}>ASLAN COMMUNITY</span><h2 id="community-heading">من المجتمع المهني</h2><p>مختارات من المنشورات التي أجازت الإدارة إبرازها علنًا.</p></div>
+          <div><span className={styles.eyebrow}>ASLAN COMMUNITY</span><h2 id="community-heading">{ui(13)}</h2><p>مختارات من المنشورات التي أجازت الإدارة إبرازها علنًا.</p></div>
           <Link href="/community" className={styles.textLink}>ادخل المجتمع <ArrowLeft size={16} aria-hidden="true"/></Link>
         </div>
         {posts.length ? <div className={styles.communityGrid}>
