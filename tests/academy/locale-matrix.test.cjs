@@ -7,6 +7,7 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const locale = read('src/components/AslanLocale.tsx');
+const core = read('src/lib/i18n/core.ts');
 const selector = read('src/components/LanguageSelector.tsx');
 const navbar = read('src/components/Navbar.tsx');
 const languages = ['ar', 'fr', 'en', 'es', 'de', 'pt'];
@@ -51,13 +52,17 @@ test('navigation arrays cover the eight spaces for all six languages', () => {
   }
   for (const key of spaces) assert.ok(navbar.includes("'" + key + "'"), 'Missing navigation key ' + key);
 });
-test('locale hook retains storage, direction, and cross-tab synchronization contracts', () => {
-  assert.match(locale, /localStorage\.setItem\('aslan-language'/);
-  assert.match(locale, /localStorage\.getItem\('aslan-language'/);
-  assert.match(locale, /document\.documentElement\.lang/);
-  assert.match(locale, /document\.documentElement\.dir/);
-  assert.match(locale, /next==='ar'\?'rtl':'ltr'/);
+test('locale hook delegates durable storage, cookie, direction and cross-tab synchronization to shared core', () => {
+  assert.match(locale, /persistLocale\(next\)/);
+  assert.match(locale, /applyLocale\(next\)/);
+  assert.match(locale, /window\.location\.pathname\.split/);
+  assert.match(locale, /\[pathname\]/);
   assert.match(locale, /addEventListener\('storage'/);
   assert.match(locale, /removeEventListener\('storage'/);
-  assert.match(locale, /aslan:language-change/);
+  assert.match(core, /localStorage\.setItem\(LOCALE_STORAGE_KEY/);
+  assert.match(core, /document\.cookie/);
+  assert.match(core, /document\.documentElement\.lang/);
+  assert.match(core, /document\.documentElement\.dir/);
+  assert.match(core, /locale === 'ar' \? 'rtl' : 'ltr'/);
+  assert.match(core, /aslan:language-change/);
 });

@@ -75,6 +75,14 @@ try {
     await new Promise(resolve=>setTimeout(resolve,500));
   }
   if(!ready)throw Error('Next.js readiness timeout: '+output);
+  // Direct HTTP preflight distinguishes a broken middleware rewrite from a client router transition.
+  for(const route of ['/en/partners/','/fr/market/']){
+    const response=await fetch(origin+route,{redirect:'follow'});
+    const html=await response.text();
+    console.log('ASLAN_PREFIX_HTTP',route,'status='+response.status,'final='+response.url,'hasPage='+(/form class="card"|id="catalog-heading"/.test(html)));
+    if(response.status!==200 || /404: This page could not be found/.test(html))
+      throw Error('PREFX_HTTP_ROUTE_FAILURE '+route+' status='+response.status+' final='+response.url+' body='+html.slice(0,300));
+  }
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const context=await browser.newContext({viewport:{width:1440,height:900}});
   await context.addInitScript(()=>{localStorage.setItem('aslan-intro','1');});
@@ -152,6 +160,11 @@ try {
   await page.waitForURL(url=>normalizePath(url.pathname)==='/en/partners');
   await page.waitForLoadState('domcontentloaded');
   const partnerForm=page.locator('form.card');
+  await partnerForm.waitFor({state:'visible',timeout:12000}).catch(async error=>{
+    const details={url:page.url(),title:await page.title().catch(()=>''),body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,1300),
+      html:(await page.locator('body').innerHTML().catch(()=>'' )).slice(0,1000)};
+    throw new Error('PARTNER_PREFIX_ROUTE_DIAGNOSTIC '+JSON.stringify(details),{cause:error});
+  });
   await partnerForm.locator('input[autocomplete="name"]').fill('Example Partner');
   await partnerForm.locator('input[autocomplete="tel"]').fill('0550000000');
   await partnerForm.locator('input[autocomplete="organization"]').fill('Example Company');

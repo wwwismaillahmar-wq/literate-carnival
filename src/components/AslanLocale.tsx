@@ -14,7 +14,20 @@ const translations:Record<Language,Record<string,string>>={
 export function useAslanLanguage(){
  const [language,setLanguage]=useState<Language>('ar');
  const router=useRouter();const pathname=usePathname();const searchParams=useSearchParams();
- useEffect(()=>{const saved=window.localStorage.getItem(LOCALE_STORAGE_KEY);const urlLocale=window.location.pathname.split('/')[1];const next=languages.some(code=>code===urlLocale)?resolveLocale(urlLocale):resolveLocale(saved);setLanguage(next);applyLocale(next);const sync=()=>{const value=window.localStorage.getItem(LOCALE_STORAGE_KEY);const urlLocale=window.location.pathname.split('/')[1];const current=languages.some(code=>code===urlLocale)?resolveLocale(urlLocale):resolveLocale(value);setLanguage(current);applyLocale(current);};window.addEventListener(LANGUAGE_EVENT,sync);window.addEventListener('storage',sync);return ()=>{window.removeEventListener(LANGUAGE_EVENT,sync);window.removeEventListener('storage',sync);};},[]);
+ useEffect(()=>{
+  const saved=window.localStorage.getItem(LOCALE_STORAGE_KEY);
+  const urlLocale=window.location.pathname.split('/')[1];
+  const next=languages.some(code=>code===urlLocale)?resolveLocale(urlLocale):resolveLocale(saved);
+  setLanguage(next);
+  if(saved!==next)persistLocale(next);else applyLocale(next);
+  const sync=()=>{
+   const current=resolveLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY));
+   setLanguage(current);applyLocale(current);
+  };
+  const onStorage=(event:StorageEvent)=>{if(event.key===null||event.key===LOCALE_STORAGE_KEY)sync();};
+  window.addEventListener(LANGUAGE_EVENT,sync);window.addEventListener('storage',onStorage);
+  return ()=>{window.removeEventListener(LANGUAGE_EVENT,sync);window.removeEventListener('storage',onStorage);};
+ },[pathname]);
  const change=useCallback((next:Language)=>{setLanguage(next);persistLocale(next);
    const path=pathname||'/';const parts=path.split('/').filter(Boolean);
    const withoutLocale=languages.some(code=>code===parts[0])?'/'+parts.slice(1).join('/'):path;
