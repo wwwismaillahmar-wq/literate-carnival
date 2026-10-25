@@ -17,6 +17,9 @@ const companySectionLabels = {"ar":["عن ASLAN","الرؤية","الرسالة"
 const marketCatalogHeadings = {ar:'اكتشف منتجات السوق',fr:'Produits du marché',en:'Explore market products',es:'Productos del mercado',de:'Marktprodukte entdecken',pt:'Produtos do mercado'};
 const servicesHeroHeadings = {"ar":"خدمات احترافية. من الطلب إلى الإنجاز.","fr":"Services professionnels, de la demande à la réalisation.","en":"Professional services, from request to delivery.","es":"Servicios profesionales, de la solicitud a la entrega.","de":"Professionelle Dienstleistungen von Anfrage bis Lieferung.","pt":"Serviços profissionais, do pedido à entrega."};
 const servicesSectionHeadings = {"ar":["مشروعك يبدأ بطلب واضح","تصفح حسب المجال","دليل خدمات ASLAN"],"fr":["Votre projet commence par une demande claire","Par domaine","Catalogue des services ASLAN"],"en":["Your project starts with a clear request","Browse by field","ASLAN service directory"],"es":["Tu proyecto empieza con una solicitud clara","Explorar por área","Directorio de servicios ASLAN"],"de":["Ihr Projekt beginnt mit einer klaren Anfrage","Nach Fachbereich","ASLAN-Dienstleistungsverzeichnis"],"pt":["O seu projeto começa com um pedido claro","Explorar por área","Diretório de serviços ASLAN"]};
+const communityHeroHeadings = {"ar":"مجتمع ASLAN","fr":"Communauté ASLAN","en":"ASLAN Community","es":"Comunidad ASLAN","de":"ASLAN-Community","pt":"Comunidade ASLAN"};
+const communityEmptyHeadings = {"ar":"لا توجد منشورات متاحة بعد.","fr":"Aucune publication disponible pour le moment.","en":"No posts available yet.","es":"Todavía no hay publicaciones disponibles.","de":"Noch keine Beiträge verfügbar.","pt":"Ainda não existem publicações disponíveis."};
+const communityNavLabels = {"ar":["المجتمع","الأعضاء","الأصدقاء","طلبات الصداقة","الرسائل","منشوراتي","مساهماتي"],"fr":["Communauté","Membres","Amis","Demandes d’amis","Messages","Mes publications","Mes contributions"],"en":["Community","Members","Friends","Friend requests","Messages","My posts","My contributions"],"es":["Comunidad","Miembros","Amigos","Solicitudes de amistad","Mensajes","Mis publicaciones","Mis contribuciones"],"de":["Community","Mitglieder","Freunde","Freundschaftsanfragen","Nachrichten","Meine Beiträge","Meine Mitwirkungen"],"pt":["Comunidade","Membros","Amigos","Pedidos de amizade","Mensagens","Minhas publicações","Minhas contribuições"]};
 const academyCatalogHeadings = {ar:'الدورات الإلكترونية والتكوين',fr:'Cours en ligne et formations',en:'Online courses and training',es:'Cursos en línea y formación',de:'Online-Kurse und Weiterbildung',pt:'Cursos online e formação'};
 const partnerHeadings = {ar:'الشراكات والتعاون',fr:'Partenariats et collaboration',en:'Partnerships and collaboration',es:'Alianzas y colaboración',de:'Partnerschaften und Zusammenarbeit',pt:'Parcerias e colaboração'};
 const partnerFormLabels = {
@@ -87,6 +90,14 @@ try {
         document.querySelector('select[aria-label="Language / اللغة"]')?.value===expected;
     },code,{timeout:15000});
     assert.equal(normalizePath(new URL(page.url()).pathname),route,'unexpected redirect '+code+':'+route);
+    if(route==='/community') {
+      await page.waitForFunction(({title,empty})=>document.querySelector('main h1')?.textContent?.trim()===title &&
+        document.querySelector('main .card h2')?.textContent?.trim()===empty,
+        {title:communityHeroHeadings[code],empty:communityEmptyHeadings[code]},{timeout:15000});
+      const communityLinks=page.locator('nav.community-nav a');
+      assert.equal(await communityLinks.count(),7,'community navigation count '+code);
+      for(let i=0;i<7;i++) assert.equal((await communityLinks.nth(i).textContent()).trim(),communityNavLabels[code][i],code+':community link '+i);
+    }
     if(route==='/services') await page.waitForFunction(({code,hero,sections})=>{
       return document.querySelector('h1')?.textContent?.trim()===hero &&
         document.querySelector('section aside h2')?.textContent?.trim()===sections[0] &&
