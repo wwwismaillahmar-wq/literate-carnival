@@ -135,9 +135,9 @@ export default async function Dashboard() {
       </section>
 
       <section className="grid three" style={{marginTop:25}}>
-        <AdminTable title="آخر العملاء المحتملين" rows={(recentLeads ?? []) as Row[]} fields={['name','type','status']} />
-        <AdminTable title="آخر المنشورات" rows={(recentPosts ?? []) as Row[]} fields={['title','status']} />
-        <AdminTable title="آخر المساهمات" rows={(recentContributions ?? []) as Row[]} fields={['title','type','status']} />
+        <AdminTable t={t} title="آخر العملاء المحتملين" rows={(recentLeads ?? []) as Row[]} fields={['name','type','status']} />
+        <AdminTable t={t} title="آخر المنشورات" rows={(recentPosts ?? []) as Row[]} fields={['title','status']} />
+        <AdminTable t={t} title="آخر المساهمات" rows={(recentContributions ?? []) as Row[]} fields={['title','type','status']} />
       </section>
 
       <section className="card" style={{marginTop:25}}>
@@ -154,7 +154,7 @@ export default async function Dashboard() {
   );
 }
 
-function AdminTable({title,rows,fields}:{title:string;rows:Row[];fields:string[]}) {
+function AdminTable({t,title,rows,fields}:{t:(key:string)=>string;title:string;rows:Row[];fields:string[]}) {
   return <div className="card"><span className="kicker">LIVE DATA</span><h2>{title}</h2>
     {rows.length===0 ? <p className="muted">{t('noRecords')}</p> :
       <div style={{display:'grid',gap:12,marginTop:15}}>{rows.map((row,index)=>
