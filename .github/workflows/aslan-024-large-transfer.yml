@@ -1,0 +1,38 @@
+name: ASLAN 024 isolated real 2GiB and 8GiB TUS acceptance
+
+on:
+  push:
+    branches:
+      - feat/aslan-web-exec-2026-024
+    paths:
+      - .github/workflows/aslan-024-large-transfer.yml
+      - infra/uploads/academy-gateway.mjs
+      - tests/uploads/contabo-gateway.test.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-real-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify isolated runner has space for real 8 GiB file
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h .
+          free_bytes=$(df -Pk . | awk 'NR==2 {print $4*1024}')
+          if [ "$free_bytes" -lt 10737418240 ]; then
+            echo "BLOCKED: less than 10 GiB free; no large transfer attempted"
+            exit 7
+          fi
+      - name: Real HTTP TUS transfers, interruption, restart and independent SHA-256
+        env:
+          ASLAN_LARGE_TRANSFER: '1'
+        run: node --test tests/uploads/contabo-gateway.test.mjs

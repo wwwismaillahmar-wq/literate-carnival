@@ -1,0 +1,46 @@
+name: ASLAN 024 six-language browser acceptance
+on:
+  push:
+    branches: [feat/aslan-web-exec-2026-024]
+    paths:
+      - 'src/components/**'
+      - 'src/lib/i18n/**'
+      - 'src/app/**'
+      - 'scripts/test-six-locales-browser.mjs'
+      - '.github/workflows/aslan-024-browser-acceptance.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/**'
+      - 'src/lib/i18n/**'
+      - 'src/app/**'
+      - 'scripts/test-six-locales-browser.mjs'
+      - '.github/workflows/aslan-024-browser-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aslan-024-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser-locale-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:3215
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      ESLINT_USE_FLAT_CONFIG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install test-only Chromium and Playwright (no lockfile changes)
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Verify real browser language, direction, persistence, cross-tab and all 48 routes
+        run: node scripts/test-six-locales-browser.mjs

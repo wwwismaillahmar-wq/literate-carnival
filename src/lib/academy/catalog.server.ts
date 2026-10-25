@@ -1,4 +1,5 @@
 import 'server-only';
+import {localizedRows} from '@/lib/i18n/content.server';
 import { createClient } from '@/lib/supabase/server';
 import { isPublished, normalizeCourse, readPresentation } from './catalog';
 export async function getAcademyCatalog() {
@@ -9,6 +10,8 @@ export async function getAcademyCatalog() {
   ]);
   const settings: Record<string,string> = Object.fromEntries((settingsResult.data ?? []).map(row => [row.setting_key, row.setting_value ?? '']));
   const presentation = readPresentation(settings.academy_catalog);
-  const courses = (courseResult.data ?? []).filter(row => isPublished(row as Record<string,unknown>)).map(row => normalizeCourse(row as Record<string,unknown>, presentation[String(row.id)]));
+  const published=(courseResult.data ?? []).filter(row => isPublished(row as Record<string,unknown>));
+  const translated=await localizedRows('course',published as Record<string,unknown>[]);
+  const courses = translated.map(row => normalizeCourse(row, presentation[String(row.id)]));
   return { courses, settings, error: Boolean(courseResult.error), settingsError: Boolean(settingsResult.error) };
 }
