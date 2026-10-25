@@ -14,10 +14,14 @@ function component(name) {
   const dictionaryPath = path.resolve(__dirname, '../../src/lib/i18n/academy-assets.ts');
   const dictionary = new Module(dictionaryPath, module);
   dictionary._compile(ts.transpileModule(fs.readFileSync(dictionaryPath, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, dictionaryPath);
+  const uploadCopyPath = path.resolve(__dirname, '../../src/lib/i18n/academy-upload.ts');
+  const uploadCopy = new Module(uploadCopyPath, module);
+  uploadCopy._compile(ts.transpileModule(fs.readFileSync(uploadCopyPath, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, uploadCopyPath);
   loaded.require = name => name === '@/lib/supabase/client' ? { createClient: () => ({}) }
     : name === '@/lib/uploads/tus-response' ? { parseTusOffset: () => 0, recoverTusOffset: async () => 0 }
     : name === '@/components/AslanLocale' ? { useAslanLanguage: () => ({ language: 'ar' }) }
     : name === '@/lib/i18n/academy-assets' ? dictionary.exports
+    : name === '@/lib/i18n/academy-upload' ? uploadCopy.exports
     : original(name);
   loaded._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText, file);
   return loaded.exports[name];
