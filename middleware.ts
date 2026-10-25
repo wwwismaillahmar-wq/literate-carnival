@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
   const canonicalPath = hasLocale ? '/' + segments.slice(1).join('/') : url.pathname;
   const normalizedPath = canonicalPath || '/';
   if (hasLocale) url.pathname = normalizedPath;
+  request.cookies.set('aslan-language', locale);
   let response = hasLocale ? NextResponse.rewrite(url, { request }) : NextResponse.next({ request });
   response.cookies.set('aslan-language', locale, { path: '/', sameSite: 'lax', maxAge: 31536000, secure: request.nextUrl.protocol === 'https:' });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

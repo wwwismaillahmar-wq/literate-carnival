@@ -31,3 +31,8 @@ export function translate(dictionary: LocaleDictionary, locale: AslanLocale, key
   }
   return dictionary[DEFAULT_LOCALE]?.[key] || key;
 }
+
+/** Culture-aware presentation without mutating stored business values. */
+export function formatAslanNumber(value: number, locale: AslanLocale, options?: Intl.NumberFormatOptions): string { return new Intl.NumberFormat(locale, options).format(value); }
+export function formatAslanDate(value: Date | string | number, locale: AslanLocale, options?: Intl.DateTimeFormatOptions): string { return new Intl.DateTimeFormat(locale, options).format(new Date(value)); }
+export function formatAslanPrice(value: number, locale: AslanLocale, currency = 'DZD'): string { return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value); }

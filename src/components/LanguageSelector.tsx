@@ -15,7 +15,8 @@ export function LanguageSelector({onLanguageChange}:{onLanguageChange?:(language
  const [language,setLanguage]=useState<Language>('ar');
  useEffect(()=>{
   const saved=window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  const chosen=resolveLocale(saved);
+  const urlLocale=window.location.pathname.split('/')[1];
+  const chosen=languages.some(code=>code===urlLocale)?resolveLocale(urlLocale):resolveLocale(saved);
   setLanguage(chosen);applyLocale(chosen);
   onLanguageChange?.(chosen);
   const sync=()=>{const value=resolveLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY));setLanguage(value);applyLocale(value);};
@@ -25,6 +26,9 @@ export function LanguageSelector({onLanguageChange}:{onLanguageChange?:(language
  function change(value:string){
   const next=languages.find(item=>item===value);if(!next)return;
   setLanguage(next);persistLocale(next);
+  const parts=window.location.pathname.split('/').filter(Boolean);
+  const rest=languages.some(code=>code===parts[0])?parts.slice(1):parts;
+  window.location.assign('/'+next+(rest.length?'/'+rest.join('/'): '')+window.location.search+window.location.hash);
   onLanguageChange?.(next);
  }
  return <label style={{display:'inline-flex',alignItems:'center',gap:5}}>
