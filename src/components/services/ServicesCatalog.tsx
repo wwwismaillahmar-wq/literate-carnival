@@ -417,7 +417,7 @@ export function ServicesCatalog({ services, initialQuery = '', initialCategory =
                   </div>
                 </article>;
               })}</div> : <div className={styles.empty}><h3>{ui.noMatches}</h3>
-                <p>جرّب تغيير المجال أو كلمة البحث.</p><button className={styles.secondary} onClick={clear}>{ui.showAllServices}</button></div>}
+                <p>{ui.noMatchesDetail}</p><button className={styles.secondary} onClick={clear}>{ui.showAllServices}</button></div>}
           </div>
         </div>
       </section>
