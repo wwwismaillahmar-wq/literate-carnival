@@ -118,7 +118,8 @@ try {
     await page.waitForFunction(expected=>document.documentElement.lang===expected,code);
     for(const route of routes){await verify(code,route);checked++;}
     // Exercise an actual navigation click, not just direct URL visits and href assertions.
-    await page.locator('nav.shell-nav a[href="/market"]').click();
+    // Next.js trailingSlash renders /market/; the link's position and target were verified above.
+    await page.locator('nav.shell-nav a').nth(1).click();
     await page.waitForURL(url=>normalizePath(url.pathname)==='/market');
     await page.waitForFunction(expected=>document.documentElement.lang===expected &&
       document.documentElement.dir===(expected==='ar'?'rtl':'ltr') &&
