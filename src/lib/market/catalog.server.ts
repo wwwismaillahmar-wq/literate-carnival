@@ -3,7 +3,7 @@ import {localizedRows} from '@/lib/i18n/content.server';
 import {createClient as createPublicClient} from '@supabase/supabase-js';
 import {unstable_cache} from 'next/cache';
 import {aslanStore,normalizeMarketProduct,type MarketStore} from './catalog';
-const publicDb=()=>createPublicClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{auth:{persistSession:false,autoRefreshToken:false}});
+const publicDb=()=>createPublicClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{auth:{persistSession:false,autoRefreshToken:false}});
 const loadPublicCatalog=unstable_cache(async (slug?:string)=>{
  const db=publicDb();const [products,categories,stores]=await Promise.all([
  (slug ? db.from('products').select('*,category:categories(name)').eq('active',true).eq('slug',slug).limit(1) : db.from('products').select('*,category:categories(name)').eq('active',true).order('created_at',{ascending:false}).limit(24)),

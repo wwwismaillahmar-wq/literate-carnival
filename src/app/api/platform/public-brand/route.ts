@@ -4,7 +4,7 @@ import {createClient} from '@supabase/supabase-js';
 
 const getPublicBrand=unstable_cache(async()=>{
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
- const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+ const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
  if(!url||!key)return {brandLogoUrl:null,settings:{}};
  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
  const {data,error}=await db.from('site_settings').select('setting_key,setting_value').eq('is_public',true).in('setting_key',['brand_logo_path','brand_gold']);
