@@ -16,10 +16,19 @@ export async function middleware(request: NextRequest) {
   request.cookies.set('aslan-language', locale);
   let response = hasLocale ? NextResponse.rewrite(url, { request }) : NextResponse.next({ request });
   response.cookies.set('aslan-language', locale, { path: '/', sameSite: 'lax', maxAge: 31536000, secure: request.nextUrl.protocol === 'https:' });
+  const pathname = normalizedPath;
+  const isAdminLogin = pathname === '/admin/login';
+  const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/');
+  // Public pages must not block on a remote authentication lookup.
+  if (!isAdminArea || isAdminLogin) return response;
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = hasLocale ? '/' + locale + '/admin/login' : '/admin/login';
+  loginUrl.searchParams.set('next', pathname);
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!supabaseUrl || !supabaseKey) return response;
+  if (!supabaseUrl || !supabaseKey) return NextResponse.redirect(loginUrl);
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
@@ -34,18 +43,9 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims().catch(() => ({ data: null }));
   const user = data?.claims;
-  const pathname = normalizedPath;
-  const isAdminLogin = pathname === '/admin/login';
-  const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/');
-
-  if (isAdminArea && !isAdminLogin && !user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = hasLocale ? '/' + locale + '/admin/login' : '/admin/login';
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  if (!user) return NextResponse.redirect(loginUrl);
   return response;
 }
 
