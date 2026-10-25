@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { ASLAN_LOCALES, DEFAULT_LOCALE, resolveLocale } from './src/lib/i18n/core';
+import { ASLAN_LOCALES, DEFAULT_LOCALE, resolveLocale } from './lib/i18n/core';
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
