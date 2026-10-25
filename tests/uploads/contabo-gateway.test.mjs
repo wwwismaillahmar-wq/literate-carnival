@@ -209,6 +209,40 @@ test('SHA-256 receipt rejects same-size disk tampering and symlink substitution'
   } finally { await f.close(); }
 });
 
+test('corrupt SHA-256 receipt is rebuilt from disk and never authorizes stale bytes', async () => {
+  const f = await fixture(4);
+  const dataPath = path.join(f.directory, id + '.data');
+  const receiptPath = path.join(f.directory, id + '.verified.json');
+  const verify = () => fetch(f.base + '/assets/' + id + '/verify', { method: 'POST', headers });
+  try {
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'POST', headers: { ...headers, 'Upload-Length': '4' },
+    })).status, 201);
+    assert.equal((await fetch(f.base + '/files/' + id, {
+      method: 'PATCH', headers: { ...headers, 'Upload-Offset': '0',
+        'Content-Type': 'application/offset+octet-stream' }, body: 'abcd',
+    })).status, 204);
+    const first = await (await verify()).json();
+    assert.equal(first.sha256, createHash('sha256').update('abcd').digest('hex'));
+    const signed = await (await fetch(f.base + '/assets/' + id + '/download-token', {
+      method: 'POST', headers,
+    })).json();
+    await writeFile(receiptPath, '{"sha256":');
+    const recovered = await verify();
+    assert.equal(recovered.status, 200);
+    assert.equal((await recovered.json()).sha256, first.sha256);
+    const download = await fetch(f.base + signed.path);
+    assert.equal(download.status, 200);
+    assert.equal(await download.text(), 'abcd');
+    await writeFile(receiptPath, '{"sha256":');
+    await writeFile(dataPath, 'wxyz');
+    const changed = await verify();
+    assert.equal(changed.status, 200);
+    assert.equal((await changed.json()).sha256, createHash('sha256').update('wxyz').digest('hex'));
+    assert.equal((await fetch(f.base + signed.path)).status, 409);
+  } finally { await f.close(); }
+});
+
 test('SHA-256 verification rejects hardlinked upload files and recovers after unlink', async () => {
   const f = await fixture(4);
   const diskFile = path.join(f.directory, id + '.data');
