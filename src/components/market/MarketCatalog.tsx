@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState,useMemo,useCallback,useDeferredValue} from 'react';
+import {memo,useEffect,useState,useMemo,useCallback,useDeferredValue} from 'react';
 import Link from 'next/link';
 import {useAslanLanguage} from '@/components/AslanLocale';
 import {marketStatusCopy} from '@/lib/i18n/market-status';
@@ -16,7 +16,7 @@ import {filterMarket,type MarketFilters,type MarketProduct,type MarketStore} fro
 import {MarketProductCard} from './MarketProductCard';
 import styles from './Market.module.css';
 const empty:MarketFilters={query:'',category:'',store:'',availability:'all',minimum:'',maximum:'',sort:'newest'};
-export function MarketCatalog({products,stores,categories,initial={},savedOnly=false,error=false}:{products:MarketProduct[];stores:MarketStore[];categories:{id:number;name:string}[];initial?:Partial<MarketFilters>;savedOnly?:boolean;error?:boolean}){
+function MarketCatalogComponent({products,stores,categories,initial={},savedOnly=false,error=false}:{products:MarketProduct[];stores:MarketStore[];categories:{id:number;name:string}[];initial?:Partial<MarketFilters>;savedOnly?:boolean;error?:boolean}){
  const {language}=useAslanLanguage();const c=copyByLanguage[language];const s=marketStatusCopy[language];
  const [filters,setFilters]=useState<MarketFilters>({...empty,...initial});const [saved,setSaved]=useState<number[]>([]);const [compared,setCompared]=useState<number[]>([]);const [showFilters,setShowFilters]=useState(false);const [notice,setNotice]=useState<'compareLimit'|'storageUnavailable'|null>(null);
  useEffect(()=>{try{for(const [key,set] of [['aslan-market-saved',setSaved],['aslan-market-compare',setCompared]] as const){const value=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(value))set(value.filter((id):id is number=>Number.isSafeInteger(id)&&id>0).slice(0,key.endsWith('compare')?4:500));}}catch{}},[]);
@@ -33,3 +33,5 @@ export function MarketCatalog({products,stores,categories,initial={},savedOnly=f
  </div></div>{compared.length>0&&<div className={styles.comparison}><span>{s.compareSelected} {compared.length}</span><Link href="/market/compare">{s.openCompare}</Link><button onClick={()=>{setCompared([]);try{localStorage.setItem('aslan-market-compare','[]');}catch{}}}>{s.clearSelection}</button></div>}
  </section>;
 }
+
+export const MarketCatalog=memo(MarketCatalogComponent);
