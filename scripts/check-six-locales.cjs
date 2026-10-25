@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const read=(path)=>fs.readFileSync(path,'utf8');
 const selector=read('src/components/LanguageSelector.tsx');
 const locale=read('src/components/AslanLocale.tsx');
+const core=read('src/lib/i18n/core.ts');
 const navbar=read('src/components/Navbar.tsx');
 const academy=read('src/components/academy/AcademyCatalog.tsx');
 const academyCopyBlock=academy.slice(academy.indexOf('const academyCopy='),academy.indexOf('// Labels are localized')); 
@@ -14,9 +15,11 @@ for(const code of ['ar','fr','en','es','de','pt']){
 }
 assert.match(navbar,/<LocalePicker/);
 assert.match(navbar,/useAslanLanguage/);
-assert.match(locale,/localStorage\.setItem\('aslan-language'/);
-assert.match(locale,/document\.documentElement\.dir/);
-assert.match(locale,/aslan:language-change/);
+assert.match(locale,/persistLocale\(next\)/);
+assert.match(core,/localStorage\.setItem\(LOCALE_STORAGE_KEY/);
+assert.match(locale,/applyLocale\(next\)/);
+assert.match(core,/document\.documentElement\.dir/);
+assert.match(core,/aslan:language-change/);
 assert.match(academy,/copy\.noMatches/);
 assert.match(academy,/copy\.noCourses/);
 
