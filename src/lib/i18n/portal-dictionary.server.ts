@@ -6,9 +6,9 @@ import fr from '../../../dictionaries/fr.json';
 import es from '../../../dictionaries/es.json';
 import de from '../../../dictionaries/de.json';
 import pt from '../../../dictionaries/pt.json';
-const dictionaries={ar,en,fr,es,de,pt};
+const dictionaries:Record<string,Record<string,Record<string,string>>>={ar,en,fr,es,de,pt};
 type Section='academy'|'admin'|'services';
 export async function getPortalDictionary(section:Section){
  const locale=await serverLocale();
- return (key:string)=>dictionaries[locale][section][key as keyof typeof dictionaries['ar'][Section]] || dictionaries.en[section][key as keyof typeof dictionaries['en'][Section]] || key;
+ return (key:string)=>dictionaries[locale]?.[section]?.[key] || dictionaries.en[section]?.[key] || key;
 }
