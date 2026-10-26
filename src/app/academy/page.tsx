@@ -1,3 +1,5 @@
+import { serverLocale } from '@/lib/i18n/content.server';
+import { translatedTrainingFields } from '@/lib/i18n/training-fields';
 import { getPortalDictionary } from '@/lib/i18n/portal-dictionary.server';
 import Link from 'next/link';
 import { BookOpen, Megaphone, Compass, ClipboardList, GraduationCap } from 'lucide-react';
@@ -10,6 +12,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'الأكاديمية والتكوين المهني' };
 export default async function AcademyPage({searchParams}:{searchParams:Promise<{field?:string}>}) {
   const t = await getPortalDictionary('academy');
+  const locale = await serverLocale();
   const [{courses,settings,error},params] = await Promise.all([getAcademyCatalog(),searchParams]);
   const field = trainingFields.some(item=>item.id===params.field) ? params.field! : params.field==='general' ? 'general' : '';
   const articles = [
@@ -23,7 +26,7 @@ export default async function AcademyPage({searchParams}:{searchParams:Promise<{
     </div></section>
     <div className="wrap">
       {settings.academy_announcement_body && <section className={styles.section}><div className={styles.notice}><Megaphone size={28} aria-hidden="true"/><div><h2>{settings.academy_announcement_title || 'إعلان الأكاديمية'}</h2><p>{settings.academy_announcement_body}</p></div></div></section>}
-      <section className={styles.section} aria-labelledby="fields-heading"><div className={styles.heading}><div><span className={styles.eyebrow}>{t('fields')}</span><h2 id="fields-heading">{t('chooseField')}</h2><p>{t('fieldDescription')}</p></div></div><div className={styles.fields}>{trainingFields.map(item=><Link className={styles.field} key={item.id} href={'/academy?field='+item.id+'#courses'}><TrainingIcon field={item.id}/><strong>{item.title}</strong><small>{item.description}</small><em>{error ? 'استكشف المجال ←' : courses.filter(course=>course.field===item.id).length+' دورة منشورة ←'}</em></Link>)}</div></section>
+      <section className={styles.section} aria-labelledby="fields-heading"><div className={styles.heading}><div><span className={styles.eyebrow}>{t('fields')}</span><h2 id="fields-heading">{t('chooseField')}</h2><p>{t('fieldDescription')}</p></div></div><div className={styles.fields}>{trainingFields.map(item=><Link className={styles.field} key={item.id} href={'/academy?field='+item.id+'#courses'}><TrainingIcon field={item.id}/><strong>{translatedTrainingFields[locale]?.[item.id]?.title || item.title}</strong><small>{translatedTrainingFields[locale]?.[item.id]?.description || item.description}</small><em>{error ? 'استكشف المجال ←' : courses.filter(course=>course.field===item.id).length+' دورة منشورة ←'}</em></Link>)}</div></section>
       <AcademyCatalog key={field} courses={courses} initialField={field} error={error}/>
       {settings.academy_promo_body && <section className={styles.section}><div className={styles.feature}><span className={styles.eyebrow}>{t('fromAcademy')}</span><h2>{settings.academy_promo_title || 'تعرّف على برامجنا'}</h2><p>{settings.academy_promo_body}</p><Link className="btn primary" href={safeInternalLink(settings.academy_promo_link || '')}>{t('details')}</Link></div></section>}
       <section className={styles.section} aria-labelledby="news-heading"><div className={styles.heading}><div><span className={styles.eyebrow}>{t('yourExperience')}</span><h2 id="news-heading">{t('before')}</h2><p>معلومات تساعدك على اختيار الدورة وفهم خطوات التكوين.</p></div><Link href="/guides">{t('siteGuide')}</Link></div><div className={styles.editorial}>{articles.map(({icon:Icon,title,text},index)=><article className={styles.article} key={index}><Icon size={30} aria-hidden="true"/><h3>{title}</h3><p>{text}</p></article>)}</div></section>
