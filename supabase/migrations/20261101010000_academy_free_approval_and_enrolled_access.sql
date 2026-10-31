@@ -14,7 +14,8 @@ begin
  if not (a.status='submitted' and p_status in ('under_review','accepted','rejected','needs_information','cancelled','expired')
  or a.status='under_review' and p_status in ('accepted','rejected','needs_information','cancelled','expired')
  or a.status='needs_information' and p_status in ('under_review','accepted','rejected','cancelled','expired')
- or a.status in ('accepted','payment_pending') and p_status in ('cancelled','expired'))
+ or a.status in ('accepted','payment_pending') and p_status in ('cancelled','expired')
+ or a.status='accepted' and p_status='accepted')
  then raise exception 'INVALID_TRANSITION'; end if;
  if p_status='accepted' then
    select * into c from public.courses where id::text=a.course_id for share;
@@ -33,7 +34,11 @@ begin
    end if;
  end if;
  update public.academy_admission_applications
- set status=p_status,reviewer_id=auth.uid(),reviewed_at=now(),review_note=coalesce(p_note,''),updated_at=now()
+ set status=p_status,
+ reviewer_id=case when a.status='accepted' and p_status='accepted' then a.reviewer_id else auth.uid() end,
+ reviewed_at=case when a.status='accepted' and p_status='accepted' then a.reviewed_at else now() end,
+ review_note=case when a.status='accepted' and p_status='accepted' then a.review_note else coalesce(p_note,'') end,
+ updated_at=now()
  where id=a.id returning * into a;
  return jsonb_build_object('id',a.id,'course_id',a.course_id,'status',a.status,
  'review_note',a.review_note,'reviewed_at',a.reviewed_at,'updated_at',a.updated_at,
