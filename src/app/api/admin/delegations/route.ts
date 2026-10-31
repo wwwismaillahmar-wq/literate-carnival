@@ -5,7 +5,7 @@ async function access() {
   const db = await createClient();
   const {data:{user}} = await db.auth.getUser();
   if (!user) return {db,status:401};
-  const {data:allowed} = await db.rpc('has_role',{role_key:'super_admin'});
+  const {data:allowed} = await db.rpc('admin_has_permission',{required_permission:'admin.delegate'});
   return {db,status:allowed===true?200:403};
 }
 export async function GET() {
