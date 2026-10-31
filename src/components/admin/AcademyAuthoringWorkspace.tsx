@@ -6,7 +6,7 @@ import { AcademyLessonAssets } from './AcademyLessonAssets';
 import { AcademyResumableUpload } from './AcademyResumableUpload';
 import { AcademyAssetReviewQueue } from './AcademyAssetReviewQueue';
 
-type Course = { id: string; title: string; description: string; status: string; duration?: string; price_dzd?: number | null; lesson_release_mode?: string };
+type Course = { id: string; title: string; description: string; status: string; visibility?: 'restricted' | 'public'; duration?: string; price_dzd?: number | null; lesson_release_mode?: string };
 type Module = { id: string; course_id: string; title: string; description: string; sort_order: number; status: string };
 type Lesson = { id: string; module_id: string; title: string; lesson_type: string; body: string; resource_url: string | null; duration_minutes: number; sort_order: number; status: string };
 
@@ -130,6 +130,20 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
     } finally { clearTimeout(timeout); setBusy(false); }
   }
 
+  async function saveVisibility(visibility: 'restricted' | 'public') {
+    if (!courseId || busy) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = await readJson<{ course: Course }>(await fetch('/api/academy/courses', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: courseId, visibility }),
+      }));
+      setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
+      setNotice(visibility === 'restricted' ? 'أصبح ظهور الدورة مقيدًا.' : 'أصبح ظهور الدورة عامًا.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذر تغيير الظهور.'); }
+    finally { setBusy(false); }
+  }
+
   async function createModule(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!courseId || busy) return;
@@ -239,7 +253,15 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
           <label>السعر بالدينار الجزائري<input type="number" min={0} max={1000000000} value={editCoursePrice} onChange={e => setEditCoursePrice(e.target.value)} /></label>
           <button className="btn secondary" disabled={busy}>حفظ بيانات الدورة</button>
         </form>
-        <div aria-busy={busy} style={{ display: "grid", gap: 10, marginTop: 12 }}><label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? "draft"} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشورة</option><option value="archived">مؤرشفة</option></select></label><button type="button" className="btn primary" disabled={busy || courses.find(course => course.id === courseId)?.status === "published"} onClick={() => void saveCourseStatus("published")}>{busy ? "جارٍ تنفيذ الطلب..." : courses.find(course => course.id === courseId)?.status === "published" ? "الدورة منشورة" : "نشر الدورة الآن"}</button></div>
+        <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+          <label>ظهور الدورة (مستقل عن النشر)
+            <select disabled={busy} value={courses.find(course => course.id === courseId)?.visibility ?? 'restricted'} onChange={e => void saveVisibility(e.target.value as 'restricted' | 'public')}>
+              <option value="restricted">مقيّد — المختبرون المصرح لهم</option>
+              <option value="public">عام — جميع المستخدمين</option>
+            </select>
+          </label>
+          <p className="muted">تغيير الظهور لا يعيد نشر المحتوى. لا تظهر المسودات للعامة.</p>
+        </div><div aria-busy={busy} style={{ display: "grid", gap: 10, marginTop: 12 }}><label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? "draft"} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشورة</option><option value="archived">مؤرشفة</option></select></label><button type="button" className="btn primary" disabled={busy || courses.find(course => course.id === courseId)?.status === "published"} onClick={() => void saveCourseStatus("published")}>{busy ? "جارٍ تنفيذ الطلب..." : courses.find(course => course.id === courseId)?.status === "published" ? "الدورة منشورة" : "نشر الدورة الآن"}</button></div>
       </>}
       {!courses.length && <p className="muted">لا توجد دورات مكلف بها هذا الحساب.</p>}
     </section>
