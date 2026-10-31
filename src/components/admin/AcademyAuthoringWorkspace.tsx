@@ -45,6 +45,23 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const [busy, setBusy] = useState(false);
   const [testers, setTesters] = useState<{user_id:string;granted_at:string}[]>([]);
   const [testerUserId, setTesterUserId] = useState('');
+  const [testerQuery, setTesterQuery] = useState('');
+  const [testerMatches, setTesterMatches] = useState<{id:string;full_name:string|null;username:string|null}[]>([]);
+  const [testerSearchBusy, setTesterSearchBusy] = useState(false);
+  useEffect(() => {
+    if (staffMode || testerQuery.trim().length < 2) { setTesterMatches([]); return; }
+    const controller = new AbortController();
+    const handle = setTimeout(async () => {
+      setTesterSearchBusy(true);
+      try {
+        const response = await fetch('/api/academy/tester-search?q='+encodeURIComponent(testerQuery.trim()), {signal:controller.signal,cache:'no-store'});
+        const result = await readJson<{users:{id:string;full_name:string|null;username:string|null}[]}>(response);
+        setTesterMatches(result.users);
+      } catch (err) { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'تعذر البحث.'); }
+      finally { if (!controller.signal.aborted) setTesterSearchBusy(false); }
+    }, 300);
+    return () => { clearTimeout(handle); controller.abort(); };
+  }, [testerQuery, staffMode]);
 
   const loadCourses = useCallback(async () => {
     if (staffMode) {
@@ -157,7 +174,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
     setBusy(true); setError(''); setNotice('');
     try {
       await readJson(await fetch('/api/academy/testers', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({courseId,userId:testerUserId.trim()})}));
-      setTesterUserId(''); await refreshTesters(); setNotice('تم منح المستخدم صلاحية اختبار الدورة.');
+      setTesterUserId(''); setTesterQuery(''); await refreshTesters(); setNotice('تم منح المستخدم صلاحية اختبار الدورة.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر إضافة المختبر.'); }
     finally { setBusy(false); }
   }
@@ -295,10 +312,14 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
 
     {courseId && !staffMode && <section className="card">
       <h2>حسابات المختبرين المصرح لهم</h2>
-      <p className="muted">أدخل معرّف UUID لحساب مسجل في Supabase Auth. لا يمنح هذا الإذن حق الإدارة أو التسجيل المدفوع.</p>
+      <p className="muted">ابحث عن المستخدم باسمه أو اسم حسابه، ثم اختره لمنحه الوصول التجريبي. لا يمنح هذا الإذن صلاحيات الإدارة.</p>
       <form onSubmit={addTester} style={{display:'grid',gap:8}}>
-        <label>معرّف حساب المختبر<input required value={testerUserId} onChange={e=>setTesterUserId(e.target.value)} placeholder="UUID" /></label>
-        <button className="btn secondary" disabled={busy}>منح صلاحية المشاهدة المقيدة</button>
+        <label>البحث عن مستخدم<input value={testerQuery} onChange={e=>{setTesterQuery(e.target.value);setTesterUserId('');}} placeholder="اسم المستخدم أو الاسم الكامل" autoComplete="off" /></label>
+        {testerSearchBusy && <span role="status">جارٍ البحث...</span>}
+        {testerMatches.length > 0 && <div role="listbox" aria-label="نتائج البحث" style={{display:'grid',gap:6}}>
+          {testerMatches.map(person=><button type="button" role="option" aria-selected={testerUserId===person.id} key={person.id} className="btn secondary" onClick={()=>{setTesterUserId(person.id);setTesterQuery(person.full_name || person.username || 'مستخدم');setTesterMatches([]);}}>{person.full_name || person.username || 'مستخدم'}{person.username && person.full_name ? ' (@'+person.username+')' : ''}</button>)}
+        </div>}
+        <button className="btn secondary" disabled={busy || !testerUserId}>منح صلاحية المشاهدة المقيدة للمستخدم المحدد</button>
       </form>
       {testers.map(t=><div key={t.user_id} style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginTop:8}}>
         <code>{t.user_id}</code><button type="button" disabled={busy} onClick={()=>void removeTester(t.user_id)}>إلغاء الصلاحية</button>
