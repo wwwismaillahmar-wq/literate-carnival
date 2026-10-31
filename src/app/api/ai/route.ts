@@ -20,6 +20,9 @@ type LeadInput = {
   phone?: unknown;
   type?: unknown;
   message?: unknown;
+  courseId?: unknown;
+  trainingField?: unknown;
+  consultation?: unknown;
 };
 
 type Classification = {
@@ -133,6 +136,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'بيانات الطلب ناقصة أو غير صالحة.' }, { status: 400 });
   }
 
+  const courseId = clean(body.courseId,80);
+  const trainingField = clean(body.trainingField,40);
+  const consultation = body.consultation === true;
+  const reference = 'ASL-' + crypto.randomUUID().slice(0,8).toUpperCase();
   const aiClassification = await classifyLead(lead);
   const db = await createClient();
   const { error } = await db.from('leads').insert({
@@ -142,6 +149,8 @@ export async function POST(request: Request) {
     message: lead.message,
     metadata: {
       source: 'website_contact',
+      reference,
+      training: lead.type === 'دورة تكوينية' ? { course_id: courseId || null, field: trainingField || null, consultation } : null,
       ai_classification: aiClassification,
     },
   });
@@ -153,6 +162,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    reference,
     ai_enabled: Boolean(process.env.OPENAI_API_KEY),
     classification: aiClassification,
   });
