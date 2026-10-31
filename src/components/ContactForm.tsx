@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trainingFields, type AcademyCourse } from '@/lib/academy/catalog';
 
 
 type Classification = {
@@ -9,11 +10,16 @@ type Classification = {
   reason?: string;
 } | null;
 
-export function ContactForm({ initialType }: { initialType: string }) {
+export function ContactForm({ initialType, courses = [] }: { initialType: string; courses?: AcademyCourse[] }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [type, setType] = useState(initialType);
   const [message, setMessage] = useState('');
+  const [field,setField] = useState('');
+  const [courseId,setCourseId] = useState('');
+  const [consultation,setConsultation] = useState(false);
+  const [reference,setReference] = useState<string | null>(null);
+  const available = courses.filter(course=>!field || course.field===field);
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,7 +29,8 @@ export function ContactForm({ initialType }: { initialType: string }) {
 
     const cleanName = name.trim();
     const cleanPhone = phone.trim();
-    const cleanMessage = message.trim();
+    const chosen = courses.find(course=>course.id===courseId && (!field || course.field===field));
+    const cleanMessage = message.trim() || (type==='دورة تكوينية' ? 'أرغب في الحصول على استشارة تعليمية حول الدورات المتاحة.' : '');
     const cleanType = type.trim();
 
     if (
@@ -38,6 +45,7 @@ export function ContactForm({ initialType }: { initialType: string }) {
       return;
     }
 
+    setReference(null);
     setSubmitting(true);
     setStatus('جاري تحليل طلبك وتسجيله...');
 
@@ -50,17 +58,21 @@ export function ContactForm({ initialType }: { initialType: string }) {
           phone: cleanPhone,
           type: cleanType,
           message: cleanMessage,
+          courseId: type==='دورة تكوينية' && !consultation ? chosen?.id : undefined,
+          trainingField: type==='دورة تكوينية' ? field : undefined,
+          consultation: type==='دورة تكوينية' ? consultation : undefined,
         }),
       });
 
       const data = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; classification?: Classification }
+        | { ok?: boolean; error?: string; classification?: Classification; reference?: string }
         | null;
 
       if (!response.ok || !data?.ok) {
         throw new Error(data?.error || 'تعذر تسجيل الطلب.');
       }
 
+      setReference(data.reference || null);
       setStatus('تم استلام طلبك داخل منصة ASLAN بنجاح. ستراجعه الإدارة وتتواصل معك عبر بيانات الاتصال المقدمة.');
       setMessage('');
     } catch (error) {
@@ -117,11 +129,27 @@ export function ContactForm({ initialType }: { initialType: string }) {
         </select>
       </label>
 
+      {type==='دورة تكوينية' && <div style={{display:'grid',gap:12}}>
+        <label>مجال التكوين
+          <select value={field} onChange={event=>{setField(event.target.value);setCourseId('');}}>
+            <option value="">كل المجالات</option>
+            {trainingFields.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}
+            <option value="general">تكوين مهني عام</option>
+          </select>
+        </label>
+        <label>الدورة المطلوبة
+          <select value={courseId} disabled={consultation} onChange={event=>setCourseId(event.target.value)}>
+            <option value="">لم أحدد دورة بعد</option>
+            {available.map(course=><option key={course.id} value={course.id}>{course.title}</option>)}
+          </select>
+        </label>
+        <label><input type="checkbox" checked={consultation} onChange={event=>{setConsultation(event.target.checked);if(event.target.checked)setCourseId('');}}/> لا أعرف الدورة المناسبة / أحتاج إلى استشارة تعليمية</label>
+      </div>}
       <label>
         <span className="sr-only">تفاصيل الطلب</span>
         <textarea
-          required
-          minLength={5}
+          required={type!=='دورة تكوينية'}
+          minLength={type==='دورة تكوينية'?0:5}
           maxLength={4000}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
@@ -134,6 +162,7 @@ export function ContactForm({ initialType }: { initialType: string }) {
         {submitting ? 'جاري المعالجة...' : 'إرسال الطلب'}
       </button>
 
+      {reference && <p role="status"><strong>رقم الطلب: {reference}</strong></p>}
       {status && (
         <p className="muted" role="status" aria-live="polite">
           {status}
