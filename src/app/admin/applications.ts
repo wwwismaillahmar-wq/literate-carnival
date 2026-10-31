@@ -51,17 +51,17 @@ export const ADMIN_APPLICATIONS: AdminApplication[] = [
   {
     id: 'talent',
     name: 'Talent',
-    description: 'Future skills, professional profiles and evidence verification.',
-    status: 'boundary',
-    entryPath: null,
+    description: 'Existing professional profile and evidence review workspace; full workflow requires acceptance testing.',
+    status: 'partial',
+    entryPath: '/admin/talent',
     requiredPermissions: [],
   },
   {
     id: 'partners',
     name: 'Partners',
-    description: 'Future partner accounts, organizations and requests.',
-    status: 'boundary',
-    entryPath: null,
+    description: 'Existing partner applications and identity document review; full workflow requires acceptance testing.',
+    status: 'partial',
+    entryPath: '/admin/partners',
     requiredPermissions: [],
   },
   {
