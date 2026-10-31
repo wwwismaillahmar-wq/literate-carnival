@@ -5,6 +5,7 @@ import { AcademyAuthoringWorkspace } from '@/components/admin/AcademyAuthoringWo
 import { AcademyAdmissionReviewWorkspace } from '@/components/admin/AcademyAdmissionReviewWorkspace';
 import { AcademyStructureWorkspace } from '@/components/admin/AcademyStructureWorkspace';
 import { AcademyAdmissionQuestionWorkspace } from '@/components/admin/AcademyAdmissionQuestionWorkspace';
+import { AcademyQuestionsInbox } from '@/components/admin/AcademyQuestionsInbox';
 import { AcademyStaffWorkspace } from '@/components/admin/AcademyStaffWorkspace';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,7 @@ export default async function AdminAcademyPage() {
       <h2>طلبات القبول والتأهيل</h2>
       <p className="muted">مراجعة إجابات المتقدمين وتوثيق قرار القبول. القبول لا يثبت الدفع ولا يفتح المحتوى المدفوع تلقائيًا.</p>
       <AcademyAdmissionReviewWorkspace />
+      <AcademyQuestionsInbox />
     </section>
   </div></main>;
 }
