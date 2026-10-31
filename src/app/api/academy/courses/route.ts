@@ -109,13 +109,15 @@ export async function PATCH(request: Request) {
         if (courseError || !existingCourse) return NextResponse.json({ error: 'تعذر التحقق من الدورة.' }, { status: 404 });
         const title = String(patch.title ?? existingCourse.title ?? '').trim();
         const description = String(patch.description ?? existingCourse.description ?? '').trim();
-        const price = patch.price_dzd !== undefined ? patch.price_dzd : existingCourse.price_dzd;
-        if (title.length < 2 || description.length < 20 || typeof price !== 'number' || price < 0)
+        const rawPrice = patch.price_dzd !== undefined ? patch.price_dzd : existingCourse.price_dzd;
+        const price = rawPrice === null || rawPrice === undefined || rawPrice === '' ? null : Number(rawPrice);
+        if (title.length < 2 || description.length < 20 || price === null || !Number.isFinite(price) || price < 0)
           return NextResponse.json({ error: 'أكمل عنوان الدورة ووصفها وسعرها قبل النشر.' }, { status: 409 });
         const { data: modules, error: moduleError } = await db.from('academy_modules')
           .select('id,status').eq('course_id', id).neq('status', 'archived').abortSignal(controller.signal);
-        if (moduleError || !modules?.length || modules.some(module => module.status !== 'published'))
-          return NextResponse.json({ error: 'يلزم وجود وحدات معتمدة ومنشورة قبل نشر الدورة.' }, { status: 409 });
+        if (moduleError) return NextResponse.json({ error: 'تعذر فحص وحدات الدورة: ' + moduleError.message }, { status: 500 });
+        if (!modules?.length || modules.some(module => module.status !== 'published'))
+          return NextResponse.json({ error: 'لا يمكن نشر الدورة: يجب استعادة الوحدات المؤرشفة ونشر جميع الوحدات النشطة أولًا.' }, { status: 409 });
         const moduleIds = modules.map(module => module.id);
         const { data: lessons, error: lessonError } = await db.from('academy_lessons')
           .select('id,module_id,status,body,resource_url').in('module_id', moduleIds).neq('status', 'archived').abortSignal(controller.signal);
