@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Application = {
   id: string; course_id: string; applicant_name: string; applicant_email: string; applicant_phone: string;
@@ -14,25 +14,31 @@ export function AcademyAdmissionReviewWorkspace() {
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  async function load() {
+  const load = useCallback(async () => {
     const response = await fetch('/api/academy/admissions', { cache: 'no-store' });
     const result = await response.json() as { applications?: Application[]; error?: string };
     if (!response.ok) throw new Error(result.error || 'تعذر تحميل طلبات القبول.');
     setItems(result.applications ?? []);
-  }
+  }, []);
   useEffect(() => {
     void load().catch(e => setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.')).finally(() => setLoading(false));
-  }, []);
+    const poll = setInterval(() => { if (document.visibilityState === 'visible') void load().catch(()=>{}); }, 15000);
+    return () => clearInterval(poll);
+  }, [load]);
   async function decide(item: Application, status: 'under_review'|'accepted'|'rejected'|'needs_information') {
+    if (busyId) return;
     setBusyId(item.id); setError(''); setNotice('');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const response = await fetch('/api/academy/admissions', { method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id:item.id, status, reviewNote:notes[item.id] ?? '' }) });
+      const response = await fetch('/api/academy/admissions', { method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id:item.id, status, reviewNote:notes[item.id] ?? '' }), signal: controller.signal });
       const result = await response.json() as { application?: { id:string; status:string; review_note:string; reviewed_at:string }; error?:string };
       if (!response.ok || !result.application) throw new Error(result.error || 'تعذر حفظ القرار.');
       setItems(current => current.map(row => row.id === item.id ? { ...row, ...result.application } : row));
       setNotice('تم حفظ قرار المراجعة.');
+      void load().catch(() => {});
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر حفظ القرار.'); }
-    finally { setBusyId(''); }
+    finally { clearTimeout(timeout); setBusyId(''); }
   }
   async function issueInvoice(item:Application) {
     if(busyId)return;setBusyId(item.id);setError('');setNotice('');
@@ -47,6 +53,7 @@ export function AcademyAdmissionReviewWorkspace() {
   return <section className="grid" style={{ marginTop:24 }}>
     {error && <div className="card" role="alert">{error}</div>}
     {notice && <div className="card" role="status">{notice}</div>}
+    <div className="card" role="status">طلبات جديدة: {items.filter(x=>x.status==='submitted').length} · قيد المراجعة: {items.filter(x=>x.status==='under_review').length}</div>
     {!items.length && <div className="card">لا توجد طلبات قبول حتى الآن.</div>}
     {items.map(item => <article className="card" key={item.id}>
       <span className="kicker">{item.status} · {new Date(item.submitted_at).toLocaleString('ar-DZ')}</span>
@@ -62,7 +69,7 @@ export function AcademyAdmissionReviewWorkspace() {
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
         {['accepted','payment_pending'].includes(item.status)&&<button type="button" disabled={!!busyId} onClick={()=>void issueInvoice(item)}>{item.status==='accepted'?'إصدار فاتورة القبول':'عرض الفاتورة الحالية'}</button>}
         <button type="button" disabled={!!busyId || !['submitted','under_review','needs_information'].includes(item.status)} onClick={()=>void decide(item,'under_review')}>قيد المراجعة</button>
-        <button type="button" className="btn primary" disabled={busyId===item.id} onClick={()=>void decide(item,'accepted')}>قبول</button>
+        <button type="button" className="btn primary" disabled={!!busyId} onClick={()=>void decide(item,'accepted')}>قبول</button>
         <button type="button" disabled={busyId===item.id} onClick={()=>void decide(item,'needs_information')}>طلب استكمال</button>
         <button type="button" disabled={busyId===item.id} onClick={()=>void decide(item,'rejected')}>رفض</button>
       </div>
