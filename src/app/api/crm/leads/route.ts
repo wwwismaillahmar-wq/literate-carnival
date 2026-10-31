@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 async function admin(db: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await db.auth.getUser();
   if (!user) return { user: null, allowed: false };
-  const { data, error } = await db.rpc('has_role', { role_key: 'super_admin' });
+  const { data, error } = await db.rpc('admin_has_permission', { required_permission: 'crm.manage' });
   return { user, allowed: !error && data === true };
 }
 
