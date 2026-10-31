@@ -1,0 +1,47 @@
+name: ASLAN Contabo Secure Backup and Restore Verification
+on:
+  push:
+    branches: [fix/unified-v1-fixes]
+    paths:
+      - '.github/workflows/aslan-contabo-secure-backup.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate SSH configuration
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY"
+          bash -n scripts/ops/aslan-backup-and-verify.sh
+      - name: Execute backup and isolated restore test on Contabo
+        shell: bash
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          printf '%s\n' "$OPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 "$OPS_USER@$OPS_HOST" 'bash -s' < scripts/ops/aslan-backup-and-verify.sh | tee backup-execution.log
+          {
+            echo '## ASLAN PostgreSQL backup and isolated restore'
+            echo 'No database dump contents included in log.'
+            echo '\`\`text'
+            cat backup-execution.log
+            echo '\`\`\`'
+          } >> "$GITHUB_STEP_SUMMARY"
