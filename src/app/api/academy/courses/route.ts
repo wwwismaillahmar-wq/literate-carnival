@@ -7,8 +7,9 @@ export async function GET() {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  const { data: allowed, error: authError } = await db.rpc('admin_has_permission', { required_permission: 'academy.manage' });
-  if (authError || allowed !== true) return NextResponse.json({ error: 'عرض كتالوج الإدارة غير مصرح.' }, { status: 403 });
+  const { data: manageAllowed } = await db.rpc('admin_has_permission', { required_permission: 'academy.manage' });
+  const { data: publishAllowed } = await db.rpc('admin_has_permission', { required_permission: 'academy.publish' });
+  if (manageAllowed !== true && publishAllowed !== true) return NextResponse.json({ error: 'عرض كتالوج الإدارة غير مصرح.' }, { status: 403 });
   const { data, error } = await db.from('courses').select('*').limit(100);
   if (error) return NextResponse.json({ error: 'تعذر تحميل الدورات؛ تحقق من مخطط courses الحالي.' }, { status: 500 });
   const courses = (data ?? []).map((row: Record<string, unknown>) => ({
@@ -75,8 +76,10 @@ export async function PATCH(request: Request) {
     if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
     const body = await request.json();
     const publicationChange = body.status !== undefined || body.visibility !== undefined;
-    const { allowed } = await requireAdmin(db, publicationChange ? 'academy.publish' : 'academy.manage');
-    if (!allowed) return NextResponse.json({ error: 'لا تملك الصلاحية المفوضة المطلوبة.' }, { status: 403 });
+    const contentChange = ['title','description','duration','priceDzd','lessonReleaseMode'].some(key => body[key] !== undefined);
+    const { allowed: publishAllowed } = publicationChange ? await requireAdmin(db, 'academy.publish') : { allowed: true };
+    const { allowed: manageAllowed } = contentChange ? await requireAdmin(db, 'academy.manage') : { allowed: true };
+    if (!publishAllowed || !manageAllowed || (!publicationChange && !contentChange)) return NextResponse.json({ error: 'لا تملك الصلاحية المفوضة المطلوبة.' }, { status: 403 });
     const id = typeof body.id === 'string' ? body.id.trim() : '';
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
       return NextResponse.json({ error: 'معرّف الدورة غير صالح.' }, { status: 400 });
