@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { whatsappLink } from '@/lib/config';
+
 
 type Classification = {
   classification?: string;
@@ -61,16 +61,13 @@ export function ContactForm({ initialType }: { initialType: string }) {
         throw new Error(data?.error || 'تعذر تسجيل الطلب.');
       }
 
-      setStatus('تم تسجيل الطلب وتحليله. سيتم فتح واتساب للمتابعة.');
+      setStatus('تم استلام طلبك داخل منصة ASLAN بنجاح. ستراجعه الإدارة وتتواصل معك عبر بيانات الاتصال المقدمة.');
+      setMessage('');
     } catch (error) {
       console.error('lead submission failed:', error);
-      setStatus('تعذر تسجيل الطلب في النظام، لكن سيتم فتح واتساب للمتابعة.');
+      setStatus('تعذر تسجيل الطلب داخل المنصة. يرجى إعادة المحاولة لاحقًا؛ لم يتم تأكيد استلامه.');
     } finally {
-      window.location.assign(
-        whatsappLink(
-          `مرحباً ASLAN MODELLING،\nالاسم: ${cleanName}\nالهاتف: ${cleanPhone}\nنوع الطلب: ${cleanType}\nالتفاصيل: ${cleanMessage}`,
-        ),
-      );
+      setSubmitting(false);
     }
   }
 
