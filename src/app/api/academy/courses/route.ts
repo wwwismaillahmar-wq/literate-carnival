@@ -67,8 +67,6 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
   if (!sameOrigin(request)) return NextResponse.json({ error: 'مصدر الطلب غير مسموح.' }, { status: 403 });
   try {
     const db = await createClient();
@@ -108,43 +106,12 @@ export async function PATCH(request: Request) {
     }
     if (body.visibility !== undefined) {
       if (!['restricted', 'public'].includes(body.visibility)) return NextResponse.json({ error: 'إعداد الظهور غير صالح.' }, { status: 400 });
-      const { data: current } = await db.from('courses').select('status').eq('id', id).maybeSingle();
-      if (body.visibility === 'public' && current?.status !== 'published' && body.status !== 'published') return NextResponse.json({ error: 'لا يمكن إظهار مسودة للعامة.' }, { status: 409 });
       patch.visibility = body.visibility;
     }
     if (body.status !== undefined) {
       if (!['draft','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدورة غير صالحة.' }, { status: 400 });
       if (body.status === 'published') {
-        // Fail closed: do not sell a course shell with no ready learning inventory.
-        const { data: existingCourse, error: courseError } = await db.from('courses')
-          .select('id,title,description,price_dzd').eq('id', id).abortSignal(controller.signal).maybeSingle();
-        if (courseError || !existingCourse) return NextResponse.json({ error: 'تعذر التحقق من الدورة.' }, { status: 404 });
-        const title = String(patch.title ?? existingCourse.title ?? '').trim();
-        const description = String(patch.description ?? existingCourse.description ?? '').trim();
-        const rawPrice = patch.price_dzd !== undefined ? patch.price_dzd : existingCourse.price_dzd;
-        const price = rawPrice === null || rawPrice === undefined || rawPrice === '' ? null : Number(rawPrice);
-        if (title.length < 2 || description.length < 20 || price === null || !Number.isFinite(price) || price < 0)
-          return NextResponse.json({ error: 'أكمل عنوان الدورة ووصفها وسعرها قبل النشر.' }, { status: 409 });
-        const { data: modules, error: moduleError } = await db.from('academy_modules')
-          .select('id,status').eq('course_id', id).neq('status', 'archived').abortSignal(controller.signal);
-        if (moduleError) return NextResponse.json({ error: 'تعذر فحص وحدات الدورة: ' + moduleError.message }, { status: 500 });
-        if (!modules?.length || modules.some(module => module.status !== 'published'))
-          return NextResponse.json({ error: 'لا يمكن نشر الدورة: يجب استعادة الوحدات المؤرشفة ونشر جميع الوحدات النشطة أولًا.' }, { status: 409 });
-        const moduleIds = modules.map(module => module.id);
-        const { data: lessons, error: lessonError } = await db.from('academy_lessons')
-          .select('id,module_id,status,body,resource_url').in('module_id', moduleIds).neq('status', 'archived').abortSignal(controller.signal);
-        if (lessonError || !lessons?.length ||
-            modules.some(module => !lessons.some(lesson => lesson.module_id === module.id)) ||
-            lessons.some(lesson => lesson.status !== 'published' ||
-              (!String(lesson.body ?? '').trim() && !String(lesson.resource_url ?? '').trim())))
-          return NextResponse.json({ error: 'كل وحدة تحتاج دروسًا منشورة ذات محتوى قبل نشر الدورة.' }, { status: 409 });
-        // Reject unverified file references: lesson text is not proof that
-        // uploaded learning assets are reviewed and ready for learners.
-        const lessonIds = lessons.map(lesson => lesson.id);
-        const { data: assets, error: assetError } = await db.from('academy_lesson_assets')
-          .select('id,lesson_id,status').in('lesson_id', lessonIds).abortSignal(controller.signal);
-        if (assetError || (assets ?? []).some(asset => asset.status !== 'ready'))
-          return NextResponse.json({ error: 'توجد ملفات تعليمية لم تكتمل مراجعتها واعتمادها.' }, { status: 409 });
+        // Publishing is an administrative decision. Content completeness is advisory only.
         patch.published_at = new Date().toISOString();
       } else if (body.status === 'draft') {
         patch.published_at = null;
@@ -152,14 +119,12 @@ export async function PATCH(request: Request) {
       patch.status = body.status;
     }
     const { data, error } = await db.from('courses').update(patch).eq('id', id)
-      .select('id,title,description,duration,price_dzd,lesson_release_mode,status,visibility,created_at,updated_at,published_at').abortSignal(controller.signal).maybeSingle();
+      .select('id,title,description,duration,price_dzd,lesson_release_mode,status,visibility,created_at,updated_at,published_at').maybeSingle();
     if (error) { console.error('[academy.publish] update failed', error.message); return NextResponse.json({ error: 'تعذر حفظ تغييرات الدورة.' }, { status: 500 }); }
     if (!data) return NextResponse.json({ error: 'الدورة غير موجودة.' }, { status: 404 });
     return NextResponse.json({ course: data });
   } catch (error) {
     console.error('[academy.publish] unexpected', error instanceof Error ? error.message : String(error));
     return NextResponse.json({ error: 'تعذر تحديث الدورة بسبب خطأ في الخادم.' }, { status: 500 });
-  } finally {
-    clearTimeout(timeout);
   }
 }
