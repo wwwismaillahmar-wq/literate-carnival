@@ -46,7 +46,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const [testers, setTesters] = useState<{user_id:string;granted_at:string}[]>([]);
   const [testerUserId, setTesterUserId] = useState('');
   const [testerQuery, setTesterQuery] = useState('');
-  const [testerMatches, setTesterMatches] = useState<{id:string;full_name:string|null;username:string|null}[]>([]);
+  const [testerMatches, setTesterMatches] = useState<{id:string;full_name:string|null;username:string|null;email:string|null}[]>([]);
   const [testerSearchBusy, setTesterSearchBusy] = useState(false);
   useEffect(() => {
     if (staffMode || testerQuery.trim().length < 2) { setTesterMatches([]); return; }
@@ -55,7 +55,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
       setTesterSearchBusy(true);
       try {
         const response = await fetch('/api/academy/tester-search?q='+encodeURIComponent(testerQuery.trim()), {signal:controller.signal,cache:'no-store'});
-        const result = await readJson<{users:{id:string;full_name:string|null;username:string|null}[]}>(response);
+        const result = await readJson<{users:{id:string;full_name:string|null;username:string|null;email:string|null}[]}>(response);
         setTesterMatches(result.users);
       } catch (err) { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'تعذر البحث.'); }
       finally { if (!controller.signal.aborted) setTesterSearchBusy(false); }
@@ -314,10 +314,10 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
       <h2>حسابات المختبرين المصرح لهم</h2>
       <p className="muted">ابحث عن المستخدم باسمه أو اسم حسابه، ثم اختره لمنحه الوصول التجريبي. لا يمنح هذا الإذن صلاحيات الإدارة.</p>
       <form onSubmit={addTester} style={{display:'grid',gap:8}}>
-        <label>البحث عن مستخدم<input value={testerQuery} onChange={e=>{setTesterQuery(e.target.value);setTesterUserId('');}} placeholder="اسم المستخدم أو الاسم الكامل" autoComplete="off" /></label>
+        <label>البحث عن مستخدم<input value={testerQuery} onChange={e=>{setTesterQuery(e.target.value);setTesterUserId('');}} placeholder="الاسم الكامل أو اسم المستخدم أو البريد الإلكتروني" autoComplete="off" /></label>
         {testerSearchBusy && <span role="status">جارٍ البحث...</span>}
         {testerMatches.length > 0 && <div role="listbox" aria-label="نتائج البحث" style={{display:'grid',gap:6}}>
-          {testerMatches.map(person=><button type="button" role="option" aria-selected={testerUserId===person.id} key={person.id} className="btn secondary" onClick={()=>{setTesterUserId(person.id);setTesterQuery(person.full_name || person.username || 'مستخدم');setTesterMatches([]);}}>{person.full_name || person.username || 'مستخدم'}{person.username && person.full_name ? ' (@'+person.username+')' : ''}</button>)}
+          {testerMatches.map(person=><button type="button" role="option" aria-selected={testerUserId===person.id} key={person.id} className="btn secondary" onClick={()=>{setTesterUserId(person.id);setTesterQuery(person.full_name || person.username || person.email || 'مستخدم');setTesterMatches([]);}}>{person.full_name || person.username || 'مستخدم'}{person.username && person.full_name ? ' (@'+person.username+')' : ''}{person.email ? ' — '+person.email : ''}</button>)}
         </div>}
         <button className="btn secondary" disabled={busy || !testerUserId}>منح صلاحية المشاهدة المقيدة للمستخدم المحدد</button>
       </form>
