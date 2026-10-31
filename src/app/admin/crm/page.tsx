@@ -13,7 +13,7 @@ export default async function AdminCrmPage() {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
-  const { data: allowed, error: authError } = await db.rpc('has_role', { role_key: 'super_admin' });
+  const { data: allowed, error: authError } = await db.rpc('admin_has_permission', { required_permission: 'crm.manage' });
   if (authError || allowed !== true) redirect('/');
   const [{ data, error }, { data: userRows, error: usersError }] = await Promise.all([
     db.from('leads').select('id,type,name,phone,message,status,assigned_to,updated_at,created_at').order('created_at', { ascending: false }).limit(100),
