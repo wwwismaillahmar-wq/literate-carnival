@@ -7,23 +7,23 @@ type ModuleKey = 'support' | 'encyclopedias';
 type RecordRow = { id: string; title: string; body: string; status: string; created_at: string };
 const statuses = ['draft','open','in_progress','resolved','published','archived'] as const;
 
-async function adminDb() {
+async function adminDb(module: ModuleKey) {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
-  const { data: allowed, error } = await db.rpc('has_role', { role_key: 'super_admin' });
+  const { data: allowed, error } = await db.rpc('admin_has_permission', { required_permission: module + '.manage' });
   if (error || allowed !== true) redirect('/');
   return { db, user };
 }
 
 export async function AdminRecordsWorkspace({ module, title }: { module: ModuleKey; title: string }) {
-  const { db } = await adminDb();
+  const { db } = await adminDb(module);
   const path = '/admin/' + module;
   const { data, error } = await db.from('admin_workspace_records')
     .select('id,title,body,status,created_at').eq('module',module).order('created_at',{ascending:false}).limit(100);
   async function save(formData: FormData) {
     'use server';
-    const { db, user } = await adminDb();
+    const { db, user } = await adminDb(module);
     const id = String(formData.get('id') || '');
     const recordTitle = String(formData.get('title') || '').trim().slice(0,200);
     const body = String(formData.get('body') || '').slice(0,20000);
@@ -38,7 +38,7 @@ export async function AdminRecordsWorkspace({ module, title }: { module: ModuleK
   }
   async function remove(formData: FormData) {
     'use server';
-    const { db } = await adminDb();
+    const { db } = await adminDb(module);
     const id = String(formData.get('id') || '');
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid id');
     const {data,error} = await db.from('admin_workspace_records').delete().eq('id',id).eq('module',module).select('id').single();
@@ -47,7 +47,7 @@ export async function AdminRecordsWorkspace({ module, title }: { module: ModuleK
   }
   return <main className="section"><div className="wrap">
     <Link href="/admin/applications">← تطبيقات المنصة</Link>
-    <h1>{title}</h1><p className="muted">سجلات محفوظة في Supabase؛ جميع العمليات تتطلب صلاحية super_admin.</p>
+    <h1>{title}</h1><p className="muted">سجلات محفوظة في Supabase؛ تتطلب العمليات صلاحية الإدارة المفوضة لهذا القسم.</p>
     {error && <p role="alert">تعذر تحميل السجلات: {error.message}</p>}
     <section className="card"><h2>إضافة سجل</h2><form action={save}>
       <label>العنوان <input name="title" required maxLength={200}/></label>
