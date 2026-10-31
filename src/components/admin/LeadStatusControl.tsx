@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 type UserOption = { id: string; full_name: string | null; username: string | null };
 type LeadControl = { id: number; status: string; assigned_to: string | null; updated_at: string };
-const statuses = [{value:'new',label:'جديد'},{value:'contacted',label:'تم التواصل'},{value:'qualified',label:'مؤهل'},{value:'closed',label:'مغلق'}];
+const statuses = [{value:'new',label:'جديد'},{value:'in_progress',label:'قيد المعالجة'},{value:'completed',label:'مكتمل'}];
 
 export function LeadStatusControl({ lead: initialLead, users }: { lead: LeadControl; users: UserOption[] }) {
   const [status,setStatus]=useState(initialLead.status);
