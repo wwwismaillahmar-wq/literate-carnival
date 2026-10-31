@@ -4,6 +4,7 @@ on:
     branches: [fix/unified-v1-fixes]
     paths:
       - '.github/workflows/aslan-contabo-secure-backup.yml'
+      - 'scripts/ops/aslan-backup-and-verify.sh'
   workflow_dispatch:
 permissions:
   contents: read
