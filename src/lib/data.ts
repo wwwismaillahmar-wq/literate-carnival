@@ -64,12 +64,17 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 export async function getHomepageProducts() {
+  const timeoutMs = 5000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
   const db = await createClient();
   const { data: products, error } = await db
     .from('products')
     .select('id,name,slug,description,price_dzd,stock,images,category_id,created_at,ad_priority,home_featured,category:categories(name)')
     .eq('active', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .abortSignal(controller.signal);
 
   if (error) {
     console.error('getHomepageProducts products failed:', error.message);
@@ -78,7 +83,7 @@ export async function getHomepageProducts() {
 
   const ids = (products ?? []).map((product) => product.id);
   const { data: leads } = ids.length
-    ? await db.from('leads').select('product_id,status').in('product_id', ids)
+    ? await db.from('leads').select('product_id,status').in('product_id', ids).abortSignal(controller.signal)
     : { data: [] };
 
   const leadCounts = new Map<number, number>();
@@ -93,12 +98,19 @@ export async function getHomepageProducts() {
         .select('id,product_id,media_type,object_path,bucket_id,created_at')
         .in('product_id', ids)
         .eq('media_type', 'image')
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: true }).abortSignal(controller.signal)
     : { data: [] };
 
   const mediaByProduct = new Map<number, string[]>();
   for (const item of media ?? []) {
-    const signed = await db.storage.from(item.bucket_id ?? 'aslan-media').createSignedUrl(item.object_path, 3600);
+    if (controller.signal.aborted) return [];
+    const signed = await Promise.race([
+      db.storage.from(item.bucket_id ?? 'aslan-media').createSignedUrl(item.object_path, 3600),
+      new Promise<never>((_, reject) => {
+        if (controller.signal.aborted) reject(new Error('Homepage deadline exceeded'));
+        else controller.signal.addEventListener('abort', () => reject(new Error('Homepage deadline exceeded')), { once: true });
+      }),
+    ]);
     if (!signed.data?.signedUrl || !item.product_id) continue;
     const list = mediaByProduct.get(item.product_id) ?? [];
     list.push(signed.data.signedUrl);
@@ -143,8 +155,13 @@ export async function getHomepageProducts() {
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 12);
+  } catch (error) {
+    console.error('getHomepageProducts failed:', error instanceof Error ? error.message : String(error));
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
 }
-
 export async function getGallery(): Promise<GalleryItem[]> {
   const db = await createClient();
   const { data, error } = await db
