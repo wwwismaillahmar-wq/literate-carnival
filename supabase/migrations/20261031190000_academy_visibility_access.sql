@@ -16,6 +16,7 @@ create table if not exists public.academy_course_testers (
 create index if not exists academy_course_testers_user_idx on public.academy_course_testers(user_id);
 alter table public.academy_course_testers enable row level security;
 revoke all on public.academy_course_testers from anon, authenticated;
+grant select on public.academy_course_testers to anon;
 grant select,insert,delete on public.academy_course_testers to authenticated;
 drop policy if exists academy_course_testers_admin on public.academy_course_testers;
 create policy academy_course_testers_admin on public.academy_course_testers
