@@ -16,7 +16,8 @@ export async function GET() {
     title: [row.title, row.name, row.course_name].find(value => typeof value === 'string' && value.trim()) ?? String(row.id ?? 'دورة بلا عنوان'),
     description: [row.description, row.summary].find(value => typeof value === 'string' && value.trim()) ?? '',
     duration: typeof row.duration === 'string' ? row.duration : '',
-    price_dzd: typeof row.price_dzd === 'number' ? row.price_dzd : null,
+    price_dzd: row.price_dzd == null ? null : Number(row.price_dzd),
+    visibility: row.visibility === 'public' ? 'public' : 'restricted',
     status: typeof row.status === 'string' ? row.status : typeof row.published === 'boolean' ? (row.published ? 'published' : 'draft') : typeof row.active === 'boolean' ? (row.active ? 'active' : 'inactive') : 'unknown',
   })).filter(course => course.id);
   return NextResponse.json({ courses });
@@ -55,8 +56,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'أدخل عنوان الدورة، ويمكن ترك المدة والسعر والوصف فارغة لإكمالها لاحقًا.' }, { status: 400 });
     }
     const { data, error } = await db.from('courses').insert({
-      title, description, duration, price_dzd: price, status: 'draft',
-    }).select('id,title,description,duration,price_dzd,lesson_release_mode,status,created_at,updated_at,published_at').single();
+      title, description, duration, price_dzd: price, status: 'draft', visibility: 'restricted',
+    }).select('id,title,description,duration,price_dzd,lesson_release_mode,status,visibility,created_at,updated_at,published_at').single();
     if (error) return NextResponse.json({ error: 'تعذر إنشاء الدورة في قاعدة البيانات.' }, { status: 500 });
     return NextResponse.json({ course: data, message: 'تم إنشاء هيكل الدورة كمسودة؛ يمكن استكمال المحتوى والبيانات ونشرها لاحقًا.' }, { status: 201 });
   } catch {
@@ -100,6 +101,12 @@ export async function PATCH(request: Request) {
       if (!['sequential','open'].includes(body.lessonReleaseMode)) return NextResponse.json({ error: 'نمط فتح الدروس غير صالح.' }, { status: 400 });
       patch.lesson_release_mode = body.lessonReleaseMode;
     }
+    if (body.visibility !== undefined) {
+      if (!['restricted', 'public'].includes(body.visibility)) return NextResponse.json({ error: 'إعداد الظهور غير صالح.' }, { status: 400 });
+      const { data: current } = await db.from('courses').select('status').eq('id', id).maybeSingle();
+      if (body.visibility === 'public' && current?.status !== 'published' && body.status !== 'published') return NextResponse.json({ error: 'لا يمكن إظهار مسودة للعامة.' }, { status: 409 });
+      patch.visibility = body.visibility;
+    }
     if (body.status !== undefined) {
       if (!['draft','published','archived'].includes(body.status)) return NextResponse.json({ error: 'حالة الدورة غير صالحة.' }, { status: 400 });
       if (body.status === 'published') {
@@ -140,7 +147,7 @@ export async function PATCH(request: Request) {
       patch.status = body.status;
     }
     const { data, error } = await db.from('courses').update(patch).eq('id', id)
-      .select('id,title,description,duration,price_dzd,lesson_release_mode,status,created_at,updated_at,published_at').abortSignal(controller.signal).maybeSingle();
+      .select('id,title,description,duration,price_dzd,lesson_release_mode,status,visibility,created_at,updated_at,published_at').abortSignal(controller.signal).maybeSingle();
     if (error) { console.error('[academy.publish] update failed', error.message); return NextResponse.json({ error: 'تعذر حفظ تغييرات الدورة.' }, { status: 500 }); }
     if (!data) return NextResponse.json({ error: 'الدورة غير موجودة.' }, { status: 404 });
     return NextResponse.json({ course: data });
