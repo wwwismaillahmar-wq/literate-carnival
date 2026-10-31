@@ -13,8 +13,9 @@ export default async function AdminAcademyPage() {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
-  const { data: allowed, error } = await db.rpc('has_role', { role_key: 'super_admin' });
-  if (error || allowed !== true) redirect('/');
+  const { data: manage } = await db.rpc('admin_has_permission', { required_permission: 'academy.manage' });
+  const { data: publish } = await db.rpc('admin_has_permission', { required_permission: 'academy.publish' });
+  if (manage !== true && publish !== true) redirect('/');
 
   return <main className="section"><div className="wrap">
     <Link href="/admin/control">← مركز التحكم</Link>
