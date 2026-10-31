@@ -16,6 +16,30 @@ async function readJson<T>(response: Response): Promise<T> {
   return result;
 }
 
+
+type Policy = {policy_key:string;description:string;enabled:boolean;enforcement:string;exempt_roles:string[];delegated_override_roles:string[]};
+function PublishingPolicies() {
+ const [items,setItems]=useState<Policy[]>([]);
+ const [message,setMessage]=useState('');
+ useEffect(()=>{void fetch('/api/academy/publishing-policies').then(async r=>{if(!r.ok)throw Error('السياسات غير متاحة حتى تطبيق الترحيل');return r.json()}).then(v=>setItems(v.policies??[])).catch(e=>setMessage(String(e)))},[]);
+ async function save(p:Policy) {
+  const r=await fetch('/api/academy/publishing-policies',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  if(!r.ok){setMessage((await r.json()).error??'تعذر الحفظ');return}
+  const v=await r.json();setItems(a=>a.map(x=>x.policy_key===p.policy_key?v.policy:x));setMessage('تم حفظ السياسة');
+ }
+ return <section className="card"><h2>سياسات النشر — الإدارة العامة</h2>
+ <p className="muted">قواعد اكتمال المحتوى استرشادية حاليًا. وضع الإلزام للمفوضين محفوظ كإعداد، وتفعيله التنفيذي يحتاج استكمال محرك السياسات.</p>
+ {message&&<p role="status">{message}</p>}
+ {items.map(p=><div className="card" key={p.policy_key}>
+ <strong>{p.description}</strong>
+ <label>مفعّلة <input type="checkbox" checked={p.enabled} onChange={e=>setItems(a=>a.map(x=>x.policy_key===p.policy_key?{...x,enabled:e.target.checked}:x))}/></label>
+ <label>النوع <select value={p.enforcement} onChange={e=>setItems(a=>a.map(x=>x.policy_key===p.policy_key?{...x,enforcement:e.target.value}:x))}><option value="warning">تحذير</option><option value="required">إلزامي للمفوضين (قيد التطوير)</option></select></label>
+ <label>الأدوار المستثناة <input value={p.exempt_roles.join(',')} onChange={e=>setItems(a=>a.map(x=>x.policy_key===p.policy_key?{...x,exempt_roles:e.target.value.split(',').map(y=>y.trim()).filter(Boolean)}:x))}/></label>
+ <label>أدوار تجاوز الشروط <input value={p.delegated_override_roles.join(',')} onChange={e=>setItems(a=>a.map(x=>x.policy_key===p.policy_key?{...x,delegated_override_roles:e.target.value.split(',').map(y=>y.trim()).filter(Boolean)}:x))}/></label>
+ <button type="button" className="btn secondary" onClick={()=>void save(p)}>حفظ السياسة</button>
+ </div>)}</section>;
+}
+
 const emptyCourses: Course[] = [];
 export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = emptyCourses }: { staffMode?: boolean; initialCourses?: Course[] }) {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -271,6 +295,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   }
 
   return <div className="grid" style={{ marginTop: 20 }}>
+    {!staffMode && <PublishingPolicies />}
     {!staffMode && <AcademyAssetReviewQueue />}
       <Link className="btn secondary" href="/admin/academy/assessments">أدوات الاختبارات والتقييم</Link>
     {error && <div className="card" role="alert">{error}</div>}
@@ -304,7 +329,7 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
               <option value="public">عام — جميع المستخدمين</option>
             </select>
           </label>
-          <p className="muted">تغيير الظهور لا يعيد نشر المحتوى. لا تظهر المسودات للعامة.</p>
+          <p className="muted">تغيير الظهور مستقل عن نشر المحتوى. المحتوى المنشور فقط متاح بحسب الصلاحيات.</p>
         </div><div aria-busy={busy} style={{ display: "grid", gap: 10, marginTop: 12 }}><label>حالة الدورة<select value={courses.find(course => course.id === courseId)?.status ?? "draft"} disabled={busy} onChange={e => void saveCourseStatus(e.target.value)}><option value="draft">مسودة</option><option value="published">منشورة</option><option value="archived">مؤرشفة</option></select></label><button type="button" className="btn primary" disabled={busy || courses.find(course => course.id === courseId)?.status === "published"} onClick={() => void saveCourseStatus("published")}>{busy ? "جارٍ تنفيذ الطلب..." : courses.find(course => course.id === courseId)?.status === "published" ? "الدورة منشورة" : "نشر الدورة الآن"}</button></div>
       </>}
       {!courses.length && <p className="muted">لا توجد دورات مكلف بها هذا الحساب.</p>}
