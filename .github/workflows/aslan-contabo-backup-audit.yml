@@ -1,0 +1,62 @@
+name: ASLAN Contabo PostgreSQL Backup Audit
+on:
+  push:
+    branches: [fix/unified-v1-fixes]
+    paths:
+      - '.github/workflows/aslan-contabo-backup-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify pinned SSH configuration
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPS_HOST" && test -n "$OPS_USER" && test -n "$OPS_KEY" && test -n "$OPS_HOST_KEY" || { echo 'BLOCKED: Missing Contabo SSH secrets'; exit 2; }
+      - name: Read-only remote PostgreSQL backup inventory
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          printf '%s\n' "$OPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 "$OPS_USER@$OPS_HOST" 'sudo -n bash -s' <<'REMOTE' | tee backup-audit.txt
+          set -u
+          echo 'ASLAN CONTABO BACKUP AUDIT (READ ONLY)'
+          echo "UTC: $(date -u +%FT%TZ)"
+          echo "HOST: $(hostname)"
+          echo '--- Backup candidate inventory (metadata only; maximum 80) ---'
+          find /var/backups /backup /backups /srv /opt /home /root /mnt /data -xdev -type f \( -iname '*.sql' -o -iname '*.sql.gz' -o -iname '*.dump' -o -iname '*.backup' -o -iname '*.pgdump' -o -iname '*.tar.gz' -o -iname '*.zst' \) -printf '%TY-%Tm-%TdT%TH:%TM  %s bytes  %p\n' 2>/dev/null | sort -r | head -80 || true
+          echo '--- Backup scheduling indicators (filenames only) ---'
+          find /etc/cron.d /etc/cron.daily /etc/systemd/system /opt/aslan-ops -maxdepth 3 -type f \( -iname '*backup*' -o -iname '*postgres*' -o -iname '*pgdump*' -o -iname '*restic*' -o -iname '*borg*' \) -print 2>/dev/null | head -60 || true
+          echo '--- PostgreSQL tooling ---'
+          command -v pg_restore || true
+          command -v pg_dump || true
+          echo '--- Docker container names (if available) ---'
+          if command -v docker >/dev/null 2>&1; then docker ps --format '{{.Names}}' 2>/dev/null | head -30 || true; fi
+          echo '--- Assessment ---'
+          echo 'INVENTORY_ONLY: candidate files are not proof of a complete, recent, restorable Supabase database backup.'
+          echo 'RESTORE_TEST: NOT_PERFORMED'
+          REMOTE
+          {
+            echo '## ASLAN Contabo PostgreSQL backup audit'
+            echo 'Read-only inspection; no SQL, restore, or backup mutation.'
+            echo '\`\`\`text'
+            cat backup-audit.txt
+            echo '\`\`\`'
+          } >> "$GITHUB_STEP_SUMMARY"
