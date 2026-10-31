@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { SupabaseAuditWriter } from '@/platform/audit';
@@ -247,6 +247,7 @@ export async function saveProduct(formData: FormData) {
   revalidatePath('/');
   revalidatePath('/products');
   revalidatePath('/market');
+  revalidateTag('market-products');
   revalidatePath('/products/' + slug);
   revalidatePath('/admin/dashboard');
   revalidatePath('/admin/control');
@@ -264,7 +265,7 @@ export async function uploadProductMedia(formData: FormData) {
   const {error:uploadError}=await db.storage.from('aslan-media').upload(objectPath,bytes,{contentType:file.type,upsert:false}); if(uploadError)dbError('تعذر رفع الوسيط',uploadError);
   const {error:mediaError}=await db.from('media_assets').insert({owner_id:user.id,product_id:productId,bucket_id:'aslan-media',object_path:objectPath,media_type:file.type.startsWith('video/')?'video':'image',mime_type:file.type,file_size:file.size});
   if(mediaError){await db.storage.from('aslan-media').remove([objectPath]);dbError('تعذر ربط الوسيط بالمنتج',mediaError);}
-  revalidatePath('/');revalidatePath('/products');revalidatePath('/admin/control');finish('تم رفع الوسيط وربطه بالمنتج.');
+  revalidatePath('/');revalidatePath('/products');revalidateTag('market-products');revalidatePath('/admin/control');finish('تم رفع الوسيط وربطه بالمنتج.');
 }
 
 export async function registerProductMedia(input: {

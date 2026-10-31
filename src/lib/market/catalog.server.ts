@@ -12,16 +12,33 @@ const loadPublicCatalog=unstable_cache(async (slug?:string)=>{
  ]);
  const approved=[aslanStore,...(stores.data||[]) as MarketStore[]];const ids=(products.data||[]).map(row=>row.id);
  const media=ids.length?await db.from('media_assets').select('product_id,object_path,bucket_id,media_type').in('product_id',ids).eq('upload_status','uploaded').eq('media_type','image'):{data:[]};
- const images=new Map<number,string[]>();
- // Only explicitly public buckets may use stable public URLs. Private media remain inaccessible here.
- for(const item of media.data||[]){if(item.bucket_id!=='aslan-public-media')continue;
-  const url=db.storage.from(item.bucket_id).getPublicUrl(item.object_path).data.publicUrl;
-  const urls=images.get(item.product_id)||[];urls.push(url);images.set(item.product_id,urls);
- }
- return {rows:(products.data||[]) as Record<string,unknown>[],images:Object.fromEntries(images),categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
+ return {rows:(products.data||[]) as Record<string,unknown>[],media:media.data||[],categories:categories.data||[],stores:approved,error:Boolean(products.error),storesError:Boolean(stores.error)};
 },['market-products-v2'],{revalidate:60,tags:['market-products']});
 async function localizedCatalog(slug?:string){
  const cached=await loadPublicCatalog(slug);
+ // Generate short-lived URLs outside the shared catalog cache: never cache signed credentials.
+ const images=new Map<number,string[]>();
+ const mediaByBucket=new Map<string,Array<{product_id:number;object_path:string;bucket_id:string}>>();
+ for(const item of cached.media){
+  if(item.bucket_id==='market-media'){
+   const url=publicDb().storage.from(item.bucket_id).getPublicUrl(item.object_path).data.publicUrl;
+   const urls=images.get(item.product_id)||[];urls.push(url);images.set(item.product_id,urls);
+  }else if(item.bucket_id==='aslan-media'){
+   const items=mediaByBucket.get(item.bucket_id)||[];items.push(item);mediaByBucket.set(item.bucket_id,items);
+  }
+ }
+ const db=publicDb();
+ for(const [bucket,items] of mediaByBucket){
+  for(let start=0;start<items.length;start+=100){
+   const batch=items.slice(start,start+100);
+   const {data,error}=await db.storage.from(bucket).createSignedUrls(batch.map(item=>item.object_path),3600);
+   if(error){console.error('[ASLAN market media] signed URLs unavailable',{bucket,count:batch.length,code:error.name});continue;}
+   for(let i=0;i<batch.length;i++){
+    const url=data?.[i]?.signedUrl;if(!url)continue;
+    const item=batch[i];const urls=images.get(item.product_id)||[];urls.push(url);images.set(item.product_id,urls);
+   }
+  }
+ }
  const [translated,localizedCategories,localizedStores]=await Promise.all([
   localizedRows('product',cached.rows),
   localizedRows('category',cached.categories as Record<string,unknown>[]),
@@ -31,7 +48,7 @@ async function localizedCatalog(slug?:string){
  const categoryNames=new Map(categories.map(category=>[String(category.id),category.name]));
  const stores=cached.stores.map(store=>(localizedStores.find(item=>item.id===store.id) as typeof store|undefined)||store);
  const products=translated.map(row=>{
-  const product=normalizeMarketProduct(row,cached.images[Number(row.id)]);
+  const product=normalizeMarketProduct(row,images.get(Number(row.id)));
   return {...product,category:categoryNames.get(product.categoryId)||product.category};
  }).filter(product=>stores.some(store=>store.id===product.storeId));
  return {products,categories,stores,error:cached.error,storesError:cached.storesError};
