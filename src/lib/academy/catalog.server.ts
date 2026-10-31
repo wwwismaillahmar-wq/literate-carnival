@@ -10,7 +10,7 @@ export async function getAcademyCatalog() {
   ]);
   const settings: Record<string,string> = Object.fromEntries((settingsResult.data ?? []).map(row => [row.setting_key, row.setting_value ?? '']));
   const presentation = readPresentation(settings.academy_catalog);
-  const published=(courseResult.data ?? []).filter(row => isPublished(row as Record<string,unknown>));
+  const published=(courseResult.data ?? []).filter(row => isPublished(row as Record<string,unknown>) && (row.visibility === 'public' || row.visibility === 'restricted'));
   const translated=await localizedRows('course',published as Record<string,unknown>[]);
   const courses = translated.map(row => normalizeCourse(row, presentation[String(row.id)]));
   return { courses, settings, error: Boolean(courseResult.error), settingsError: Boolean(settingsResult.error) };
