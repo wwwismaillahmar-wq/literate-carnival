@@ -22,6 +22,7 @@ export default async function AdminAcademyPage() {
     <span className="kicker" style={{ display: 'block', marginTop: 24 }}>ACADEMY / M33–M34</span>
     <h1>إدارة الأكاديمية</h1>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
+      <Link className="btn secondary" href="/admin/academy/students">مركز إدارة الطلاب</Link>
       <Link className="btn secondary" href="/admin/academy/assessments">إدارة الاختبارات والتقييم والشهادات</Link>
       <Link className="btn secondary" href="/academy">معاينة الأكاديمية العامة</Link>
     </div>
