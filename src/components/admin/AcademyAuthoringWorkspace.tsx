@@ -43,6 +43,8 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [testers, setTesters] = useState<{user_id:string;granted_at:string}[]>([]);
+  const [testerUserId, setTesterUserId] = useState('');
 
   const loadCourses = useCallback(async () => {
     if (staffMode) {
@@ -141,6 +143,31 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
       setCourses(current => current.map(course => course.id === courseId ? { ...course, ...result.course } : course));
       setNotice(visibility === 'restricted' ? 'أصبح ظهور الدورة مقيدًا.' : 'أصبح ظهور الدورة عامًا.');
     } catch (err) { setError(err instanceof Error ? err.message : 'تعذر تغيير الظهور.'); }
+    finally { setBusy(false); }
+  }
+
+  const refreshTesters = useCallback(async () => {
+    if (!courseId || staffMode) { setTesters([]); return; }
+    const result = await readJson<{testers:{user_id:string;granted_at:string}[]}>(await fetch('/api/academy/testers?courseId='+encodeURIComponent(courseId), {cache:'no-store'}));
+    setTesters(result.testers);
+  }, [courseId, staffMode]);
+  useEffect(() => { void refreshTesters().catch(() => setTesters([])); }, [refreshTesters]);
+  async function addTester(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (busy || !courseId) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await readJson(await fetch('/api/academy/testers', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({courseId,userId:testerUserId.trim()})}));
+      setTesterUserId(''); await refreshTesters(); setNotice('تم منح المستخدم صلاحية اختبار الدورة.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذر إضافة المختبر.'); }
+    finally { setBusy(false); }
+  }
+  async function removeTester(userId:string) {
+    if (busy || !courseId) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await readJson(await fetch('/api/academy/testers?courseId='+encodeURIComponent(courseId)+'&userId='+encodeURIComponent(userId), {method:'DELETE'}));
+      await refreshTesters(); setNotice('تم إلغاء صلاحية المختبر.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'تعذر إلغاء الصلاحية.'); }
     finally { setBusy(false); }
   }
 
@@ -266,6 +293,17 @@ export function AcademyAuthoringWorkspace({ staffMode = false, initialCourses = 
       {!courses.length && <p className="muted">لا توجد دورات مكلف بها هذا الحساب.</p>}
     </section>
 
+    {courseId && !staffMode && <section className="card">
+      <h2>حسابات المختبرين المصرح لهم</h2>
+      <p className="muted">أدخل معرّف UUID لحساب مسجل في Supabase Auth. لا يمنح هذا الإذن حق الإدارة أو التسجيل المدفوع.</p>
+      <form onSubmit={addTester} style={{display:'grid',gap:8}}>
+        <label>معرّف حساب المختبر<input required value={testerUserId} onChange={e=>setTesterUserId(e.target.value)} placeholder="UUID" /></label>
+        <button className="btn secondary" disabled={busy}>منح صلاحية المشاهدة المقيدة</button>
+      </form>
+      {testers.map(t=><div key={t.user_id} style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginTop:8}}>
+        <code>{t.user_id}</code><button type="button" disabled={busy} onClick={()=>void removeTester(t.user_id)}>إلغاء الصلاحية</button>
+      </div>)}
+    </section>}
     <section className="grid two">
       <form className="card" onSubmit={createModule} style={{ display: 'grid', gap: 10 }}>
         <h2>إضافة وحدة</h2>
