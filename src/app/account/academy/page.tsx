@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 export const dynamic='force-dynamic';
-const labels:Record<string,string>={submitted:'تم إرسال الطلب',under_review:'قيد المراجعة',needs_information:'يحتاج استكمال معلومات',accepted:'مقبول؛ بانتظار إصدار الفاتورة',payment_pending:'بانتظار تأكيد الدفع',paid:'تم تأكيد الدفع؛ يمكنك التسجيل',enrolled:'مسجل',rejected:'مرفوض',cancelled:'ملغى',expired:'انتهت صلاحية الطلب'};
+const labels:Record<string,string>={submitted:'تم إرسال الطلب',under_review:'قيد المراجعة',needs_information:'يحتاج استكمال معلومات',accepted:'تهانينا! تم قبول طلبك؛ تابع إجراءات الالتحاق وفتح الدروس',payment_pending:'بانتظار تأكيد الدفع',paid:'تم تأكيد الدفع؛ يمكنك التسجيل',enrolled:'مسجل',rejected:'مرفوض',cancelled:'ملغى',expired:'انتهت صلاحية الطلب'};
 export default async function StudentAcademyPage(){
  const db=await createClient();const {data:{user}}=await db.auth.getUser();if(!user)redirect('/login?next=/account/academy');
  const [admissions,enrollments,progress,certificates,invoices,assignments]=await Promise.all([
@@ -21,7 +21,7 @@ export default async function StudentAcademyPage(){
  {courses.error&&<p role="alert">تعذر تحميل أسماء بعض الدورات.</p>}
  <section style={{marginTop:28}}><h2>طلبات القبول</h2>
  {admissions.error?<p role="alert">تعذر تحميل الطلبات.</p>:!admissions.data?.length?<p className="muted">لم تقدم طلب قبول بعد.</p>:
- <div className="grid">{admissions.data.map(item=><article className="card" key={item.id}><h3>{titles.get(item.course_id)||'الدورة'}</h3><p>{labels[item.status]||item.status}</p>
+ <div className="grid">{admissions.data.map(item=><article className="card" key={item.id}><h3>{titles.get(item.course_id)||'الدورة'}</h3><p role="status">{labels[item.status]||item.status}</p>{item.status==='submitted'&&<p>تم إرسال طلبك بنجاح وهو قيد مراجعة الإدارة.</p>}{item.status==='accepted'&&<p>تهانينا! تم قبول انضمامك للدورة. راجع حالة التسجيل قبل بدء التعلم.</p>}
  {item.review_note&&<p>ملاحظة الإدارة: {item.review_note}</p>}
  {invoices.error?<p role="alert">تعذر تحميل فاتورة الطلب.</p>:(invoices.data??[]).filter(i=>i.source_id===item.id).map(i=><p key={i.id}><Link href="/invoices">{i.invoice_number} · {i.total_amount} {i.currency}</Link> · {i.status==='paid'?'مدفوعة':i.status==='void'?'ملغاة':'بانتظار الدفع'}</p>)}
  <Link href={'/academy/'+item.course_id}>{['paid','enrolled'].includes(item.status)?'فتح الدورة وتأكيد التسجيل':'عرض الدورة'}</Link></article>)}</div>}
