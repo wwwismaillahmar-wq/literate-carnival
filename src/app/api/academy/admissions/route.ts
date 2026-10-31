@@ -120,24 +120,13 @@ export async function PATCH(request: Request) {
     const note = body.reviewNote === undefined ? '' : typeof body.reviewNote === 'string' ? body.reviewNote.trim() : null;
     if (!uuid.test(id) || !['under_review','accepted','rejected','needs_information','cancelled','expired'].includes(status) ||
         note === null || note.length > 4000) return NextResponse.json({ error: 'بيانات قرار القبول غير صالحة.' }, { status: 400 });
-    const { data: current, error: readError } = await db.from('academy_admission_applications').select('id,status').eq('id', id).maybeSingle();
-    if (readError || !current) return NextResponse.json({ error: 'طلب القبول غير موجود.' }, { status: 404 });
-    const allowedTransitions: Record<string, string[]> = {
-      submitted: ['under_review','accepted','rejected','needs_information','cancelled','expired'],
-      under_review: ['accepted','rejected','needs_information','cancelled','expired'],
-      needs_information: ['submitted','under_review','accepted','rejected','cancelled','expired'],
-      accepted: ['expired','cancelled'],
-      rejected: [],
-      payment_pending: ['expired','cancelled'],
-      paid: ['enrolled','cancelled'],
-      enrolled: [],
-      cancelled: [],
-      expired: [],
-    };
-    if (!allowedTransitions[current.status]?.includes(status)) return NextResponse.json({ error: 'انتقال الحالة غير مسموح من الحالة الحالية.' }, { status: 409 });
-    const patch = { status, reviewer_id: user.id, reviewed_at: new Date().toISOString(), review_note: note, updated_at: new Date().toISOString() };
-    const { data, error } = await db.from('academy_admission_applications').update(patch).eq('id', id).select('id,course_id,status,reviewer_id,reviewed_at,review_note,updated_at').single();
-    if (error) return NextResponse.json({ error: 'تعذر حفظ قرار القبول.' }, { status: 500 });
+    const { data, error } = await db.rpc('admin_decide_academy_admission', { p_application_id: id, p_status: status, p_note: note });
+    if (error) {
+      const message = error.message || '';
+      const invalid = /INVALID_TRANSITION/.test(message);
+      return NextResponse.json({ error: invalid ? 'انتقال الحالة غير مسموح من الحالة الحالية.' : 'تعذر حفظ القرار أو تفعيل التسجيل؛ لم يُعتمد القبول جزئيًا.' }, { status: invalid ? 409 : 500 });
+    }
+    if (!data?.id) return NextResponse.json({ error: 'تعذر تأكيد قرار القبول.' }, { status: 500 });
     return NextResponse.json({ application: data });
   } catch { return NextResponse.json({ error: 'صيغة الطلب غير صالحة.' }, { status: 400 }); }
 }
