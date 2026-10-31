@@ -2,6 +2,7 @@ import Link from 'next/link';
 import {notFound,redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 import {CourseLearningActions} from '@/components/academy/CourseLearningActions';
+import {LessonQuestions} from '@/components/academy/LessonQuestions';
 import {validUuid} from '@/lib/academy/requests';
 export const dynamic='force-dynamic';
 export default async function AcademyLessonPage({params}:{params:Promise<{id:string}>}){
@@ -21,6 +22,7 @@ export default async function AcademyLessonPage({params}:{params:Promise<{id:str
  <section className="card" style={{marginTop:16}}><h2>ملفات الدرس</h2>
  {assetsError?<p role="alert">تعذر تحميل ملفات الدرس.</p>:!assets?.length?<p className="muted">لا توجد ملفات مرفقة.</p>:<ul>{assets.map(asset=><li key={asset.id}><a href={'/api/academy/resources?assetId='+asset.id} target="_blank" rel="noreferrer">{asset.file_name} ↗</a></li>)}</ul>}
  </section>
+ <LessonQuestions lessonId={lesson.id}/>
  <CourseLearningActions courseId={moduleRow.course_id} lessons={[{id:lesson.id,title:lesson.title,accessible:true}]}/>
  </div></main>;
 }
