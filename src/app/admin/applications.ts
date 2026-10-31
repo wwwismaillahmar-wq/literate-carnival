@@ -67,9 +67,9 @@ export const ADMIN_APPLICATIONS: AdminApplication[] = [
   {
     id: 'support-notifications',
     name: 'Support & Notifications',
-    description: 'Current messaging/content surfaces exist; unified tickets and notifications are not implemented.',
-    status: 'boundary',
-    entryPath: null,
+    description: 'Protected support case records with persistent CRUD; unified notification delivery remains unverified.',
+    status: 'partial',
+    entryPath: '/admin/support',
     requiredPermissions: [],
   },
   {
@@ -115,9 +115,9 @@ export const ADMIN_APPLICATIONS: AdminApplication[] = [
   {
     id: 'encyclopedias',
     name: 'Encyclopedias',
-    description: 'Future scientific, technology and programming encyclopedia applications.',
-    status: 'planned',
-    entryPath: null,
+    description: 'Protected encyclopedia material records with persistent CRUD; public publishing remains unverified.',
+    status: 'partial',
+    entryPath: '/admin/encyclopedias',
     requiredPermissions: [],
   },
 ];
