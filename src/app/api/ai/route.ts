@@ -45,7 +45,7 @@ function isClassification(value: unknown): value is Classification {
   );
 }
 
-async function classifyLead(input: Required<LeadInput>): Promise<Classification | null> {
+async function classifyLead(input: { name: string; phone: string; type: string; message: string }): Promise<Classification | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
