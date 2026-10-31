@@ -13,7 +13,7 @@ cleanup(){
   [[ -z "$TEST_CONTAINER" ]] || docker rm -f "$TEST_CONTAINER" >/dev/null 2>&1 || true
   [[ -z "$TEST_VOLUME" ]] || docker volume rm "$TEST_VOLUME" >/dev/null 2>&1 || true
   [[ -z "$TMP_FILE" ]] || rm -f -- "$TMP_FILE"
-  [[ -z "$LOCK_DIR" ]] || rmdir -- "$LOCK_DIR" >/dev/null 2>&1 || true
+  if [[ -n "$LOCK_DIR" ]]; then rm -f -- "$LOCK_DIR/source-counts" "$LOCK_DIR/restore-counts"; rmdir -- "$LOCK_DIR" >/dev/null 2>&1 || true; fi
   (( rc == 0 )) || log 'RESULT: FAIL; no intentional changes to source database' >&2
 }
 trap cleanup EXIT
@@ -33,6 +33,43 @@ RUN_ID="$(date +%s)-$$"
 BACKUP_FILE="$BACKUP_DIR/aslan-postgres-$STAMP-$RUN_ID.sql.gz"
 TMP_FILE="$BACKUP_FILE.partial"
 CHECKSUM_FILE="$BACKUP_FILE.sha256"
+
+psql_db(){ docker exec -u postgres "$1" psql -X -qAt -v ON_ERROR_STOP=1 -U "$2" -d "$3" -c "$4"; }
+list_databases(){ psql_db "$1" "$2" postgres "SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate ORDER BY datname"; }
+count_database(){
+  docker exec -i -u postgres "$1" psql -X -qAt -v ON_ERROR_STOP=1 -U "$2" -d "$3" -f - <<'SQL' | awk '
+/^[0-9]+$/ { count++; sum+=$1; next }
+NF { bad=1 }
+END { if (bad) exit 1; printf "%d|%.0f\n",count,sum }
+'
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SELECT format('SELECT count(*) FROM %I.%I;', n.nspname,c.relname)
+FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+WHERE c.relkind IN ('r','p') AND NOT c.relispartition
+  AND n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+ORDER BY n.nspname,c.relname;
+\gexec
+COMMIT;
+SQL
+}
+inventory(){
+  local container="$1" role="$2" output="$3" db counts tables rows total_tables=0 total_rows=0 db_count=0 databases
+  databases="$(list_databases "$container" "$role")" || fail 'Cannot list databases'
+  [[ -n "$databases" ]] || fail 'No databases found'
+  while IFS= read -r db; do
+    [[ -n "$db" ]] || continue
+    counts="$(count_database "$container" "$role" "$db")" || fail 'Inventory query failed'
+    [[ "$counts" =~ ^[0-9]+\|[0-9]+$ ]] || fail 'Invalid inventory response'
+    tables="$(printf '%s' "$counts" | cut -d'|' -f1)"
+    rows="$(printf '%s' "$counts" | cut -d'|' -f2)"
+    log "DATABASE: $db TABLES: $tables ROWS: $rows"
+    total_tables=$((total_tables+tables)); total_rows=$((total_rows+rows)); db_count=$((db_count+1))
+  done <<< "$databases"
+  log "INVENTORY_TOTAL: databases=$db_count tables=$total_tables rows=$total_rows"
+  printf '%s|%s|%s\n' "$db_count" "$total_tables" "$total_rows" > "$output"
+}
+
 log 'STAGE: discover configured PostgreSQL role (name not logged)'
 # Read role from the container environment without exposing credentials or names.
 # The OS user postgres is not necessarily the PostgreSQL database role.
@@ -41,6 +78,8 @@ DB_ROLE="$(docker exec -u postgres "$SOURCE_CONTAINER" sh -c 'printf "%s" "${POS
 [[ "$DB_ROLE" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || fail 'Invalid configured database role' 
 # Verify actual database authentication before opening the backup output.
 docker exec -u postgres "$SOURCE_CONTAINER" pg_isready -U "$DB_ROLE" -d postgres >/dev/null 2>&1 || fail 'Configured role cannot reach postgres database'
+log 'STAGE: source database inventory'
+inventory "$SOURCE_CONTAINER" "$DB_ROLE" "$LOCK_DIR/source-counts"
 log 'STAGE: pg_dumpall'
 # No SQL output or database role is written to public logs.
 docker exec -u postgres "$SOURCE_CONTAINER" pg_dumpall -U "$DB_ROLE" --no-role-passwords | gzip -c > "$TMP_FILE" || fail 'pg_dumpall failed'
@@ -74,6 +113,13 @@ if ! (gzip -cd -- "$BACKUP_FILE" | docker exec -i -u postgres "$TEST_CONTAINER" 
   fail 'Restore failed; SQL details suppressed'
 fi
 docker exec -u postgres "$TEST_CONTAINER" psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c 'SELECT 1' 2>/dev/null | grep -qx 1 || fail 'Restored PostgreSQL health check failed'
+log 'STAGE: restored database inventory'
+inventory "$TEST_CONTAINER" postgres "$LOCK_DIR/restore-counts"
+IFS='|' read -r src_db src_tables src_rows < "$LOCK_DIR/source-counts"
+IFS='|' read -r dst_db dst_tables dst_rows < "$LOCK_DIR/restore-counts"
+(( src_tables > 0 && src_rows > 0 )) || fail 'Source has no data; backup not approved'
+[[ "$src_db|$src_tables|$src_rows" == "$dst_db|$dst_tables|$dst_rows" ]] || fail 'Source and restore inventory mismatch'
+log 'INVENTORY_MATCH: PASS'
 log 'RESTORE_TEST: PASS'
 log "BACKUP_FILE: $BACKUP_FILE"
 log "BACKUP_BYTES: $(stat -c %s -- "$BACKUP_FILE")"
