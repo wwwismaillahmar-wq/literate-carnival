@@ -7,8 +7,9 @@ export async function GET(request: Request) {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول.' }, { status: 401 });
-  const { data: allowed, error: authError } = await db.rpc('has_role', { role_key: 'super_admin' });
-  if (authError || allowed !== true) return NextResponse.json({ error: 'غير مصرح.' }, { status: 403 });
+  const { data: allowed } = await db.rpc('admin_has_permission', { required_permission: 'admin.delegate' });
+  const { data: academyAllowed } = await db.rpc('admin_has_permission', { required_permission: 'academy.manage' });
+  if (allowed !== true && academyAllowed !== true) return NextResponse.json({ error: 'غير مصرح.' }, { status: 403 });
   const q = (new URL(request.url).searchParams.get('q') ?? '').trim();
   if (q.length < 2 || q.length > 80) return NextResponse.json({ users: [] });
   const { data, error } = await db.rpc('admin_search_accounts', { search_text: q });
