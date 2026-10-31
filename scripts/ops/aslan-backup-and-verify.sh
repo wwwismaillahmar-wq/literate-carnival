@@ -10,11 +10,31 @@ fail(){ log "RESULT: FAIL ($1)" >&2; exit 1; }
 cleanup(){
   rc=$?
   trap - EXIT INT TERM
-  [[ -z "$TEST_CONTAINER" ]] || docker rm -f "$TEST_CONTAINER" >/dev/null 2>&1 || true
-  [[ -z "$TEST_VOLUME" ]] || docker volume rm "$TEST_VOLUME" >/dev/null 2>&1 || true
+  if [[ -n "$TEST_CONTAINER" ]]; then
+    docker rm -f "$TEST_CONTAINER" >/dev/null 2>&1 || true
+    if docker container inspect "$TEST_CONTAINER" >/dev/null 2>&1; then
+      log 'CLEANUP: FAILED (test container remains)' >&2
+      rc=1
+    else
+      log 'CLEANUP: test container removed'
+    fi
+  fi
+  if [[ -n "$TEST_VOLUME" ]]; then
+    docker volume rm "$TEST_VOLUME" >/dev/null 2>&1 || true
+    if docker volume inspect "$TEST_VOLUME" >/dev/null 2>&1; then
+      log 'CLEANUP: FAILED (test volume remains)' >&2
+      rc=1
+    else
+      log 'CLEANUP: test volume removed'
+    fi
+  fi
   [[ -z "$TMP_FILE" ]] || rm -f -- "$TMP_FILE"
-  if [[ -n "$LOCK_DIR" ]]; then rm -f -- "$LOCK_DIR/source-counts" "$LOCK_DIR/restore-counts"; rmdir -- "$LOCK_DIR" >/dev/null 2>&1 || true; fi
-  (( rc == 0 )) || log 'RESULT: FAIL; no intentional changes to source database' >&2
+  if [[ -n "$LOCK_DIR" ]]; then
+    rm -f -- "$LOCK_DIR/source-counts" "$LOCK_DIR/restore-counts"
+    rmdir -- "$LOCK_DIR" >/dev/null 2>&1 || true
+  fi
+  if (( rc == 0 )); then log 'RESULT: PASS'; else log 'RESULT: FAIL' >&2; fi
+  exit "$rc"
 }
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -124,4 +144,3 @@ log 'RESTORE_TEST: PASS'
 log "BACKUP_FILE: $BACKUP_FILE"
 log "BACKUP_BYTES: $(stat -c %s -- "$BACKUP_FILE")"
 log "SHA256: $(cut -d ' ' -f1 "$CHECKSUM_FILE")"
-log 'RESULT: PASS'
