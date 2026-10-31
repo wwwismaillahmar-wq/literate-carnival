@@ -35,7 +35,7 @@ export async function PATCH(request: Request) {
     const leadId = typeof body.leadId === 'number' ? body.leadId : Number(body.leadId);
     const status = typeof body.status === 'string' ? body.status : '';
     const assignedTo = body.assignedTo === null || body.assignedTo === '' ? null : typeof body.assignedTo === 'string' ? body.assignedTo : 'invalid';
-    if (!Number.isSafeInteger(leadId) || leadId <= 0 || !['new','contacted','qualified','closed'].includes(status) ||
+    if (!Number.isSafeInteger(leadId) || leadId <= 0 || !['new','in_progress','completed'].includes(status) ||
       (assignedTo !== null && (typeof assignedTo !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(assignedTo)))) {
       return NextResponse.json({ error: 'بيانات الحالة أو التعيين غير صالحة.' }, { status: 400 });
     }
