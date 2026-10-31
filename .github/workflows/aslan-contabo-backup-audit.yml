@@ -35,12 +35,13 @@ jobs:
           printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
           printf '%s\n' "$OPS_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 "$OPS_USER@$OPS_HOST" 'sudo -n bash -s' <<'REMOTE' | tee backup-audit.txt
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 "$OPS_USER@$OPS_HOST" 'bash -s' <<'REMOTE' | tee backup-audit.txt
           set -u
           echo 'ASLAN CONTABO BACKUP AUDIT (READ ONLY)'
           echo "UTC: $(date -u +%FT%TZ)"
           echo "HOST: $(hostname)"
           echo '--- Backup candidate inventory (metadata only; maximum 80) ---'
+          echo 'ACCESS_SCOPE: SSH_USER_ONLY; privileged directories may be unreadable'
           find /var/backups /backup /backups /srv /opt /home /root /mnt /data -xdev -type f \( -iname '*.sql' -o -iname '*.sql.gz' -o -iname '*.dump' -o -iname '*.backup' -o -iname '*.pgdump' -o -iname '*.tar.gz' -o -iname '*.zst' \) -printf '%TY-%Tm-%TdT%TH:%TM  %s bytes  %p\n' 2>/dev/null | sort -r | head -80 || true
           echo '--- Backup scheduling indicators (filenames only) ---'
           find /etc/cron.d /etc/cron.daily /etc/systemd/system /opt/aslan-ops -maxdepth 3 -type f \( -iname '*backup*' -o -iname '*postgres*' -o -iname '*pgdump*' -o -iname '*restic*' -o -iname '*borg*' \) -print 2>/dev/null | head -60 || true
@@ -51,6 +52,7 @@ jobs:
           if command -v docker >/dev/null 2>&1; then docker ps --format '{{.Names}}' 2>/dev/null | head -30 || true; fi
           echo '--- Assessment ---'
           echo 'INVENTORY_ONLY: candidate files are not proof of a complete, recent, restorable Supabase database backup.'
+          echo 'BACKUP_EXISTENCE: UNCONFIRMED unless listed files are verified as PostgreSQL backups'
           echo 'RESTORE_TEST: NOT_PERFORMED'
           REMOTE
           {
