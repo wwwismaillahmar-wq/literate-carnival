@@ -43,9 +43,9 @@ export const ADMIN_APPLICATIONS: AdminApplication[] = [
   {
     id: 'academy',
     name: 'Academy',
-    description: 'Future LMS modules: courses, lessons, students, assessments and certificates.',
-    status: 'boundary',
-    entryPath: null,
+    description: 'Academy administration: course authoring, modules, lessons, assessments, admission and certificates; publication workflow pending end-to-end acceptance.',
+    status: 'partial',
+    entryPath: '/admin/academy',
     requiredPermissions: [],
   },
   {
