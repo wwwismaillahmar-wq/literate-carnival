@@ -11,10 +11,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify backup script syntax
         run: bash -n scripts/ops/aslan-supabase-sovereign-backup.sh
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client
       - name: Back up Supabase and verify copy on Contabo
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
