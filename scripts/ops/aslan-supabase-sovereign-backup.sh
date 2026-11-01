@@ -26,16 +26,34 @@ else
   export PGSSLMODE=require
   echo 'TLS_GATE: PASS (PGSSLMODE=require enforced)'
 fi
-echo 'CONNECTION_GATE: checking source identity and active TLS'
-if ! docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT postgres:17 bash -c '
-  set -euo pipefail
-  result="$(psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())")"
-  [[ "$result" == "postgres|true" ]]
-' 2>/dev/null; then
-  echo 'CONNECTION_GATE: FAIL (database identity, authentication, routing, or TLS encryption)'
+echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
+diagnostic="$(mktemp)"
+output="$(mktemp)"
+if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT postgres:17 \
+  psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
+  -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
+  >"$output" 2>"$diagnostic"; then
+  if [[ "$(cat "$output")" == 'postgres|true' ]]; then
+    echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
+  else
+    echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
+    rm -f "$diagnostic" "$output"
+    exit 1
+  fi
+else
+  echo '=== PSQL STDERR (connection identifiers redacted) ==='
+  sed -E \
+    -e 's#(postgres(ql)?://)[^[:space:]]+#\\1[REDACTED]#g' \
+    -e 's/(host|user|password|dbname)=[^[:space:]]+/\\1=[REDACTED]/g' \
+    -e 's/([[:alnum:]_-]+\\.)+(supabase\\.com|pooler\\.supabase\\.com)/[REDACTED_HOST]/g' \
+    -e 's/([0-9]{1,3}\\.){3}[0-9]{1,3}/[REDACTED_IP]/g' \
+    -e 's/(postgres\\.)?[a-z0-9]{20}/[REDACTED_ID]/g' \
+    "$diagnostic"
+  echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
+  rm -f "$diagnostic" "$output"
   exit 1
 fi
-echo 'CONNECTION_GATE: PASS (postgres; pg_stat_ssl=true)'
+rm -f "$diagnostic" "$output"
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$HOME/.ssh"
