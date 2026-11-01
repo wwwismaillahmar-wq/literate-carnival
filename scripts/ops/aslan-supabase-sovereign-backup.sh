@@ -15,25 +15,27 @@ else
   echo 'IDENTITY_GATE: FAIL (expected project reference absent)'
   exit 1
 fi
-if [[ "$SUPABASE_DB_URL" == *sslmode=verify-full* ]]; then
-  echo 'TLS_GATE: PASS (verify-full configured)'
-elif [[ "$SUPABASE_DB_URL" == *sslmode=require* ]]; then
-  echo 'TLS_GATE: PASS (require configured; certificate identity not verified)'
+# Explicit URI sslmode overrides PGSSLMODE; reject disable/allow/prefer.
+if [[ "$SUPABASE_DB_URL" =~ [\?\&]sslmode=([^\&]+) ]]; then
+  mode="${BASH_REMATCH[1]}"
+  case "$mode" in
+    require|verify-ca|verify-full) echo "TLS_GATE: PASS (explicit $mode)" ;;
+    *) echo 'TLS_GATE: FAIL (unsafe or unsupported URI sslmode)'; exit 1 ;;
+  esac
 else
-  echo 'TLS_GATE: FAIL (explicit sslmode=require or verify-full missing)'
+  export PGSSLMODE=require
+  echo 'TLS_GATE: PASS (PGSSLMODE=require enforced)'
+fi
+echo 'CONNECTION_GATE: checking source identity and active TLS'
+if ! docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT postgres:17 bash -c '
+  set -euo pipefail
+  result="$(psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())")"
+  [[ "$result" == "postgres|true" ]]
+' 2>/dev/null; then
+  echo 'CONNECTION_GATE: FAIL (database identity, authentication, routing, or TLS encryption)'
   exit 1
 fi
-# Never treat textual SSL mode as proof of a trusted TLS handshake.
-# A real psql handshake below must validate the certificate and hostname.
-echo 'CONNECTION_GATE: checking authenticated TLS and source database'
-if ! docker run --rm --network host -e SUPABASE_DB_URL -e PGCONNECT_TIMEOUT -e PGSSLMODE postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select current_database()" >/dev/null' 2>/dev/null; then
-  echo 'CONNECTION_GATE: FAIL (DNS, routing, authentication, or TLS trust/hostname verification)'
-  exit 1
-fi
-echo 'CONNECTION_GATE: PASS (PostgreSQL connection; checking TLS encryption)'
-ssl_status="$(docker run --rm --network host -e SUPABASE_DB_URL postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select ssl::text from pg_stat_ssl where pid=pg_backend_pid()"' 2>/dev/null)" || { echo 'TLS_ENCRYPTION_GATE: FAIL (query failed)'; exit 1; }
-[[ "$ssl_status" == true ]] || { echo 'TLS_ENCRYPTION_GATE: FAIL (connection not encrypted)'; exit 1; }
-echo 'TLS_ENCRYPTION_GATE: PASS'
+echo 'CONNECTION_GATE: PASS (postgres; pg_stat_ssl=true)'
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$HOME/.ssh"
