@@ -46,36 +46,37 @@ jobs:
             export PGSSLMODE=require
             echo 'TLS_GATE: PASS (enforced PGSSLMODE=require)'
           fi
-          echo 'STAGE: safe connection diagnostics (no credentials or host printed)'
-          # libpq SSL requirement is passed independently of the secret URI.
-          # Capture errors privately; print only classified failures.
+          echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
           diagnostic="$(mktemp)"
-          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT=15 postgres:17 bash -c '
-            set -euo pipefail
-            result="$(psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())")"
-            [[ "$result" == "postgres|true" ]]
-          ' > /dev/null 2>"$diagnostic"; then
-            echo 'CONNECTION_GATE: PASS (postgres; pg_stat_ssl=true)'
-          else
-            if grep -Eqi 'could not translate host name|name or service not known|temporary failure in name resolution' "$diagnostic"; then
-              echo 'CONNECTION_GATE: FAIL (DNS resolution)'
-            elif grep -Eqi 'network is unreachable|no route to host' "$diagnostic"; then
-              echo 'CONNECTION_GATE: FAIL (network routing or IPv6 reachability)'
-            elif grep -Eqi 'connection timed out|timeout expired|connection refused' "$diagnostic"; then
-              echo 'CONNECTION_GATE: FAIL (TCP reachability or timeout)'
-            elif grep -Eqi 'certificate verify failed|root certificate|server certificate|hostname mismatch' "$diagnostic"; then
-              echo 'CONNECTION_GATE: FAIL (TLS certificate verification)'
-            elif grep -Eqi 'password authentication failed|authentication failed|role .* does not exist' "$diagnostic"; then
-              echo 'CONNECTION_GATE: FAIL (database authentication)'
-            elif grep -Eqi 'permission denied for view pg_stat_ssl|permission denied for relation pg_stat_ssl' "$diagnostic"; then
-              echo 'CONNECTION_GATE: FAIL (pg_stat_ssl permissions)'
+          output="$(mktemp)"
+          # psql error details are preserved, except sensitive connection identifiers.
+          # GitHub does not guarantee masking of substrings of a secret URI.
+          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT=15 postgres:17 \
+            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
+            -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
+            >"$output" 2>"$diagnostic"; then
+            if [[ "$(cat "$output")" == 'postgres|true' ]]; then
+              echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
             else
-              echo 'CONNECTION_GATE: FAIL (unclassified; raw error withheld)'
+              echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
+              rm -f "$output" "$diagnostic"
+              exit 1
             fi
-            rm -f "$diagnostic"
+          else
+            echo '=== PSQL STDERR (connection identifiers redacted) ==='
+            # Redact URI, hostnames, usernames, and IPs before logging.
+            sed -E \
+              -e 's#(postgres(ql)?://)[^[:space:]]+#\\1[REDACTED]#g' \
+              -e 's/(host|user|password|dbname)=[^[:space:]]+/\\1=[REDACTED]/g' \
+              -e 's/([[:alnum:]_-]+\\.)+(supabase\\.com|pooler\\.supabase\\.com)/[REDACTED_HOST]/g' \
+              -e 's/([0-9]{1,3}\\.){3}[0-9]{1,3}/[REDACTED_IP]/g' \
+              -e 's/(postgres\\.)?[a-z0-9]{20}/[REDACTED_ID]/g' \
+              "$diagnostic"
+            echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
+            rm -f "$output" "$diagnostic"
             exit 1
           fi
-          rm -f "$diagnostic"
+          rm -f "$output" "$diagnostic"
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
           echo 'STAGE: capture source table and row inventory (read-only)'
