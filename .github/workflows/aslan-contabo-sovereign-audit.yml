@@ -6,6 +6,7 @@ on:
       - fix/unified-v1-fixes
     paths:
       - .github/workflows/aslan-contabo-sovereign-audit.yml
+      - scripts/ops/aslan-supabase-sovereign-backup.sh
 permissions:
   contents: read
 jobs:
@@ -18,6 +19,31 @@ jobs:
           DATABASE_URL_PRESENT: ${{ secrets.SUPABASE_DB_URL != '' }}
         run: |
           if [ "$DATABASE_URL_PRESENT" = true ]; then echo 'SUPABASE_DB_URL: CONFIGURED'; else echo 'SUPABASE_DB_URL: MISSING'; fi
+      - name: Read-only PostgreSQL identity and TLS diagnostic
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${SUPABASE_DB_URL:-}" ]] || { echo 'IDENTITY_GATE: FAIL (secret missing)'; exit 1; }
+          if [[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]]; then
+            echo 'IDENTITY_GATE: PASS'
+          else
+            echo 'IDENTITY_GATE: FAIL'
+            exit 1
+          fi
+          if [[ "$SUPABASE_DB_URL" == *sslmode=verify-full* ]]; then
+            echo 'TLS_GATE: PASS (configuration)'
+          else
+            echo 'TLS_GATE: FAIL (configuration)'
+            exit 1
+          fi
+          if docker run --rm --network host -e SUPABASE_DB_URL postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select current_database()" >/dev/null' 2>/dev/null; then
+            echo 'CONNECTION_GATE: PASS (authenticated TLS handshake)'
+          else
+            echo 'CONNECTION_GATE: FAIL (connection, authentication, or TLS)'
+            exit 1
+          fi
       - name: Verify existing SSH channel and collect host inventory
         env:
           OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
