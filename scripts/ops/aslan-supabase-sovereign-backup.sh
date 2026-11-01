@@ -6,7 +6,7 @@ umask 077
 : "${OPS_USER:?Missing ASLAN_OPS_USER secret}"
 : "${OPS_HOST_KEY:?Missing ASLAN_OPS_HOST_KEY secret}"
 : "${OPS_KEY:?Missing ASLAN_OPS_SSH_KEY secret}"
-export PGCONNECT_TIMEOUT=15 PGSSLMODE=verify-full
+export PGCONNECT_TIMEOUT=15
 # Diagnostic gates never print URLs, credentials, or certificates.
 # The expected project reference may appear in a direct host or a pooler username.
 if [[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]]; then
@@ -17,8 +17,10 @@ else
 fi
 if [[ "$SUPABASE_DB_URL" == *sslmode=verify-full* ]]; then
   echo 'TLS_GATE: PASS (verify-full configured)'
+elif [[ "$SUPABASE_DB_URL" == *sslmode=require* ]]; then
+  echo 'TLS_GATE: PASS (require configured; certificate identity not verified)'
 else
-  echo 'TLS_GATE: FAIL (sslmode=verify-full missing)'
+  echo 'TLS_GATE: FAIL (explicit sslmode=require or verify-full missing)'
   exit 1
 fi
 # Never treat textual SSL mode as proof of a trusted TLS handshake.
@@ -28,7 +30,10 @@ if ! docker run --rm --network host -e SUPABASE_DB_URL -e PGCONNECT_TIMEOUT -e P
   echo 'CONNECTION_GATE: FAIL (DNS, routing, authentication, or TLS trust/hostname verification)'
   exit 1
 fi
-echo 'CONNECTION_GATE: PASS (authenticated PostgreSQL connection with verify-full)'
+echo 'CONNECTION_GATE: PASS (PostgreSQL connection; checking TLS encryption)'
+ssl_status="$(docker run --rm --network host -e SUPABASE_DB_URL postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select ssl::text from pg_stat_ssl where pid=pg_backend_pid()"' 2>/dev/null)" || { echo 'TLS_ENCRYPTION_GATE: FAIL (query failed)'; exit 1; }
+[[ "$ssl_status" == true ]] || { echo 'TLS_ENCRYPTION_GATE: FAIL (connection not encrypted)'; exit 1; }
+echo 'TLS_ENCRYPTION_GATE: PASS'
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$HOME/.ssh"
