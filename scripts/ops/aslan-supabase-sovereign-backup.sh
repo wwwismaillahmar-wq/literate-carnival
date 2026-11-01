@@ -7,10 +7,28 @@ umask 077
 : "${OPS_HOST_KEY:?Missing ASLAN_OPS_HOST_KEY secret}"
 : "${OPS_KEY:?Missing ASLAN_OPS_SSH_KEY secret}"
 export PGCONNECT_TIMEOUT=15 PGSSLMODE=verify-full
-# URL must explicitly configure sslmode=verify-full (or equivalent trusted TLS).
-# Avoid printing connection strings or dump contents.
-[[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]] || { echo 'FAIL: Supabase project identity mismatch'; exit 1; }
-[[ "$SUPABASE_DB_URL" == *sslmode=verify-full* ]] || { echo 'FAIL: require sslmode=verify-full in connection URL'; exit 1; }
+# Diagnostic gates never print URLs, credentials, or certificates.
+# The expected project reference may appear in a direct host or a pooler username.
+if [[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]]; then
+  echo 'IDENTITY_GATE: PASS (project reference present)'
+else
+  echo 'IDENTITY_GATE: FAIL (expected project reference absent)'
+  exit 1
+fi
+if [[ "$SUPABASE_DB_URL" == *sslmode=verify-full* ]]; then
+  echo 'TLS_GATE: PASS (verify-full configured)'
+else
+  echo 'TLS_GATE: FAIL (sslmode=verify-full missing)'
+  exit 1
+fi
+# Never treat textual SSL mode as proof of a trusted TLS handshake.
+# A real psql handshake below must validate the certificate and hostname.
+echo 'CONNECTION_GATE: checking authenticated TLS and source database'
+if ! docker run --rm --network host -e SUPABASE_DB_URL -e PGCONNECT_TIMEOUT -e PGSSLMODE postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select current_database()" >/dev/null' 2>/dev/null; then
+  echo 'CONNECTION_GATE: FAIL (DNS, routing, authentication, or TLS trust/hostname verification)'
+  exit 1
+fi
+echo 'CONNECTION_GATE: PASS (authenticated PostgreSQL connection with verify-full)'
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$HOME/.ssh"
