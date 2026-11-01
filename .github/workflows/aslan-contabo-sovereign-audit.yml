@@ -1,0 +1,48 @@
+name: ASLAN Contabo Sovereign Read-only Audit
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify presence of database connection secret (never reveal value)
+        env:
+          DATABASE_URL_PRESENT: ${{ secrets.SUPABASE_DB_URL != '' }}
+        run: |
+          if [ "$DATABASE_URL_PRESENT" = true ]; then echo 'SUPABASE_DB_URL: CONFIGURED'; else echo 'SUPABASE_DB_URL: MISSING'; fi
+      - name: Verify existing SSH channel and collect host inventory
+        env:
+          OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
+          OPS_USER: ${{ secrets.ASLAN_OPS_USER }}
+          OPS_KEY: ${{ secrets.ASLAN_OPS_SSH_KEY }}
+          OPS_HOST_KEY: ${{ secrets.ASLAN_OPS_HOST_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${OPS_HOST:?missing host}"
+          : "${OPS_USER:?missing user}"
+          : "${OPS_KEY:?missing SSH key}"
+          : "${OPS_HOST_KEY:?missing known host key}"
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OPS_HOST_KEY" > ~/.ssh/known_hosts
+          printf '%s\n' "$OPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 "$OPS_USER@$OPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo 'STAGE: host storage'
+          df -h
+          echo 'STAGE: memory'
+          free -m
+          echo 'STAGE: docker containers (names, image, state only)'
+          docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+          echo 'STAGE: docker volume names'
+          docker volume ls --format '{{.Name}}'
+          echo 'STAGE: container mounts (names and mount types; paths redacted)'
+          docker ps -aq | while IFS= read -r id; do
+            docker inspect --format '{{.Name}} {{range .Mounts}}{{.Type}}:{{.Name}} {{end}}' "$id"
+          done
+          REMOTE
