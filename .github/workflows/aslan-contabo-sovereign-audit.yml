@@ -1,6 +1,11 @@
 name: ASLAN Contabo Sovereign Read-only Audit
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/unified-v1-fixes
+    paths:
+      - .github/workflows/aslan-contabo-sovereign-audit.yml
 permissions:
   contents: read
 jobs:
@@ -8,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Verify presence of database connection secret (never reveal value)
+        env:
+          DATABASE_URL_PRESENT: ${{ secrets.SUPABASE_DB_URL != '' }}
+        run: |
+          if [ "$DATABASE_URL_PRESENT" = true ]; then echo 'SUPABASE_DB_URL: CONFIGURED'; else echo 'SUPABASE_DB_URL: MISSING'; fi
       - name: Verify existing SSH channel and collect host inventory
         env:
           OPS_HOST: ${{ secrets.ASLAN_OPS_HOST }}
