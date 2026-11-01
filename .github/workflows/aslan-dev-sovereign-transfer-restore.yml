@@ -46,12 +46,36 @@ jobs:
             export PGSSLMODE=require
             echo 'TLS_GATE: PASS (enforced PGSSLMODE=require)'
           fi
-          docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE postgres:17 bash -c '
+          echo 'STAGE: safe connection diagnostics (no credentials or host printed)'
+          # libpq SSL requirement is passed independently of the secret URI.
+          # Capture errors privately; print only classified failures.
+          diagnostic="$(mktemp)"
+          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT=15 postgres:17 bash -c '
             set -euo pipefail
             result="$(psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())")"
             [[ "$result" == "postgres|true" ]]
-          ' 2>/dev/null || { echo 'CONNECTION_GATE: FAIL'; exit 1; }
-          echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
+          ' > /dev/null 2>"$diagnostic"; then
+            echo 'CONNECTION_GATE: PASS (postgres; pg_stat_ssl=true)'
+          else
+            if grep -Eqi 'could not translate host name|name or service not known|temporary failure in name resolution' "$diagnostic"; then
+              echo 'CONNECTION_GATE: FAIL (DNS resolution)'
+            elif grep -Eqi 'network is unreachable|no route to host' "$diagnostic"; then
+              echo 'CONNECTION_GATE: FAIL (network routing or IPv6 reachability)'
+            elif grep -Eqi 'connection timed out|timeout expired|connection refused' "$diagnostic"; then
+              echo 'CONNECTION_GATE: FAIL (TCP reachability or timeout)'
+            elif grep -Eqi 'certificate verify failed|root certificate|server certificate|hostname mismatch' "$diagnostic"; then
+              echo 'CONNECTION_GATE: FAIL (TLS certificate verification)'
+            elif grep -Eqi 'password authentication failed|authentication failed|role .* does not exist' "$diagnostic"; then
+              echo 'CONNECTION_GATE: FAIL (database authentication)'
+            elif grep -Eqi 'permission denied for view pg_stat_ssl|permission denied for relation pg_stat_ssl' "$diagnostic"; then
+              echo 'CONNECTION_GATE: FAIL (pg_stat_ssl permissions)'
+            else
+              echo 'CONNECTION_GATE: FAIL (unclassified; raw error withheld)'
+            fi
+            rm -f "$diagnostic"
+            exit 1
+          fi
+          rm -f "$diagnostic"
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
           echo 'STAGE: capture source table and row inventory (read-only)'
