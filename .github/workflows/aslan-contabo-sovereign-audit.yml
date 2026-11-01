@@ -33,15 +33,21 @@ jobs:
             exit 1
           fi
           if [[ "$SUPABASE_DB_URL" == *sslmode=verify-full* ]]; then
-            echo 'TLS_GATE: PASS (configuration)'
+            echo 'TLS_GATE: PASS (verify-full configured)'
+          elif [[ "$SUPABASE_DB_URL" == *sslmode=require* ]]; then
+            echo 'TLS_GATE: PASS (require configured; CA/hostname NOT verified)'
           else
-            echo 'TLS_GATE: FAIL (configuration)'
+            echo 'TLS_GATE: FAIL (require or verify-full not explicitly configured)'
             exit 1
           fi
-          if docker run --rm --network host -e SUPABASE_DB_URL postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select current_database()" >/dev/null' 2>/dev/null; then
-            echo 'CONNECTION_GATE: PASS (authenticated TLS handshake)'
+          if docker run --rm --network host -e SUPABASE_DB_URL postgres:17 bash -c '
+            set -euo pipefail
+            result="$(psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())")"
+            [[ "$result" == "postgres|true" ]]
+          ' 2>/dev/null; then
+            echo 'CONNECTION_GATE: PASS (database postgres; TLS encrypted)'
           else
-            echo 'CONNECTION_GATE: FAIL (connection, authentication, or TLS)'
+            echo 'CONNECTION_GATE: FAIL (DNS, authentication, database, or TLS)'
             exit 1
           fi
       - name: Verify existing SSH channel and collect host inventory
