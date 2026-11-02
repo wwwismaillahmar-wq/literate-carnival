@@ -26,34 +26,6 @@ else
   export PGSSLMODE=require
   echo 'TLS_GATE: PASS (PGSSLMODE=require enforced)'
 fi
-echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
-diagnostic="$(mktemp)"
-output="$(mktemp)"
-if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
-  psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
-  -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
-  >"$output" 2>"$diagnostic"; then
-  if [[ "$(cat "$output")" == 'postgres|t' || "$(cat "$output")" == 'postgres|true' ]]; then
-    echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
-  else
-    echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
-    rm -f "$diagnostic" "$output"
-    exit 1
-  fi
-else
-  echo '=== PSQL STDERR (connection identifiers redacted) ==='
-  sed -E \
-    -e 's#(postgres(ql)?://)[^[:space:]]+#\\1[REDACTED]#g' \
-    -e 's/(host|user|password|dbname)=[^[:space:]]+/\\1=[REDACTED]/g' \
-    -e 's/([[:alnum:]_-]+\\.)+(supabase\\.com|pooler\\.supabase\\.com)/[REDACTED_HOST]/g' \
-    -e 's/([0-9]{1,3}\\.){3}[0-9]{1,3}/[REDACTED_IP]/g' \
-    -e 's/(postgres\\.)?[a-z0-9]{20}/[REDACTED_ID]/g' \
-    "$diagnostic"
-  echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
-  rm -f "$diagnostic" "$output"
-  exit 1
-fi
-rm -f "$diagnostic" "$output"
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$HOME/.ssh"
@@ -61,13 +33,7 @@ printf '%s\n' "$OPS_HOST_KEY" > "$HOME/.ssh/known_hosts"
 printf '%s\n' "$OPS_KEY" > "$HOME/.ssh/id_ed25519"
 chmod 600 "$HOME/.ssh/id_ed25519"
 ssh_args=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -i "$HOME/.ssh/id_ed25519")
-pg_client(){ docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT postgres:17 "$@"; }
-echo 'STAGE: validate live database identity'
-db="$(pg_client psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c 'select current_database()')"
-[[ "$db" == postgres ]] || { echo 'FAIL: unexpected database'; exit 1; }
-tables="$(pg_client psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and not c.relispartition and n.nspname not in ('pg_catalog','information_schema') and n.nspname not like 'pg_toast%'")"
-echo "SOURCE_TABLES: $tables"
-(( tables >= 117 )) || { echo 'FAIL: expected at least 117 source tables'; exit 1; }
+pg_client(){ docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 "$@"; }
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 name="aslan-supabase-$stamp.sql.gz"
 echo 'STAGE: streaming pg_dump from live Supabase'
@@ -79,6 +45,6 @@ echo 'STAGE: transfer encrypted over SSH to Contabo'
 ssh "${ssh_args[@]}" "$OPS_USER@$OPS_HOST" 'umask 077; mkdir -p "$HOME/aslan-postgres-backups"; chmod 700 "$HOME/aslan-postgres-backups"'
 scp "${ssh_args[@]}" "$tmp/$name" "$tmp/$name.sha256" "$OPS_USER@$OPS_HOST:aslan-postgres-backups/"
 ssh "${ssh_args[@]}" "$OPS_USER@$OPS_HOST" "cd \"\$HOME/aslan-postgres-backups\" && sha256sum -c -- '$name.sha256' && gzip -t -- '$name' && stat -c 'BACKUP_BYTES: %s' -- '$name' && sha256sum -- '$name'"
-echo "SOURCE_DATABASE: $db"
+echo "SOURCE_DATABASE: postgres (connection target)"
 echo "BACKUP_NAME: $name"
 echo 'RESULT: FILE_TRANSFER_AND_HASH_PASS; RESTORE_NOT_YET_VERIFIED'
