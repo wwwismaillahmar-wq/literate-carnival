@@ -105,7 +105,10 @@ class Handler(BaseHTTPRequestHandler):
     out={'answer':generate(msg),'executed':False}
    elif op=='read':out={'result':operate('read',req.get('args')),'executed':True}
    elif op=='prepare':out=prepare(req.get('action'),req.get('args'))
-   elif op=='confirm':out={'result':confirm(req.get('approval_token')),'executed':True}
+   elif op=='confirm':
+    approval_key=os.environ.get('ASLAN_APPROVER_KEY','')
+    if len(approval_key)<32 or not hmac.compare_digest(self.headers.get('X-ASLAN-Approver-Key',''),approval_key):raise PermissionError('Independent approver authorization required')
+    out={'result':confirm(req.get('approval_token')),'executed':True}
    else:raise ValueError('Unsupported operation')
    self.reply(200,out)
   except (ValueError,PermissionError,RuntimeError,KeyError,urllib.error.URLError) as e:self.reply(400,{'error':str(e),'executed':False})
@@ -117,4 +120,6 @@ if __name__=='__main__':
  for name in ('GEMINI_API_KEY','NOTION_API_KEY','ASLAN_NOTION_ROOT_PAGE_ID','ASLAN_DEV_ACCESS_KEY'):
   if not os.environ.get(name):raise SystemExit('Missing '+name)
  if len(os.environ['ASLAN_DEV_ACCESS_KEY'])<32:raise SystemExit('Dev key must be >=32 chars')
+ if os.environ.get('ASLAN_NOTION_WRITE_ENABLED')=='true':
+  if len(os.environ.get('ASLAN_APPROVER_KEY',''))<32 or hmac.compare_digest(os.environ['ASLAN_DEV_ACCESS_KEY'],os.environ['ASLAN_APPROVER_KEY']):raise SystemExit('Independent approver key required for writes')
  ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('PORT','8765'))),Handler).serve_forever()
