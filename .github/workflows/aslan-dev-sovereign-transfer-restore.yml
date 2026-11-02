@@ -56,35 +56,36 @@ jobs:
           diagnostic="$(mktemp)"
           output="$(mktemp)"
           trap 'rm -f "$diagnostic" "$output"' EXIT
+          # Verify the client-to-pooler TLS session via libpq, not pg_stat_ssl on the backend.
           if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
-            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
-            -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
+            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c 'SELECT current_database()' \
             >"$output" 2>"$diagnostic"; then
-            result="$(cat "$output")"
-            if [[ "$result" == 'postgres|t' || "$result" == 'postgres|true' ]]; then
-              echo 'CONNECTION_GATE: PASS (postgres; pg_stat_ssl=t/true)'
-            else
-              [[ "$result" == postgres\|* ]] && echo 'CONNECTION_DIAG: database=expected' || echo 'CONNECTION_DIAG: database=unexpected'
-              case "$result" in
-                *'|false'|*'|f') echo 'CONNECTION_DIAG: server_side_ssl=false' ;;
-                *) echo 'CONNECTION_DIAG: result_format_unexpected' ;;
-              esac
-              echo 'CONNECTION_GATE: FAIL (database or backend TLS state)'
-              exit 1
-            fi
+            [[ "$(cat "$output")" == 'postgres' ]] || { echo 'CONNECTION_GATE: FAIL (unexpected database)'; exit 1; }
+            echo 'CONNECTION_GATE: PASS (expected database)'
           else
-            echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
+            echo 'CONNECTION_GATE: FAIL (psql error)'
             if grep -qi 'password authentication failed' "$diagnostic"; then
               echo 'CONNECTION_DIAG: authentication_failed'
             elif grep -qi 'could not translate host name' "$diagnostic"; then
               echo 'CONNECTION_DIAG: dns_failed'
             elif grep -qi 'timeout\|timed out' "$diagnostic"; then
               echo 'CONNECTION_DIAG: timeout'
-            elif grep -qi 'does not exist' "$diagnostic"; then
-              echo 'CONNECTION_DIAG: database_or_role_missing'
             else
               echo 'CONNECTION_DIAG: other_psql_error'
             fi
+            exit 1
+          fi
+          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
+            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c '\conninfo' \
+            >"$output" 2>"$diagnostic"; then
+            if grep -q 'SSL connection' "$output"; then
+              echo 'CLIENT_TLS_GATE: PASS (libpq SSL connection)'
+            else
+              echo 'CLIENT_TLS_GATE: FAIL (libpq did not report SSL)'
+              exit 1
+            fi
+          else
+            echo 'CLIENT_TLS_GATE: FAIL (connection information unavailable)'
             exit 1
           fi
           tmp="$(mktemp -d)"
