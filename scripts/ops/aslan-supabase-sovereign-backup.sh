@@ -6,7 +6,7 @@ umask 077
 : "${OPS_USER:?Missing ASLAN_OPS_USER secret}"
 : "${OPS_HOST_KEY:?Missing ASLAN_OPS_HOST_KEY secret}"
 : "${OPS_KEY:?Missing ASLAN_OPS_SSH_KEY secret}"
-export PGCONNECT_TIMEOUT=15
+export PGCONNECT_TIMEOUT=15 PGOPTIONS='-c default_transaction_read_only=on'
 # Diagnostic gates never print URLs, credentials, or certificates.
 # The expected project reference may appear in a direct host or a pooler username.
 if [[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]]; then
@@ -29,11 +29,11 @@ fi
 echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
 diagnostic="$(mktemp)"
 output="$(mktemp)"
-if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT postgres:17 \
+if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
   psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
   -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
   >"$output" 2>"$diagnostic"; then
-  if [[ "$(cat "$output")" == 'postgres|true' ]]; then
+  if [[ "$(cat "$output")" == 'postgres|t' || "$(cat "$output")" == 'postgres|true' ]]; then
     echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
   else
     echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
