@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
   const hasLocale = ASLAN_LOCALES.some(code => code === prefix);
   const locale = hasLocale ? resolveLocale(prefix) : resolveLocale(request.cookies.get('aslan-language')?.value || request.headers.get('accept-language')?.split(',')[0]?.split('-')[0] || DEFAULT_LOCALE);
   const canonicalPath = hasLocale ? '/' + segments.slice(1).join('/') : url.pathname;
-  const normalizedPath = canonicalPath || '/';
+  const normalizedPath = canonicalPath === '/' ? '/' : canonicalPath.replace(/\\/+$/, '') || '/';
   // Preserve Next.js trailingSlash routing in the rewrite destination; rewriting
   // /en/partners/ to /partners (without the final slash) resolves to 404 in App Router.
   if (hasLocale) url.pathname = normalizedPath === '/' ? '/' : normalizedPath + '/';
