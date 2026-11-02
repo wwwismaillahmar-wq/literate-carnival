@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   sovereign:
+    if: github.ref == 'refs/heads/fix/unified-v1-fixes'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -36,333 +37,61 @@ jobs:
             [[ -n "${!name:-}" ]] || { echo "FAIL: missing $name"; exit 1; }
           done
           bash -n scripts/ops/aslan-supabase-sovereign-backup.sh
+          SUPABASE_DB_URL="$(printf '%s' "$SUPABASE_DB_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          export SUPABASE_DB_URL PGCONNECT_TIMEOUT=15
+          [[ "$SUPABASE_DB_URL" != *$'\n'* && "$SUPABASE_DB_URL" != *$'\r'* ]] || { echo 'FAIL: embedded newline in database URL'; exit 1; }
           [[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]] || { echo 'FAIL: wrong source project'; exit 1; }
-          # The URI's explicit sslmode takes precedence over PGSSLMODE.
           if [[ "$SUPABASE_DB_URL" =~ [\?\&]sslmode=([^\&]*) ]]; then
             sslmode="${BASH_REMATCH[1]}"
             case "$sslmode" in
               require|verify-ca|verify-full) echo 'TLS_GATE: PASS (explicit safe mode)' ;;
-              *) echo 'TLS_GATE: FAIL (malformed or unsafe explicit sslmode)'; exit 1 ;;
+              *) echo 'TLS_GATE: FAIL (malformed or unsafe sslmode)'; exit 1 ;;
             esac
           else
             export PGSSLMODE=require
             echo 'TLS_GATE: PASS (enforced PGSSLMODE=require)'
           fi
-          echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
+          export PGOPTIONS='-c default_transaction_read_only=on'
+          echo 'STAGE: Diagnostic Connection Test'
           diagnostic="$(mktemp)"
           output="$(mktemp)"
-          # psql error details are preserved, except sensitive connection identifiers.
-          # GitHub does not guarantee masking of substrings of a secret URI.
-          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT=15 postgres:17 \
+          trap 'rm -f "$diagnostic" "$output"' EXIT
+          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
             psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
             -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
             >"$output" 2>"$diagnostic"; then
-            if [[ "$(cat "$output")" == 'postgres|true' ]]; then
-              echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
+            result="$(cat "$output")"
+            if [[ "$result" == 'postgres|t' || "$result" == 'postgres|true' ]]; then
+              echo 'CONNECTION_GATE: PASS (postgres; pg_stat_ssl=t/true)'
             else
-              # Only show classifications; never print the raw query result.
-              result="$(cat "$output")"
-              if [[ "$result" == postgres\|* ]]; then
-                echo 'CONNECTION_DIAG: database_name=expected'
-              else
-                echo 'CONNECTION_DIAG: database_name=unexpected'
-              fi
+              [[ "$result" == postgres\|* ]] && echo 'CONNECTION_DIAG: database=expected' || echo 'CONNECTION_DIAG: database=unexpected'
               case "$result" in
-                *'|true') echo 'CONNECTION_DIAG: ssl=true' ;;
-                *'|false') echo 'CONNECTION_DIAG: ssl=false' ;;
-                *'|t') echo 'CONNECTION_DIAG: ssl=t' ;;
-                *'|f') echo 'CONNECTION_DIAG: ssl=f' ;;
-                *) echo 'CONNECTION_DIAG: ssl=unexpected_or_extra_output' ;;
+                *'|false'|*'|f') echo 'CONNECTION_DIAG: server_side_ssl=false' ;;
+                *) echo 'CONNECTION_DIAG: result_format_unexpected' ;;
               esac
-              echo "CONNECTION_DIAG: output_bytes=${#result}"
-              echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
-              rm -f "$output" "$diagnostic"
+              echo 'CONNECTION_GATE: FAIL (database or backend TLS state)'
               exit 1
             fi
           else
-            echo '=== PSQL STDERR (connection identifiers redacted) ==='
-            # Redact URI, hostnames, usernames, and IPs before logging.
-            sed -E \
-              -e 's#(postgres(ql)?://)[^[:space:]]+#\\1[REDACTED]#g' \
-              -e 's/(host|user|password|dbname)=[^[:space:]]+/\\1=[REDACTED]/g' \
-              -e 's/([[:alnum:]_-]+\\.)+(supabase\\.com|pooler\\.supabase\\.com)/[REDACTED_HOST]/g' \
-              -e 's/([0-9]{1,3}\\.){3}[0-9]{1,3}/[REDACTED_IP]/g' \
-              -e 's/(postgres\\.)?[a-z0-9]{20}/[REDACTED_ID]/g' \
-              "$diagnostic"
             echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
-            rm -f "$output" "$diagnostic"
-            exit 1
-          fi
-          rm -f "$output" "$diagnostic"
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          echo 'STAGE: capture source table and row inventory (read-only)'
-          docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1' > "$tmp/source.tsv" <<'SQL'
-          SELECT format('SELECT %L, %L, count(*) FROM %I.%I;', n.nspname,c.relname,n.nspname,c.relname)
-          FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-          WHERE c.relkind IN ('r','p') AND NOT c.relispartition
-            AND n.nspname IN ('public','auth','storage','realtime','cron','net','vault','supabase_migrations')
-          ORDER BY n.nspname,c.relname;
-          \gexec
-          SQL
-          sed -i 's/|/\t/g' "$tmp/source.tsv"
-          source_tables="$(wc -l < "$tmp/source.tsv")"
-          source_schemas="$(cut -f1 "$tmp/source.tsv" | sort -u | wc -l)"
-          source_rows="$(awk -F '\t' '{s+=$3} END {printf "%.0f",s}' "$tmp/source.tsv")"
-          echo "SOURCE_TABLES: $source_tables"
-          echo "SOURCE_SCHEMAS: $source_schemas"
-          echo "SOURCE_TOTAL_ROWS: $source_rows"
-          [[ "$source_tables" -eq 117 && "$source_schemas" -eq 8 && "$source_rows" -gt 0 ]] || { echo 'FAIL: source inventory gate'; exit 1; }
-          echo 'STAGE: actual Supabase dump and SHA-256 verified SSH transfer'
-          bash scripts/ops/aslan-supabase-sovereign-backup.sh | tee "$tmp/backup.log"
-          grep -q 'RESULT: FILE_TRANSFER_AND_HASH_PASS' "$tmp/backup.log" || { echo 'FAIL: backup gate'; exit 1; }
-          backup="$(sed -n 's/^BACKUP_NAME: //p' "$tmp/backup.log" | tail -1)"
-          [[ "$backup" =~ ^aslan-supabase-[0-9]{8}T[0-9]{6}Z\.sql\.gz$ ]] || { echo 'FAIL: invalid backup name'; exit 1; }
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$OPS_HOST_KEY" > "$HOME/.ssh/known_hosts"
-          printf '%s\n' "$OPS_KEY" > "$HOME/.ssh/id_ed25519"
-          chmod 600 "$HOME/.ssh/id_ed25519"
-          ssh_args=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -i "$HOME/.ssh/id_ed25519")
-          scp "${ssh_args[@]}" "$tmp/source.tsv" "$OPS_USER@$OPS_HOST:aslan-postgres-backups/$backup.source.tsv"
-          echo 'STAGE: isolated Contabo restore, strict table/row comparison and cleanup'
-          ssh "${ssh_args[@]}" "$OPS_USER@$OPS_HOST" "BACKUP='$backup' bash -s" <<'REMOTE'
-          set -euo pipefail
-          umask 077
-          cd "$HOME/aslan-postgres-backups"
-          test -s "$BACKUP" && test -s "$BACKUP.source.tsv"
-          sha256sum -c "$BACKUP.sha256"
-          gzip -t "$BACKUP"
-          stat -c 'BACKUP_BYTES: %s' "$BACKUP"
-          sha256sum "$BACKUP"
-          test_name=aslan-postgres-test
-          test_volume=aslan-postgres-test-data
-          if docker container inspect "$test_name" >/dev/null 2>&1 || docker volume inspect "$test_volume" >/dev/null 2>&1; then
-            echo 'FAIL: preexisting isolated test resources; refusing to touch them'
-            exit 1
-          fi
-          cleanup(){
-            rc=$?
-            docker rm -f "$test_name" >/dev/null 2>&1 || true
-            docker volume rm "$test_volume" >/dev/null 2>&1 || true
-            rm -f -- "$BACKUP.source.tsv"
-            exit "$rc"
-          }
-          trap cleanup EXIT
-          docker volume create "$test_volume" >/dev/null
-          password="$(head -c 48 /dev/urandom | base64 | tr -d '\n')"
-          docker run -d --name "$test_name" --network none --mount "type=volume,source=$test_volume,target=/var/lib/postgresql/data" -e POSTGRES_PASSWORD="$password" -e POSTGRES_USER=postgres -e POSTGRES_DB=postgres postgres:17 >/dev/null
-          unset password
-          ready=0
-          for i in $(seq 1 90); do
-            if docker exec "$test_name" pg_isready -U postgres -d postgres >/dev/null 2>&1; then ready=1; break; fi
-            sleep 2
-          done
-          [[ "$ready" -eq 1 ]] || { echo 'FAIL: isolated PostgreSQL not ready'; exit 1; }
-          if ! gzip -cd "$BACKUP" | docker exec -i "$test_name" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres >/dev/null; then
-            echo 'FAIL: SQL restore error'
-            exit 1
-          fi
-          restored="$(mktemp)"
-          trap 'rm -f "$restored"; cleanup' EXIT
-          docker exec -i "$test_name" psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres > "$restored" <<'SQL'
-          SELECT format('SELECT %L, %L, count(*) FROM %I.%I;', n.nspname,c.relname,n.nspname,c.relname)
-          FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-          WHERE c.relkind IN ('r','p') AND NOT c.relispartition
-            AND n.nspname IN ('public','auth','storage','realtime','cron','net','vault','supabase_migrations')
-          ORDER BY n.nspname,c.relname;
-          \gexec
-          SQL
-          sed -i 's/|/\t/g' "$restored"
-          src_tables="$(wc -l < "$BACKUP.source.tsv")"
-          dst_tables="$(wc -l < "$restored")"
-          src_schemas="$(cut -f1 "$BACKUP.source.tsv" | sort -u | wc -l)"
-          dst_schemas="$(cut -f1 "$restored" | sort -u | wc -l)"
-          src_rows="$(awk -F '\t' '{s+=$3} END {printf "%.0f",s}' "$BACKUP.source.tsv")"
-          dst_rows="$(awk -F '\t' '{s+=$3} END {printf "%.0f",s}' "$restored")"
-          echo "SOURCE_TABLES: $src_tables RESTORED_TABLES: $dst_tables"
-          echo "SOURCE_SCHEMAS: $src_schemas RESTORED_SCHEMAS: $dst_schemas"
-          echo "SOURCE_TOTAL_ROWS: $src_rows RESTORED_TOTAL_ROWS: $dst_rows"
-          [[ "$src_tables" -eq 117 && "$dst_tables" -eq 117 && "$src_schemas" -eq 8 && "$dst_schemas" -eq 8 && "$src_rows" -gt 0 && "$dst_rows" -gt 0 ]] || { echo 'FAIL: numerical gate'; exit 1; }
-          diff -u <(LC_ALL=C sort "$BACKUP.source.tsv") <(LC_ALL=C sort "$restored") >/dev/null || { echo 'FAIL: per-table counts differ'; exit 1; }
-          echo 'RESULT: PASS; SQL_RESTORE_AND_117_TABLE_ROW_PARITY'
-          REMOTE
-\\n'* ]] && echo 'TLS_DIAG: newline present in sslmode' || true
-              [[ "$sslmode" == *
-            fi
-          else
-            export PGSSLMODE=require
-            echo 'TLS_GATE: PASS (enforced PGSSLMODE=require)'
-          fi
-          echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
-          diagnostic="$(mktemp)"
-          output="$(mktemp)"
-          # psql error details are preserved, except sensitive connection identifiers.
-          # GitHub does not guarantee masking of substrings of a secret URI.
-          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT=15 postgres:17 \
-            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
-            -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
-            >"$output" 2>"$diagnostic"; then
-            if [[ "$(cat "$output")" == 'postgres|true' ]]; then
-              echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
+            if grep -qi 'password authentication failed' "$diagnostic"; then
+              echo 'CONNECTION_DIAG: authentication_failed'
+            elif grep -qi 'could not translate host name' "$diagnostic"; then
+              echo 'CONNECTION_DIAG: dns_failed'
+            elif grep -qi 'timeout\|timed out' "$diagnostic"; then
+              echo 'CONNECTION_DIAG: timeout'
+            elif grep -qi 'does not exist' "$diagnostic"; then
+              echo 'CONNECTION_DIAG: database_or_role_missing'
             else
-              echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
-              rm -f "$output" "$diagnostic"
-              exit 1
+              echo 'CONNECTION_DIAG: other_psql_error'
             fi
-          else
-            echo '=== PSQL STDERR (connection identifiers redacted) ==='
-            # Redact URI, hostnames, usernames, and IPs before logging.
-            sed -E \
-              -e 's#(postgres(ql)?://)[^[:space:]]+#\\1[REDACTED]#g' \
-              -e 's/(host|user|password|dbname)=[^[:space:]]+/\\1=[REDACTED]/g' \
-              -e 's/([[:alnum:]_-]+\\.)+(supabase\\.com|pooler\\.supabase\\.com)/[REDACTED_HOST]/g' \
-              -e 's/([0-9]{1,3}\\.){3}[0-9]{1,3}/[REDACTED_IP]/g' \
-              -e 's/(postgres\\.)?[a-z0-9]{20}/[REDACTED_ID]/g' \
-              "$diagnostic"
-            echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
-            rm -f "$output" "$diagnostic"
             exit 1
           fi
-          rm -f "$output" "$diagnostic"
           tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
+          trap 'rm -f "$diagnostic" "$output"; rm -rf "$tmp"' EXIT
           echo 'STAGE: capture source table and row inventory (read-only)'
-          docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1' > "$tmp/source.tsv" <<'SQL'
-          SELECT format('SELECT %L, %L, count(*) FROM %I.%I;', n.nspname,c.relname,n.nspname,c.relname)
-          FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-          WHERE c.relkind IN ('r','p') AND NOT c.relispartition
-            AND n.nspname IN ('public','auth','storage','realtime','cron','net','vault','supabase_migrations')
-          ORDER BY n.nspname,c.relname;
-          \gexec
-          SQL
-          sed -i 's/|/\t/g' "$tmp/source.tsv"
-          source_tables="$(wc -l < "$tmp/source.tsv")"
-          source_schemas="$(cut -f1 "$tmp/source.tsv" | sort -u | wc -l)"
-          source_rows="$(awk -F '\t' '{s+=$3} END {printf "%.0f",s}' "$tmp/source.tsv")"
-          echo "SOURCE_TABLES: $source_tables"
-          echo "SOURCE_SCHEMAS: $source_schemas"
-          echo "SOURCE_TOTAL_ROWS: $source_rows"
-          [[ "$source_tables" -eq 117 && "$source_schemas" -eq 8 && "$source_rows" -gt 0 ]] || { echo 'FAIL: source inventory gate'; exit 1; }
-          echo 'STAGE: actual Supabase dump and SHA-256 verified SSH transfer'
-          bash scripts/ops/aslan-supabase-sovereign-backup.sh | tee "$tmp/backup.log"
-          grep -q 'RESULT: FILE_TRANSFER_AND_HASH_PASS' "$tmp/backup.log" || { echo 'FAIL: backup gate'; exit 1; }
-          backup="$(sed -n 's/^BACKUP_NAME: //p' "$tmp/backup.log" | tail -1)"
-          [[ "$backup" =~ ^aslan-supabase-[0-9]{8}T[0-9]{6}Z\.sql\.gz$ ]] || { echo 'FAIL: invalid backup name'; exit 1; }
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$OPS_HOST_KEY" > "$HOME/.ssh/known_hosts"
-          printf '%s\n' "$OPS_KEY" > "$HOME/.ssh/id_ed25519"
-          chmod 600 "$HOME/.ssh/id_ed25519"
-          ssh_args=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -i "$HOME/.ssh/id_ed25519")
-          scp "${ssh_args[@]}" "$tmp/source.tsv" "$OPS_USER@$OPS_HOST:aslan-postgres-backups/$backup.source.tsv"
-          echo 'STAGE: isolated Contabo restore, strict table/row comparison and cleanup'
-          ssh "${ssh_args[@]}" "$OPS_USER@$OPS_HOST" "BACKUP='$backup' bash -s" <<'REMOTE'
-          set -euo pipefail
-          umask 077
-          cd "$HOME/aslan-postgres-backups"
-          test -s "$BACKUP" && test -s "$BACKUP.source.tsv"
-          sha256sum -c "$BACKUP.sha256"
-          gzip -t "$BACKUP"
-          stat -c 'BACKUP_BYTES: %s' "$BACKUP"
-          sha256sum "$BACKUP"
-          test_name=aslan-postgres-test
-          test_volume=aslan-postgres-test-data
-          if docker container inspect "$test_name" >/dev/null 2>&1 || docker volume inspect "$test_volume" >/dev/null 2>&1; then
-            echo 'FAIL: preexisting isolated test resources; refusing to touch them'
-            exit 1
-          fi
-          cleanup(){
-            rc=$?
-            docker rm -f "$test_name" >/dev/null 2>&1 || true
-            docker volume rm "$test_volume" >/dev/null 2>&1 || true
-            rm -f -- "$BACKUP.source.tsv"
-            exit "$rc"
-          }
-          trap cleanup EXIT
-          docker volume create "$test_volume" >/dev/null
-          password="$(head -c 48 /dev/urandom | base64 | tr -d '\n')"
-          docker run -d --name "$test_name" --network none --mount "type=volume,source=$test_volume,target=/var/lib/postgresql/data" -e POSTGRES_PASSWORD="$password" -e POSTGRES_USER=postgres -e POSTGRES_DB=postgres postgres:17 >/dev/null
-          unset password
-          ready=0
-          for i in $(seq 1 90); do
-            if docker exec "$test_name" pg_isready -U postgres -d postgres >/dev/null 2>&1; then ready=1; break; fi
-            sleep 2
-          done
-          [[ "$ready" -eq 1 ]] || { echo 'FAIL: isolated PostgreSQL not ready'; exit 1; }
-          if ! gzip -cd "$BACKUP" | docker exec -i "$test_name" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres >/dev/null; then
-            echo 'FAIL: SQL restore error'
-            exit 1
-          fi
-          restored="$(mktemp)"
-          trap 'rm -f "$restored"; cleanup' EXIT
-          docker exec -i "$test_name" psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres > "$restored" <<'SQL'
-          SELECT format('SELECT %L, %L, count(*) FROM %I.%I;', n.nspname,c.relname,n.nspname,c.relname)
-          FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-          WHERE c.relkind IN ('r','p') AND NOT c.relispartition
-            AND n.nspname IN ('public','auth','storage','realtime','cron','net','vault','supabase_migrations')
-          ORDER BY n.nspname,c.relname;
-          \gexec
-          SQL
-          sed -i 's/|/\t/g' "$restored"
-          src_tables="$(wc -l < "$BACKUP.source.tsv")"
-          dst_tables="$(wc -l < "$restored")"
-          src_schemas="$(cut -f1 "$BACKUP.source.tsv" | sort -u | wc -l)"
-          dst_schemas="$(cut -f1 "$restored" | sort -u | wc -l)"
-          src_rows="$(awk -F '\t' '{s+=$3} END {printf "%.0f",s}' "$BACKUP.source.tsv")"
-          dst_rows="$(awk -F '\t' '{s+=$3} END {printf "%.0f",s}' "$restored")"
-          echo "SOURCE_TABLES: $src_tables RESTORED_TABLES: $dst_tables"
-          echo "SOURCE_SCHEMAS: $src_schemas RESTORED_SCHEMAS: $dst_schemas"
-          echo "SOURCE_TOTAL_ROWS: $src_rows RESTORED_TOTAL_ROWS: $dst_rows"
-          [[ "$src_tables" -eq 117 && "$dst_tables" -eq 117 && "$src_schemas" -eq 8 && "$dst_schemas" -eq 8 && "$src_rows" -gt 0 && "$dst_rows" -gt 0 ]] || { echo 'FAIL: numerical gate'; exit 1; }
-          diff -u <(LC_ALL=C sort "$BACKUP.source.tsv") <(LC_ALL=C sort "$restored") >/dev/null || { echo 'FAIL: per-table counts differ'; exit 1; }
-          echo 'RESULT: PASS; SQL_RESTORE_AND_117_TABLE_ROW_PARITY'
-          REMOTE
-\\r'* ]] && echo 'TLS_DIAG: carriage-return present in sslmode' || true
-              [[ "$sslmode" == *[[:space:]]* ]] && echo 'TLS_DIAG: whitespace present in sslmode' || true
-              [[ "$sslmode" == *'?'* ]] && echo 'TLS_DIAG: unexpected question-mark in sslmode' || true
-              [[ "$sslmode" == *'%'* ]] && echo 'TLS_DIAG: percent-encoding present in sslmode' || true
-              [[ "$sslmode" ==*'...'* ]] && echo 'TLS_DIAG: ellipsis present in sslmode' || true
-              echo 'TLS_GATE: FAIL (explicit sslmode not exactly permitted; secret not printed)'
-              exit 1
-            fi
-          else
-            export PGSSLMODE=require
-            echo 'TLS_GATE: PASS (enforced PGSSLMODE=require)'
-          fi
-          echo 'STAGE: Diagnostic Connection Test (psql stderr, credential-safe)'
-          diagnostic="$(mktemp)"
-          output="$(mktemp)"
-          # psql error details are preserved, except sensitive connection identifiers.
-          # GitHub does not guarantee masking of substrings of a secret URI.
-          if docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT=15 postgres:17 \
-            psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 \
-            -c "SELECT current_database() || chr(124) || (SELECT ssl::text FROM pg_stat_ssl WHERE pid=pg_backend_pid())" \
-            >"$output" 2>"$diagnostic"; then
-            if [[ "$(cat "$output")" == 'postgres|true' ]]; then
-              echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
-            else
-              echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
-              rm -f "$output" "$diagnostic"
-              exit 1
-            fi
-          else
-            echo '=== PSQL STDERR (connection identifiers redacted) ==='
-            # Redact URI, hostnames, usernames, and IPs before logging.
-            sed -E \
-              -e 's#(postgres(ql)?://)[^[:space:]]+#\\1[REDACTED]#g' \
-              -e 's/(host|user|password|dbname)=[^[:space:]]+/\\1=[REDACTED]/g' \
-              -e 's/([[:alnum:]_-]+\\.)+(supabase\\.com|pooler\\.supabase\\.com)/[REDACTED_HOST]/g' \
-              -e 's/([0-9]{1,3}\\.){3}[0-9]{1,3}/[REDACTED_IP]/g' \
-              -e 's/(postgres\\.)?[a-z0-9]{20}/[REDACTED_ID]/g' \
-              "$diagnostic"
-            echo 'CONNECTION_GATE: FAIL (psql returned nonzero)'
-            rm -f "$output" "$diagnostic"
-            exit 1
-          fi
-          rm -f "$output" "$diagnostic"
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          echo 'STAGE: capture source table and row inventory (read-only)'
-          docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE postgres:17 bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1' > "$tmp/source.tsv" <<'SQL'
+          docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
+            bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1' > "$tmp/source.tsv" <<'SQL'
           SELECT format('SELECT %L, %L, count(*) FROM %I.%I;', n.nspname,c.relname,n.nspname,c.relname)
           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
           WHERE c.relkind IN ('r','p') AND NOT c.relispartition
