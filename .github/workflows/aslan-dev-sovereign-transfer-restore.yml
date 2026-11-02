@@ -37,16 +37,13 @@ jobs:
           done
           bash -n scripts/ops/aslan-supabase-sovereign-backup.sh
           [[ "$SUPABASE_DB_URL" == *zyenfobyorjfwkdgeube* ]] || { echo 'FAIL: wrong source project'; exit 1; }
-          # Do not override unsafe explicit URI sslmode: libpq URI wins over PGSSLMODE.
-          # Diagnose malformed values without exposing the connection string.
+          # The URI's explicit sslmode takes precedence over PGSSLMODE.
           if [[ "$SUPABASE_DB_URL" =~ [\?\&]sslmode=([^\&]*) ]]; then
             sslmode="${BASH_REMATCH[1]}"
-            if [[ "$sslmode" == "require" || "$sslmode" == "verify-ca" || "$sslmode" == "verify-full" ]]; then
-              echo 'TLS_GATE: PASS (explicit safe mode)'
-            else
-              # Report only classifications, never the secret or extracted value.
-              [[ "$sslmode" == *
-            fi
+            case "$sslmode" in
+              require|verify-ca|verify-full) echo 'TLS_GATE: PASS (explicit safe mode)' ;;
+              *) echo 'TLS_GATE: FAIL (malformed or unsafe explicit sslmode)'; exit 1 ;;
+            esac
           else
             export PGSSLMODE=require
             echo 'TLS_GATE: PASS (enforced PGSSLMODE=require)'
@@ -63,6 +60,21 @@ jobs:
             if [[ "$(cat "$output")" == 'postgres|true' ]]; then
               echo 'CONNECTION_GATE: PASS (pg_stat_ssl=true)'
             else
+              # Only show classifications; never print the raw query result.
+              result="$(cat "$output")"
+              if [[ "$result" == postgres\|* ]]; then
+                echo 'CONNECTION_DIAG: database_name=expected'
+              else
+                echo 'CONNECTION_DIAG: database_name=unexpected'
+              fi
+              case "$result" in
+                *'|true') echo 'CONNECTION_DIAG: ssl=true' ;;
+                *'|false') echo 'CONNECTION_DIAG: ssl=false' ;;
+                *'|t') echo 'CONNECTION_DIAG: ssl=t' ;;
+                *'|f') echo 'CONNECTION_DIAG: ssl=f' ;;
+                *) echo 'CONNECTION_DIAG: ssl=unexpected_or_extra_output' ;;
+              esac
+              echo "CONNECTION_DIAG: output_bytes=${#result}"
               echo 'CONNECTION_GATE: FAIL (unexpected database or TLS state)'
               rm -f "$output" "$diagnostic"
               exit 1
