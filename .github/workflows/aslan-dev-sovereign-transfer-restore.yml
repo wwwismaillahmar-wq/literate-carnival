@@ -91,13 +91,13 @@ jobs:
           tmp="$(mktemp -d)"
           trap 'rm -f "$diagnostic" "$output"; rm -rf "$tmp"' EXIT
           echo 'STAGE: capture source table and row inventory (read-only)'
-          docker run --rm --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
+          docker run --rm -i --network host -e SUPABASE_DB_URL -e PGSSLMODE -e PGCONNECT_TIMEOUT -e PGOPTIONS postgres:17 \
             bash -c 'psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1' > "$tmp/source.tsv" <<'SQL'
           SELECT format('SELECT %L, %L, count(*) FROM %I.%I;', n.nspname,c.relname,n.nspname,c.relname)
           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
           WHERE c.relkind IN ('r','p') AND NOT c.relispartition
             AND n.nspname IN ('public','auth','storage','realtime','cron','net','vault','supabase_migrations')
-          ORDER BY n.nspname,c.relname;
+          ORDER BY n.nspname,c.relname
           \gexec
           SQL
           sed -i 's/|/\t/g' "$tmp/source.tsv"
@@ -164,7 +164,7 @@ jobs:
           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
           WHERE c.relkind IN ('r','p') AND NOT c.relispartition
             AND n.nspname IN ('public','auth','storage','realtime','cron','net','vault','supabase_migrations')
-          ORDER BY n.nspname,c.relname;
+          ORDER BY n.nspname,c.relname
           \gexec
           SQL
           sed -i 's/|/\t/g' "$restored"
